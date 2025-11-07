@@ -74,12 +74,12 @@ const CreateTournament = () => {
                   <SelectTrigger id="participants" className="bg-secondary/50">
                     <SelectValue placeholder="Select number of participants" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="4">4</SelectItem>
-                    <SelectItem value="8">8</SelectItem>
-                    <SelectItem value="16">16</SelectItem>
-                    <SelectItem value="32">32</SelectItem>
-                    <SelectItem value="64">64</SelectItem>
+                  <SelectContent className="bg-background">
+                    {Array.from({ length: 64 }, (_, i) => i + 1).map((num) => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
