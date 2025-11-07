@@ -24,12 +24,12 @@ export const Hero = () => {
         <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold mb-6 glow-text-primary">
           Organize Epic
           <br />
-          <span className="text-accent glow-text-accent">Tournaments</span>
+          <span className="text-accent glow-text-accent">Bike Polo Tournaments</span>
         </h1>
         
         <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto">
-          Create, manage, and track competitive tournaments with ease. 
-          The modern platform for esports organizers and gaming communities.
+          Create, manage, and track bike polo tournaments with ease. 
+          The modern platform for bike polo organizers and communities.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">

@@ -8,7 +8,7 @@ export const Navigation = () => {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-bold text-xl">
           <Trophy className="h-6 w-6 text-primary" />
-          <span className="glow-text-primary">BracketPro</span>
+          <span className="glow-text-primary">Bike Polo Tournament</span>
         </Link>
         
         <div className="flex items-center gap-4">
