@@ -201,98 +201,11 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
 
       if (error) throw error;
 
-      // Mettre à jour les statistiques des équipes
-      await updateTeamStats(match.team1_id, match.team2_id, team1Score, team2Score);
-
       toast.success("Score enregistré !");
       setEditingMatchId(null);
       fetchMatches();
     } catch (error: any) {
       toast.error(error.message);
-    }
-  };
-
-  const updateTeamStats = async (team1Id: string, team2Id: string, team1Score: number, team2Score: number) => {
-    try {
-      // Déterminer le résultat
-      const team1Result = team1Score > team2Score ? 'win' : team1Score < team2Score ? 'loss' : 'draw';
-      const team2Result = team2Score > team1Score ? 'win' : team2Score < team1Score ? 'loss' : 'draw';
-
-      // Calculer les points (3 pour victoire, 1 pour nul, 0 pour défaite)
-      const team1Points = team1Result === 'win' ? 3 : team1Result === 'draw' ? 1 : 0;
-      const team2Points = team2Result === 'win' ? 3 : team2Result === 'draw' ? 1 : 0;
-
-      // Mise à jour pour team1
-      const { data: team1Stats } = await supabase
-        .from("team_stats")
-        .select("*")
-        .eq("tournament_id", tournamentId)
-        .eq("team_id", team1Id)
-        .maybeSingle();
-
-      if (team1Stats) {
-        await supabase
-          .from("team_stats")
-          .update({
-            wins: team1Stats.wins + (team1Result === 'win' ? 1 : 0),
-            losses: team1Stats.losses + (team1Result === 'loss' ? 1 : 0),
-            draws: team1Stats.draws + (team1Result === 'draw' ? 1 : 0),
-            goals_for: team1Stats.goals_for + team1Score,
-            goals_against: team1Stats.goals_against + team2Score,
-            points: team1Stats.points + team1Points,
-          })
-          .eq("id", team1Stats.id);
-      } else {
-        await supabase
-          .from("team_stats")
-          .insert({
-            tournament_id: tournamentId,
-            team_id: team1Id,
-            wins: team1Result === 'win' ? 1 : 0,
-            losses: team1Result === 'loss' ? 1 : 0,
-            draws: team1Result === 'draw' ? 1 : 0,
-            goals_for: team1Score,
-            goals_against: team2Score,
-            points: team1Points,
-          });
-      }
-
-      // Mise à jour pour team2
-      const { data: team2Stats } = await supabase
-        .from("team_stats")
-        .select("*")
-        .eq("tournament_id", tournamentId)
-        .eq("team_id", team2Id)
-        .maybeSingle();
-
-      if (team2Stats) {
-        await supabase
-          .from("team_stats")
-          .update({
-            wins: team2Stats.wins + (team2Result === 'win' ? 1 : 0),
-            losses: team2Stats.losses + (team2Result === 'loss' ? 1 : 0),
-            draws: team2Stats.draws + (team2Result === 'draw' ? 1 : 0),
-            goals_for: team2Stats.goals_for + team2Score,
-            goals_against: team2Stats.goals_against + team1Score,
-            points: team2Stats.points + team2Points,
-          })
-          .eq("id", team2Stats.id);
-      } else {
-        await supabase
-          .from("team_stats")
-          .insert({
-            tournament_id: tournamentId,
-            team_id: team2Id,
-            wins: team2Result === 'win' ? 1 : 0,
-            losses: team2Result === 'loss' ? 1 : 0,
-            draws: team2Result === 'draw' ? 1 : 0,
-            goals_for: team2Score,
-            goals_against: team1Score,
-            points: team2Points,
-          });
-      }
-    } catch (error: any) {
-      console.error("Error updating team stats:", error);
     }
   };
 
