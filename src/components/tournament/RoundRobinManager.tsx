@@ -55,6 +55,9 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
         return;
       }
 
+      // Determine which round to generate
+      const roundToGenerate = matches.length === 0 ? currentRound : currentRound + 1;
+
       // Fetch current stats to group teams by results
       const { data: stats, error: statsError } = await supabase
         .from("team_stats")
@@ -74,7 +77,7 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
         newMatches.push({
           tournament_id: tournamentId,
           phase: "round_robin",
-          round_number: currentRound + 1,
+          round_number: roundToGenerate,
           team1_id: shuffled[i],
           team2_id: shuffled[i + 1],
         });
@@ -86,8 +89,12 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
 
       if (insertError) throw insertError;
 
-      toast.success(`Round ${currentRound + 1} généré !`);
-      setCurrentRound(currentRound + 1);
+      toast.success(`Round ${roundToGenerate} généré !`);
+      if (roundToGenerate > currentRound) {
+        setCurrentRound(roundToGenerate);
+      } else {
+        fetchMatches();
+      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -125,7 +132,7 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Round {currentRound}</h2>
           <Button onClick={generateNextRound} disabled={loading}>
-            Générer le Round {currentRound + 1}
+            {matches.length === 0 ? `Générer le Round ${currentRound}` : `Générer le Round ${currentRound + 1}`}
           </Button>
         </div>
 
