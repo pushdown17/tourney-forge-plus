@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,25 +7,63 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const CreateTournament = () => {
   const navigate = useNavigate();
   const [tournamentName, setTournamentName] = useState("");
-  const [format, setFormat] = useState("single-elimination");
-  const [participants, setParticipants] = useState("");
+  const [format, setFormat] = useState<"round-robin" | "single" | "double">("round-robin");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [teamsForElimination, setTeamsForElimination] = useState("16");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Vous devez être connecté pour créer un tournoi");
+        navigate("/auth");
+      }
+    };
+    checkAuth();
+  }, [navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     
-    if (!tournamentName || !participants) {
-      toast.error("Please fill in all fields");
-      return;
-    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Vous devez être connecté");
+        navigate("/auth");
+        return;
+      }
 
-    toast.success("Tournament created successfully!");
-    setTimeout(() => {
-      navigate("/bracket-demo");
-    }, 1000);
+      const { data, error } = await supabase
+        .from("tournaments")
+        .insert({
+          name: tournamentName,
+          start_date: startDate,
+          end_date: endDate,
+          current_phase: "round_robin",
+          elimination_type: format === "round-robin" ? null : format,
+          teams_for_elimination: format === "round-robin" ? null : parseInt(teamsForElimination),
+          created_by: session.user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success("Tournoi créé avec succès !");
+      navigate(`/tournament/${data.id}`);
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,57 +73,85 @@ const CreateTournament = () => {
       <main className="container mx-auto px-4 pt-32 pb-16">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 text-center glow-text-primary">
-            Create Tournament
+            Créer un tournoi
           </h1>
           <p className="text-muted-foreground text-center mb-12">
-            Set up your tournament in minutes
+            Configurez votre tournoi hybride Round Robin + Élimination
           </p>
 
           <Card className="glass-card p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Tournament Name</Label>
+                <Label htmlFor="name">Nom du tournoi</Label>
                 <Input
                   id="name"
-                  placeholder="e.g., Summer Championship 2024"
+                  placeholder="ex: Championnat d'été 2024"
                   value={tournamentName}
                   onChange={(e) => setTournamentName(e.target.value)}
                   className="bg-secondary/50"
+                  required
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Date de début</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="bg-secondary/50"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">Date de fin</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="bg-secondary/50"
+                    required
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="format">Format</Label>
-                <Select value={format} onValueChange={setFormat}>
+                <Label htmlFor="format">Format de la phase finale</Label>
+                <Select value={format} onValueChange={(val: any) => setFormat(val)}>
                   <SelectTrigger id="format" className="bg-secondary/50">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="single-elimination">Single Elimination</SelectItem>
-                    <SelectItem value="double-elimination">Double Elimination</SelectItem>
-                    <SelectItem value="round-robin">Round Robin</SelectItem>
+                    <SelectItem value="round-robin">Round Robin uniquement</SelectItem>
+                    <SelectItem value="single">Round Robin + Simple Élimination</SelectItem>
+                    <SelectItem value="double">Round Robin + Double Élimination</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="participants">Number of Participants</Label>
-                <Select value={participants} onValueChange={setParticipants}>
-                  <SelectTrigger id="participants" className="bg-secondary/50">
-                    <SelectValue placeholder="Select number of participants" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background">
-                    {Array.from({ length: 64 }, (_, i) => i + 1).map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        {num}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {format !== "round-robin" && (
+                <div className="space-y-2">
+                  <Label htmlFor="teamsForElimination">Nombre d'équipes qualifiées pour la phase finale</Label>
+                  <Select value={teamsForElimination} onValueChange={setTeamsForElimination}>
+                    <SelectTrigger id="teamsForElimination" className="bg-secondary/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="4">4 équipes</SelectItem>
+                      <SelectItem value="8">8 équipes</SelectItem>
+                      <SelectItem value="16">16 équipes</SelectItem>
+                      <SelectItem value="32">32 équipes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-              <Button type="submit" variant="hero" size="lg" className="w-full">
-                Create Tournament
+              <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
+                {loading ? "Création..." : "Créer le tournoi"}
               </Button>
             </form>
           </Card>
