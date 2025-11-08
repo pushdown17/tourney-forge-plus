@@ -438,8 +438,15 @@ export const EliminationBracket = ({
                       >
                         {roundMatches.map((match, matchIndex) => {
                           if (matchIndex % 2 === 0 && matchIndex + 1 < roundMatches.length) {
-                            const y1 = (topOffset === 0 ? 0 : 0) + matchIndex * (verticalSpacing + matchCardHeight) + matchCardHeight / 2 + 11;
-                            const y2 = y1 + verticalSpacing + matchCardHeight;
+                            // Hauteur totale d'un élément de match (numéro + carte + bouton + espacement)
+                            const totalMatchElementHeight = 48; // hauteur approximative de tout l'élément
+                            const matchCenterOffset = 19; // centre de la carte de match
+                            
+                            // Position Y du premier match (du haut)
+                            const y1 = matchIndex * (verticalSpacing + totalMatchElementHeight) + matchCenterOffset;
+                            // Position Y du deuxième match (celui en dessous)
+                            const y2 = (matchIndex + 1) * (verticalSpacing + totalMatchElementHeight) + matchCenterOffset;
+                            // Point milieu pour la connexion vers le prochain tour
                             const yMid = (y1 + y2) / 2;
                             
                             return (
