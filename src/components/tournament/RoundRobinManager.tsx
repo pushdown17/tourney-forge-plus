@@ -4,6 +4,16 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock } from "lucide-react";
@@ -251,6 +261,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   const [team1Players, setTeam1Players] = useState<any[]>([]);
   const [team2Players, setTeam2Players] = useState<any[]>([]);
   const [playerStats, setPlayerStats] = useState<Record<string, any>>({});
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   
   const isLocked = editingMatchId !== null && editingMatchId !== match.id;
   const isEditing = editingMatchId === match.id;
@@ -359,22 +370,18 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
       .filter(stat => team2PlayerIds.includes(stat.player_id))
       .reduce((sum, stat) => sum + (stat.goals || 0), 0);
 
-    // Mettre à jour les scores locaux
+    // Mettre à jour les scores locaux UNIQUEMENT (pas la DB)
     setTeam1Score(team1Goals);
     setTeam2Score(team2Goals);
+  };
 
-    // Mettre à jour le match dans la base de données
-    const winnerId = team1Goals > team2Goals ? match.team1_id : 
-                    team2Goals > team1Goals ? match.team2_id : null;
+  const handleValidateScore = () => {
+    setShowConfirmDialog(true);
+  };
 
-    await supabase
-      .from("matches")
-      .update({
-        team1_score: team1Goals,
-        team2_score: team2Goals,
-        winner_id: winnerId,
-      })
-      .eq("id", match.id);
+  const confirmValidateScore = () => {
+    onScoreUpdate(match.id, team1Score, team2Score);
+    setShowConfirmDialog(false);
   };
 
   return (
@@ -430,7 +437,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               </Button>
             )}
             <Button
-              onClick={() => onScoreUpdate(match.id, team1Score, team2Score)}
+              onClick={handleValidateScore}
               disabled={isLocked}
             >
               Valider
@@ -503,6 +510,22 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           </div>
         </Card>
       </CollapsibleContent>
+
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer le score final</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirmez-vous le score final de ce match ?<br />
+              <strong>{match.team1?.name}</strong> : {team1Score} - {team2Score} : <strong>{match.team2?.name}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmValidateScore}>Confirmer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Collapsible>
   );
 };
