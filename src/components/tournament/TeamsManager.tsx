@@ -12,9 +12,10 @@ import { Plus, Trash2, Download, Users } from "lucide-react";
 
 interface TeamsManagerProps {
   tournamentId: string;
+  isClosed?: boolean;
 }
 
-export const TeamsManager = ({ tournamentId }: TeamsManagerProps) => {
+export const TeamsManager = ({ tournamentId, isClosed = false }: TeamsManagerProps) => {
   const [teams, setTeams] = useState<any[]>([]);
   const [teamName, setTeamName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -294,7 +295,7 @@ export const TeamsManager = ({ tournamentId }: TeamsManagerProps) => {
                           </Button>
                           <Button
                             onClick={handleImportTeams}
-                            disabled={importing || selectedTeamIds.size === 0}
+                            disabled={importing || selectedTeamIds.size === 0 || isClosed}
                           >
                             {importing ? "Import en cours..." : `Importer ${selectedTeamIds.size} équipe(s)`}
                           </Button>
@@ -325,7 +326,7 @@ export const TeamsManager = ({ tournamentId }: TeamsManagerProps) => {
               className="h-11"
             />
           </div>
-          <Button type="submit" disabled={loading} className="h-11 w-full sm:w-auto">
+          <Button type="submit" disabled={loading || isClosed} className="h-11 w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Ajouter
           </Button>
@@ -346,6 +347,7 @@ export const TeamsManager = ({ tournamentId }: TeamsManagerProps) => {
                 size="sm"
                 onClick={() => handleDeleteTeam(team.id)}
                 className="h-10 w-10 p-0"
+                disabled={isClosed}
               >
                 <Trash2 className="h-5 w-5 text-destructive" />
               </Button>

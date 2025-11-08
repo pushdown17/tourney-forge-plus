@@ -283,6 +283,7 @@ export type Database = {
             | null
           end_date: string
           id: string
+          is_closed: boolean
           name: string
           number_of_groups: number | null
           start_date: string
@@ -298,6 +299,7 @@ export type Database = {
             | null
           end_date: string
           id?: string
+          is_closed?: boolean
           name: string
           number_of_groups?: number | null
           start_date: string
@@ -313,6 +315,7 @@ export type Database = {
             | null
           end_date?: string
           id?: string
+          is_closed?: boolean
           name?: string
           number_of_groups?: number | null
           start_date?: string

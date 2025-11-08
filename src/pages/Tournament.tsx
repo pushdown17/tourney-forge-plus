@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Calendar } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Lock, Unlock } from "lucide-react";
 import { TeamsManager } from "@/components/tournament/TeamsManager";
 import { PlayersManager } from "@/components/tournament/PlayersManager";
 import { PlayerStatsManager } from "@/components/tournament/PlayerStatsManager";
@@ -20,6 +20,8 @@ const Tournament = () => {
   const { id } = useParams<{ id: string }>();
   const [tournament, setTournament] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isCreator, setIsCreator] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const fetchTournament = async () => {
     try {
@@ -31,10 +33,40 @@ const Tournament = () => {
 
       if (error) throw error;
       setTournament(data);
+      
+      // Check if current user is the creator
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsCreator(user?.id === data.created_by);
     } catch (error: any) {
       toast.error("Erreur lors du chargement du tournoi");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleTournamentStatus = async () => {
+    if (!isCreator) return;
+    
+    setUpdatingStatus(true);
+    try {
+      const { error } = await supabase
+        .from("tournaments")
+        .update({ is_closed: !tournament.is_closed })
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success(
+        tournament.is_closed 
+          ? "Tournoi rouvert avec succès" 
+          : "Tournoi clôturé avec succès"
+      );
+      
+      await fetchTournament();
+    } catch (error: any) {
+      toast.error("Erreur lors de la modification du statut");
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -83,10 +115,18 @@ const Tournament = () => {
           
           <Card className="glass-card p-6 mb-6">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold mb-3 glow-text-primary">
-                  {tournament.name}
-                </h1>
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <h1 className="text-3xl md:text-4xl font-bold glow-text-primary">
+                    {tournament.name}
+                  </h1>
+                  {tournament.is_closed && (
+                    <div className="flex items-center gap-1 px-3 py-1 bg-muted rounded-full text-sm">
+                      <Lock className="h-3 w-3" />
+                      <span>Clôturé</span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-primary" />
@@ -103,6 +143,26 @@ const Tournament = () => {
                   </div>
                 </div>
               </div>
+              {isCreator && (
+                <Button
+                  onClick={toggleTournamentStatus}
+                  disabled={updatingStatus}
+                  variant={tournament.is_closed ? "default" : "destructive"}
+                  className="whitespace-nowrap"
+                >
+                  {tournament.is_closed ? (
+                    <>
+                      <Unlock className="mr-2 h-4 w-4" />
+                      Rouvrir
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="mr-2 h-4 w-4" />
+                      Clôturer
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </Card>
         </div>
@@ -154,24 +214,24 @@ const Tournament = () => {
               </div>
               
               <TabsContent value="manage-teams">
-                <TeamsManager tournamentId={id!} />
+                <TeamsManager tournamentId={id!} isClosed={tournament.is_closed} />
               </TabsContent>
               
               <TabsContent value="manage-players">
-                <PlayersManager tournamentId={id!} />
+                <PlayersManager tournamentId={id!} isClosed={tournament.is_closed} />
               </TabsContent>
 
               <TabsContent value="player-stats">
-                <PlayerStatsManager tournamentId={id!} />
+                <PlayerStatsManager tournamentId={id!} isClosed={tournament.is_closed} />
               </TabsContent>
             </Tabs>
           </TabsContent>
 
           <TabsContent value="matches" className="animate-fade-in">
             {tournament.current_phase === "swiss" ? (
-              <SwissManager tournamentId={id!} />
+              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} />
             ) : (
-              <RoundRobinManager tournamentId={id!} />
+              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} />
             )}
           </TabsContent>
 
@@ -181,6 +241,7 @@ const Tournament = () => {
               eliminationType={tournament.elimination_type}
               currentPhase={tournament.current_phase}
               onPhaseChanged={fetchTournament}
+              isClosed={tournament.is_closed}
             />
           </TabsContent>
 

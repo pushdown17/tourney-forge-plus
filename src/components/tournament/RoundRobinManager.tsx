@@ -20,9 +20,10 @@ import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock } f
 
 interface RoundRobinManagerProps {
   tournamentId: string;
+  isClosed?: boolean;
 }
 
-export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
+export const RoundRobinManager = ({ tournamentId, isClosed = false }: RoundRobinManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -214,7 +215,7 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
       <Card className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Round {currentRound}</h2>
-          <Button onClick={generateNextRound} disabled={loading}>
+          <Button onClick={generateNextRound} disabled={loading || isClosed}>
             {matches.length === 0 ? `Générer le Round ${currentRound}` : `Générer le Round ${currentRound + 1}`}
           </Button>
         </div>
@@ -228,6 +229,7 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
               onScoreUpdate={updateScore}
               editingMatchId={editingMatchId}
               setEditingMatchId={setEditingMatchId}
+              isClosed={isClosed}
             />
           ))}
           {matches.filter(m => m.team1_score === null || m.team2_score === null).length === 0 && matches.length > 0 && (
@@ -252,9 +254,10 @@ interface MatchCardProps {
   onScoreUpdate: (matchId: string, team1Score: number, team2Score: number) => void;
   editingMatchId: string | null;
   setEditingMatchId: (id: string | null) => void;
+  isClosed?: boolean;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -404,7 +407,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                 if (!isEditing) setEditingMatchId(match.id);
               }}
               className="w-20 text-center"
-              disabled={isLocked}
+              disabled={isLocked || isClosed}
             />
           </div>
           <span className="text-muted-foreground">vs</span>
@@ -418,7 +421,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                 if (!isEditing) setEditingMatchId(match.id);
               }}
               className="w-20 text-center"
-              disabled={isLocked}
+              disabled={isLocked || isClosed}
             />
             <span className="font-medium">{match.team2?.name || "Équipe 2"}</span>
           </div>
@@ -438,7 +441,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             )}
             <Button
               onClick={handleValidateScore}
-              disabled={isLocked}
+              disabled={isLocked || isClosed}
             >
               Valider
             </Button>
@@ -450,7 +453,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             variant="ghost" 
             size="sm" 
             className="w-full justify-center gap-2"
-            disabled={isLocked}
+            disabled={isLocked || isClosed}
           >
             <Users className="h-4 w-4" />
             Statistiques des joueurs

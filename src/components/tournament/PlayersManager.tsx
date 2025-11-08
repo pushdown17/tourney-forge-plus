@@ -13,9 +13,10 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 
 interface PlayersManagerProps {
   tournamentId: string;
+  isClosed?: boolean;
 }
 
-export const PlayersManager = ({ tournamentId }: PlayersManagerProps) => {
+export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManagerProps) => {
   const [teams, setTeams] = useState<any[]>([]);
   const [players, setPlayers] = useState<any[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
@@ -253,7 +254,7 @@ export const PlayersManager = ({ tournamentId }: PlayersManagerProps) => {
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
                   />
-                  <Button type="submit" disabled={loading}>
+                  <Button type="submit" disabled={loading || isClosed}>
                     <Plus className="h-4 w-4 mr-2" />
                     Ajouter
                   </Button>
@@ -279,6 +280,7 @@ export const PlayersManager = ({ tournamentId }: PlayersManagerProps) => {
                 team={team}
                 players={teamPlayers}
                 onDeletePlayer={handleDeletePlayer}
+                isClosed={isClosed}
               />
             );
           })}
@@ -301,9 +303,10 @@ interface TeamCardProps {
   team: any;
   players: any[];
   onDeletePlayer: (playerId: string) => void;
+  isClosed?: boolean;
 }
 
-const TeamCard = ({ team, players, onDeletePlayer }: TeamCardProps) => {
+const TeamCard = ({ team, players, onDeletePlayer, isClosed = false }: TeamCardProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: team.id,
   });
@@ -328,6 +331,7 @@ const TeamCard = ({ team, players, onDeletePlayer }: TeamCardProps) => {
             player={player}
             index={index}
             onDelete={onDeletePlayer}
+            isClosed={isClosed}
           />
         ))}
         {players.length === 0 && (
@@ -344,9 +348,10 @@ interface DraggablePlayerProps {
   player: any;
   index: number;
   onDelete: (playerId: string) => void;
+  isClosed?: boolean;
 }
 
-const DraggablePlayer = ({ player, index, onDelete }: DraggablePlayerProps) => {
+const DraggablePlayer = ({ player, index, onDelete, isClosed = false }: DraggablePlayerProps) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: player.id,
   });
@@ -379,6 +384,7 @@ const DraggablePlayer = ({ player, index, onDelete }: DraggablePlayerProps) => {
           e.stopPropagation();
           onDelete(player.id);
         }}
+        disabled={isClosed}
       >
         <Trash2 className="h-4 w-4 text-destructive" />
       </Button>

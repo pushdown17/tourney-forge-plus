@@ -21,9 +21,10 @@ import { Badge } from "@/components/ui/badge";
 
 interface SwissManagerProps {
   tournamentId: string;
+  isClosed?: boolean;
 }
 
-export const SwissManager = ({ tournamentId }: SwissManagerProps) => {
+export const SwissManager = ({ tournamentId, isClosed = false }: SwissManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -305,7 +306,7 @@ export const SwissManager = ({ tournamentId }: SwissManagerProps) => {
             {currentRound === maxRound && (
               <Button 
                 onClick={generateSwissRound} 
-                disabled={loading || (matches.length > 0 && !canGenerateNextRound())}
+                disabled={loading || (matches.length > 0 && !canGenerateNextRound()) || isClosed}
                 className="gap-2"
               >
                 <TrendingUp className="h-4 w-4" />
@@ -341,6 +342,7 @@ export const SwissManager = ({ tournamentId }: SwissManagerProps) => {
                   onScoreUpdate={updateScore}
                   editingMatchId={editingMatchId}
                   setEditingMatchId={setEditingMatchId}
+                  isClosed={isClosed}
                 />
               ))}
             </div>
@@ -374,9 +376,10 @@ interface MatchCardProps {
   onScoreUpdate: (matchId: string, team1Score: number, team2Score: number) => void;
   editingMatchId: string | null;
   setEditingMatchId: (id: string | null) => void;
+  isClosed?: boolean;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -541,7 +544,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                 if (!isEditing) setEditingMatchId(match.id);
               }}
               className="w-20 text-center"
-              disabled={isLocked}
+              disabled={isLocked || isClosed}
             />
           </div>
           <span className="text-muted-foreground font-bold">vs</span>
@@ -555,7 +558,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                 if (!isEditing) setEditingMatchId(match.id);
               }}
               className="w-20 text-center"
-              disabled={isLocked}
+              disabled={isLocked || isClosed}
             />
             <span className="font-medium flex-1 text-right">{match.team2?.name || "Équipe 2"}</span>
           </div>
@@ -576,7 +579,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             <Button
               onClick={handleValidateScore}
               size="sm"
-              disabled={isLocked}
+              disabled={isLocked || isClosed}
             >
               Valider
             </Button>
@@ -588,7 +591,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             variant="ghost" 
             size="sm" 
             className="w-full justify-center gap-2"
-            disabled={isLocked}
+            disabled={isLocked || isClosed}
           >
             <Users className="h-4 w-4" />
             Statistiques des joueurs

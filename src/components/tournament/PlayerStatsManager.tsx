@@ -12,6 +12,7 @@ import { Trophy, Target, AlertTriangle, Clock, Plus, Edit } from "lucide-react";
 
 interface PlayerStatsManagerProps {
   tournamentId: string;
+  isClosed?: boolean;
 }
 
 interface PlayerWithStats {
@@ -26,7 +27,7 @@ interface PlayerWithStats {
   totalPenalty2m: number;
 }
 
-export const PlayerStatsManager = ({ tournamentId }: PlayerStatsManagerProps) => {
+export const PlayerStatsManager = ({ tournamentId, isClosed = false }: PlayerStatsManagerProps) => {
   const [players, setPlayers] = useState<PlayerWithStats[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);

@@ -32,13 +32,15 @@ interface EliminationBracketProps {
   eliminationType: "single" | "double" | null;
   currentPhase: string;
   onPhaseChanged: () => void;
+  isClosed?: boolean;
 }
 
 export const EliminationBracket = ({ 
   tournamentId, 
   eliminationType, 
   currentPhase,
-  onPhaseChanged 
+  onPhaseChanged,
+  isClosed = false
 }: EliminationBracketProps) => {
   // Si on n'est pas encore en phase d'élimination, afficher le composant de transition
   if (currentPhase !== "single_elimination" && currentPhase !== "double_elimination") {
@@ -597,7 +599,7 @@ export const EliminationBracket = ({
                                   })}
                                   className="w-8 h-5 text-[10px] p-0.5 text-center"
                                 />
-                                <Button onClick={() => handleScoreUpdate(match.id)} size="sm" className="h-5 px-1.5 text-[10px]">
+                                <Button onClick={() => handleScoreUpdate(match.id)} size="sm" className="h-5 px-1.5 text-[10px]" disabled={isClosed}>
                                   ✓
                                 </Button>
                                 <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm" className="h-5 px-1 text-[10px]">
@@ -619,6 +621,7 @@ export const EliminationBracket = ({
                                 variant="outline"
                                 size="sm"
                                 className="w-full h-5 text-[10px] py-0"
+                                disabled={isClosed}
                               >
                                 {match.team1_score !== null ? "Modifier" : "Score"}
                               </Button>
@@ -689,7 +692,7 @@ export const EliminationBracket = ({
                           })}
                           className="w-8 h-5 text-[10px] p-0.5 text-center"
                         />
-                        <Button onClick={() => handleScoreUpdate(thirdPlaceMatch.id)} size="sm" className="h-5 px-1.5 text-[10px]">
+                        <Button onClick={() => handleScoreUpdate(thirdPlaceMatch.id)} size="sm" className="h-5 px-1.5 text-[10px]" disabled={isClosed}>
                           ✓
                         </Button>
                         <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm" className="h-5 px-1 text-[10px]">
@@ -711,6 +714,7 @@ export const EliminationBracket = ({
                         variant="outline"
                         size="sm"
                         className="w-full h-5 text-[10px] py-0"
+                        disabled={isClosed}
                       >
                         {thirdPlaceMatch.team1_score !== null ? "Modifier" : "Score"}
                       </Button>
