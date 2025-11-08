@@ -403,11 +403,12 @@ export const EliminationBracket = ({
         </div>
       ) : (
         <div className="overflow-x-auto pb-4">
-          <div className="flex gap-6 min-w-max items-start px-2">
+          <div className="flex gap-6 min-w-max items-start px-2 relative">
             {bracketStructure.map((roundMatches, roundIndex) => {
               const roundNumber = roundMatches[0]?.round_number || roundIndex + 1;
               const totalTeams = tournament?.teams_for_elimination || 8;
               const matchHeight = 60; // Hauteur d'un match + espacement
+              const matchCardHeight = 38; // Hauteur réelle de la carte de match
               
               // Calculer l'espacement et l'offset pour créer l'alignement pyramidal
               const verticalSpacing = matchHeight * Math.pow(2, roundIndex);
@@ -420,11 +421,76 @@ export const EliminationBracket = ({
               }
               
               return (
-                <div key={roundNumber} className="flex flex-col" style={{ minWidth: '160px' }}>
+                <div key={roundNumber} className="relative flex flex-col" style={{ minWidth: '160px' }}>
                   <div className="text-xs font-bold text-primary text-center mb-3 h-5 flex items-center justify-center">
                     {getRoundName(roundNumber, totalTeams)}
                   </div>
-                  <div className="flex flex-col" style={{ gap: `${verticalSpacing}px`, marginTop: `${topOffset}px` }}>
+                  <div className="flex flex-col relative" style={{ gap: `${verticalSpacing}px`, marginTop: `${topOffset}px` }}>
+                    {/* SVG pour les lignes de connexion */}
+                    {roundIndex < bracketStructure.length - 1 && (
+                      <svg 
+                        className="absolute left-full top-0 pointer-events-none"
+                        style={{ 
+                          width: '24px',
+                          height: '100%',
+                          overflow: 'visible'
+                        }}
+                      >
+                        {roundMatches.map((match, matchIndex) => {
+                          if (matchIndex % 2 === 0 && matchIndex + 1 < roundMatches.length) {
+                            const y1 = (topOffset === 0 ? 0 : 0) + matchIndex * (verticalSpacing + matchCardHeight) + matchCardHeight / 2 + 11;
+                            const y2 = y1 + verticalSpacing + matchCardHeight;
+                            const yMid = (y1 + y2) / 2;
+                            
+                            return (
+                              <g key={matchIndex} className="animate-fade-in">
+                                {/* Ligne horizontale du match 1 */}
+                                <line
+                                  x1="0"
+                                  y1={y1}
+                                  x2="12"
+                                  y2={y1}
+                                  stroke="hsl(var(--primary))"
+                                  strokeWidth="2"
+                                  opacity="0.3"
+                                />
+                                {/* Ligne horizontale du match 2 */}
+                                <line
+                                  x1="0"
+                                  y1={y2}
+                                  x2="12"
+                                  y2={y2}
+                                  stroke="hsl(var(--primary))"
+                                  strokeWidth="2"
+                                  opacity="0.3"
+                                />
+                                {/* Ligne verticale de connexion */}
+                                <line
+                                  x1="12"
+                                  y1={y1}
+                                  x2="12"
+                                  y2={y2}
+                                  stroke="hsl(var(--primary))"
+                                  strokeWidth="2"
+                                  opacity="0.3"
+                                />
+                                {/* Ligne horizontale vers le match suivant */}
+                                <line
+                                  x1="12"
+                                  y1={yMid}
+                                  x2="24"
+                                  y2={yMid}
+                                  stroke="hsl(var(--primary))"
+                                  strokeWidth="2"
+                                  opacity="0.3"
+                                />
+                              </g>
+                            );
+                          }
+                          return null;
+                        })}
+                      </svg>
+                    )}
                     {roundMatches.map((match, matchIndex) => (
                       <div key={match.id} className="animate-fade-in">
                         <div className="text-center mb-0.5">
