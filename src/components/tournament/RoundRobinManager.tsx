@@ -16,6 +16,7 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMatches();
@@ -191,6 +192,7 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
       if (error) throw error;
 
       toast.success("Score enregistré !");
+      setEditingMatchId(null);
       fetchMatches();
     } catch (error: any) {
       toast.error(error.message);
@@ -214,6 +216,8 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
               match={match}
               tournamentId={tournamentId}
               onScoreUpdate={updateScore}
+              editingMatchId={editingMatchId}
+              setEditingMatchId={setEditingMatchId}
             />
           ))}
           {matches.filter(m => m.team1_score === null || m.team2_score === null).length === 0 && matches.length > 0 && (
@@ -236,15 +240,20 @@ interface MatchCardProps {
   match: any;
   tournamentId: string;
   onScoreUpdate: (matchId: string, team1Score: number, team2Score: number) => void;
+  editingMatchId: string | null;
+  setEditingMatchId: (id: string | null) => void;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
   const [team1Players, setTeam1Players] = useState<any[]>([]);
   const [team2Players, setTeam2Players] = useState<any[]>([]);
   const [playerStats, setPlayerStats] = useState<Record<string, any>>({});
+  
+  const isLocked = editingMatchId !== null && editingMatchId !== match.id;
+  const isEditing = editingMatchId === match.id;
 
   useEffect(() => {
     if (isOpen) {
@@ -326,7 +335,12 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate }: MatchCardProps) => {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
-      <div className="flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg">
+      <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg ${isLocked ? 'opacity-50' : ''}`}>
+        {isLocked && (
+          <div className="text-xs text-muted-foreground mb-2">
+            🔒 Veuillez valider le match en cours avant de modifier celui-ci
+          </div>
+        )}
         <div className="flex items-center gap-4">
           <div className="flex-1 flex items-center justify-between">
             <span className="font-medium">{match.team1?.name || "Équipe 1"}</span>
@@ -334,8 +348,12 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate }: MatchCardProps) => {
               type="number"
               min="0"
               value={team1Score}
-              onChange={(e) => setTeam1Score(parseInt(e.target.value) || 0)}
+              onChange={(e) => {
+                setTeam1Score(parseInt(e.target.value) || 0);
+                if (!isEditing) setEditingMatchId(match.id);
+              }}
               className="w-20 text-center"
+              disabled={isLocked}
             />
           </div>
           <span className="text-muted-foreground">vs</span>
@@ -344,20 +362,30 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate }: MatchCardProps) => {
               type="number"
               min="0"
               value={team2Score}
-              onChange={(e) => setTeam2Score(parseInt(e.target.value) || 0)}
+              onChange={(e) => {
+                setTeam2Score(parseInt(e.target.value) || 0);
+                if (!isEditing) setEditingMatchId(match.id);
+              }}
               className="w-20 text-center"
+              disabled={isLocked}
             />
             <span className="font-medium">{match.team2?.name || "Équipe 2"}</span>
           </div>
           <Button
             onClick={() => onScoreUpdate(match.id, team1Score, team2Score)}
+            disabled={isLocked}
           >
             Valider
           </Button>
         </div>
 
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="w-full justify-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full justify-center gap-2"
+            disabled={isLocked}
+          >
             <Users className="h-4 w-4" />
             Statistiques des joueurs
             {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
