@@ -13,6 +13,47 @@ export const StandingsTable = ({ tournamentId }: StandingsTableProps) => {
 
   useEffect(() => {
     fetchStandings();
+
+    // Subscribe to real-time updates on matches table
+    const matchesChannel = supabase
+      .channel('matches-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'matches',
+          filter: `tournament_id=eq.${tournamentId}`
+        },
+        () => {
+          console.log('Match updated, refreshing standings...');
+          fetchStandings();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to real-time updates on team_stats table
+    const statsChannel = supabase
+      .channel('stats-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'team_stats',
+          filter: `tournament_id=eq.${tournamentId}`
+        },
+        () => {
+          console.log('Stats updated, refreshing standings...');
+          fetchStandings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(matchesChannel);
+      supabase.removeChannel(statsChannel);
+    };
   }, [tournamentId]);
 
   const fetchStandings = async () => {
@@ -36,7 +77,13 @@ export const StandingsTable = ({ tournamentId }: StandingsTableProps) => {
 
   return (
     <Card className="glass-card p-6">
-      <h2 className="text-2xl font-bold mb-4">Classement général</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold">Classement général</h2>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          <span>Mise à jour en temps réel</span>
+        </div>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
