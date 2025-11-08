@@ -371,12 +371,27 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             />
             <span className="font-medium">{match.team2?.name || "Équipe 2"}</span>
           </div>
-          <Button
-            onClick={() => onScoreUpdate(match.id, team1Score, team2Score)}
-            disabled={isLocked}
-          >
-            Valider
-          </Button>
+          <div className="flex gap-2">
+            {isEditing && (
+              <Button
+                onClick={() => {
+                  setTeam1Score(match.team1_score ?? 0);
+                  setTeam2Score(match.team2_score ?? 0);
+                  setEditingMatchId(null);
+                }}
+                size="sm"
+                variant="outline"
+              >
+                Annuler
+              </Button>
+            )}
+            <Button
+              onClick={() => onScoreUpdate(match.id, team1Score, team2Score)}
+              disabled={isLocked}
+            >
+              Valider
+            </Button>
+          </div>
         </div>
 
         <CollapsibleTrigger asChild>
