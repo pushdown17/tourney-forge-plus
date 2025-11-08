@@ -29,11 +29,24 @@ export const SwissManager = ({ tournamentId }: SwissManagerProps) => {
   const [loading, setLoading] = useState(false);
   const [maxRound, setMaxRound] = useState(1);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    fetchMatches();
-    fetchMaxRound();
-  }, [tournamentId, currentRound]);
+    const initializeRound = async () => {
+      const max = await fetchMaxRound();
+      if (!initialized && max > 0) {
+        setCurrentRound(max);
+        setInitialized(true);
+      }
+    };
+    initializeRound();
+  }, [tournamentId, initialized]);
+
+  useEffect(() => {
+    if (initialized) {
+      fetchMatches();
+    }
+  }, [tournamentId, currentRound, initialized]);
 
   const fetchMaxRound = async () => {
     const { data, error } = await supabase
@@ -46,7 +59,9 @@ export const SwissManager = ({ tournamentId }: SwissManagerProps) => {
 
     if (!error && data && data.length > 0) {
       setMaxRound(data[0].round_number);
+      return data[0].round_number;
     }
+    return 1;
   };
 
   const fetchMatches = async () => {
