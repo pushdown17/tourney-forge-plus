@@ -228,11 +228,22 @@ const Tournament = () => {
           </TabsContent>
 
           <TabsContent value="matches" className="animate-fade-in">
-            {tournament.current_phase === "swiss" ? (
-              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} />
-            ) : (
-              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} />
-            )}
+            <Tabs defaultValue="swiss" className="space-y-4">
+              <div className="overflow-x-auto -mx-4 px-4">
+                <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-2 bg-muted/30">
+                  <TabsTrigger value="swiss" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Phase Suisse</TabsTrigger>
+                  <TabsTrigger value="round-robin" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Round Robin</TabsTrigger>
+                </TabsList>
+              </div>
+              
+              <TabsContent value="swiss">
+                <SwissManager tournamentId={id!} isClosed={tournament.is_closed} />
+              </TabsContent>
+              
+              <TabsContent value="round-robin">
+                <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="elimination" className="animate-fade-in">
