@@ -139,7 +139,7 @@ export const MatchStatsDialog = ({
     const winnerId = team1Goals > team2Goals ? match.team1_id : 
                     team2Goals > team1Goals ? match.team2_id : null;
     
-    await supabase
+    const { error: updateError } = await supabase
       .from("matches")
       .update({
         team1_score: team1Goals,
@@ -148,9 +148,11 @@ export const MatchStatsDialog = ({
       })
       .eq("id", match.id);
 
-    // Notifier le parent pour rafraîchir l'affichage
-    onScoreUpdate();
-    toast.success("Score mis à jour automatiquement");
+    if (!updateError) {
+      // Notifier le parent pour rafraîchir l'affichage
+      onScoreUpdate();
+      toast.success("Score mis à jour automatiquement");
+    }
   };
 
   return (

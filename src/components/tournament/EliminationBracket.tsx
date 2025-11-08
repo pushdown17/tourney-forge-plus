@@ -190,6 +190,11 @@ export const EliminationBracket = ({
     const winnerId = team1Score > team2Score ? match.team1_id : 
                      team2Score > team1Score ? match.team2_id : null;
 
+    if (!winnerId) {
+      toast.error("Un match d'élimination ne peut pas se terminer par un match nul");
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from("matches")
@@ -205,9 +210,90 @@ export const EliminationBracket = ({
       toast.success("Score mis à jour");
       setEditingMatchId(null);
       await fetchTournamentAndMatches();
+      
+      // Vérifier si le tour est complété et générer le suivant
+      await checkAndGenerateNextRound(match.round_number);
     } catch (error: any) {
       toast.error("Erreur lors de la mise à jour du score");
       console.error(error);
+    }
+  };
+
+  const checkAndGenerateNextRound = async (completedRound: number) => {
+    try {
+      // Récupérer tous les matchs du tour complété
+      const { data: roundMatches, error: matchesError } = await supabase
+        .from("matches")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .eq("phase", currentPhase)
+        .eq("round_number", completedRound);
+
+      if (matchesError) throw matchesError;
+
+      // Vérifier si tous les matchs ont un gagnant
+      const allMatchesCompleted = roundMatches?.every(m => m.winner_id !== null);
+      
+      if (!allMatchesCompleted) {
+        return; // Pas encore tous les matchs terminés
+      }
+
+      // Vérifier si le prochain tour existe déjà
+      const { data: existingNextRound, error: nextRoundError } = await supabase
+        .from("matches")
+        .select("id")
+        .eq("tournament_id", tournamentId)
+        .eq("phase", currentPhase)
+        .eq("round_number", completedRound + 1)
+        .limit(1);
+
+      if (nextRoundError) throw nextRoundError;
+
+      if (existingNextRound && existingNextRound.length > 0) {
+        return; // Le prochain tour existe déjà
+      }
+
+      // Si c'est la finale (1 seul match), pas de tour suivant
+      if (roundMatches.length === 1) {
+        toast.success("🏆 Tournoi terminé ! Félicitations au vainqueur !");
+        return;
+      }
+
+      // Générer le prochain tour avec les gagnants
+      const winners = roundMatches
+        .filter(m => m.winner_id)
+        .map(m => m.winner_id);
+
+      if (winners.length < 2) {
+        return; // Pas assez de gagnants
+      }
+
+      // Créer les matchs par paires
+      const nextRoundMatches = [];
+      for (let i = 0; i < winners.length; i += 2) {
+        if (i + 1 < winners.length) {
+          nextRoundMatches.push({
+            tournament_id: tournamentId,
+            phase: currentPhase,
+            round_number: completedRound + 1,
+            team1_id: winners[i],
+            team2_id: winners[i + 1],
+          });
+        }
+      }
+
+      if (nextRoundMatches.length > 0) {
+        const { error: insertError } = await supabase
+          .from("matches")
+          .insert(nextRoundMatches);
+
+        if (insertError) throw insertError;
+
+        toast.success(`Tour ${completedRound + 1} généré automatiquement !`);
+        await fetchTournamentAndMatches();
+      }
+    } catch (error: any) {
+      console.error("Erreur lors de la génération du tour suivant:", error);
     }
   };
 
