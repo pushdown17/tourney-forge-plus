@@ -70,7 +70,14 @@ export const TeamsManager = ({ tournamentId, isClosed = false }: TeamsManagerPro
           tournament_id: validation.data.tournament_id,
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          toast.error("Cette équipe existe déjà dans ce tournoi");
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       toast.success("Équipe ajoutée !");
       setTeamName("");
@@ -171,19 +178,6 @@ export const TeamsManager = ({ tournamentId, isClosed = false }: TeamsManagerPro
       const teamsToImport = availableTeams.filter(t => selectedTeamIds.has(t.id));
 
       for (const team of teamsToImport) {
-        // Check if team already exists
-        const { data: existingTeam } = await supabase
-          .from("teams")
-          .select("id")
-          .eq("tournament_id", tournamentId)
-          .eq("name", team.name)
-          .maybeSingle();
-
-        if (existingTeam) {
-          toast.error(`L'équipe "${team.name}" existe déjà dans ce tournoi`);
-          continue;
-        }
-
         // Insert team
         const { data: newTeam, error: teamError } = await supabase
           .from("teams")
@@ -194,7 +188,13 @@ export const TeamsManager = ({ tournamentId, isClosed = false }: TeamsManagerPro
           .select()
           .single();
 
-        if (teamError) throw teamError;
+        if (teamError) {
+          if (teamError.code === '23505') {
+            toast.error(`L'équipe "${team.name}" existe déjà dans ce tournoi`);
+            continue;
+          }
+          throw teamError;
+        }
 
         // Insert players if any
         if (team.players && team.players.length > 0) {
