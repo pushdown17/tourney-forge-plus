@@ -477,9 +477,24 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
       .filter(stat => team2PlayerIds.includes(stat.player_id))
       .reduce((sum, stat) => sum + (stat.goals || 0), 0);
 
-    // Mettre à jour les scores locaux UNIQUEMENT (pas la DB)
+    // Mettre à jour les scores locaux ET dans la DB
     setTeam1Score(team1Goals);
     setTeam2Score(team2Goals);
+    
+    // Mettre à jour dans la base de données si les scores ont changé
+    if (team1Goals !== match.team1_score || team2Goals !== match.team2_score) {
+      const winnerId = team1Goals > team2Goals ? match.team1_id : 
+                      team2Goals > team1Goals ? match.team2_id : null;
+      
+      await supabase
+        .from("matches")
+        .update({
+          team1_score: team1Goals,
+          team2_score: team2Goals,
+          winner_id: winnerId,
+        })
+        .eq("id", match.id);
+    }
   };
 
   const handleValidateScore = () => {
