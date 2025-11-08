@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Users, Calendar } from "lucide-react";
 import { TeamsManager } from "@/components/tournament/TeamsManager";
+import { PlayersManager } from "@/components/tournament/PlayersManager";
 import { RoundRobinManager } from "@/components/tournament/RoundRobinManager";
 import { EliminationBracket } from "@/components/tournament/EliminationBracket";
 import { StandingsTable } from "@/components/tournament/StandingsTable";
@@ -119,7 +120,20 @@ const Tournament = () => {
           </TabsList>
 
           <TabsContent value="teams" className="animate-fade-in">
-            <TeamsManager tournamentId={id!} />
+            <Tabs defaultValue="manage-teams" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2 bg-muted/30">
+                <TabsTrigger value="manage-teams">Gestion des équipes</TabsTrigger>
+                <TabsTrigger value="manage-players">Gestion des joueurs</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="manage-teams">
+                <TeamsManager tournamentId={id!} />
+              </TabsContent>
+              
+              <TabsContent value="manage-players">
+                <PlayersManager tournamentId={id!} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="round-robin" className="animate-fade-in">

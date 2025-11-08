@@ -1,0 +1,201 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Plus, Trash2, Users } from "lucide-react";
+
+interface PlayersManagerProps {
+  tournamentId: string;
+}
+
+export const PlayersManager = ({ tournamentId }: PlayersManagerProps) => {
+  const [teams, setTeams] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [playerName, setPlayerName] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchTeams();
+    fetchPlayers();
+  }, [tournamentId]);
+
+  const fetchTeams = async () => {
+    const { data, error } = await supabase
+      .from("teams")
+      .select("*")
+      .eq("tournament_id", tournamentId)
+      .order("name");
+
+    if (error) {
+      toast.error("Erreur lors du chargement des équipes");
+      return;
+    }
+
+    setTeams(data || []);
+    if (data && data.length > 0 && !selectedTeamId) {
+      setSelectedTeamId(data[0].id);
+    }
+  };
+
+  const fetchPlayers = async () => {
+    const { data, error } = await supabase
+      .from("players")
+      .select(`
+        *,
+        team:team_id(id, name)
+      `)
+      .in("team_id", teams.map(t => t.id))
+      .order("name");
+
+    if (error) {
+      toast.error("Erreur lors du chargement des joueurs");
+      return;
+    }
+
+    setPlayers(data || []);
+  };
+
+  const handleAddPlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!playerName.trim() || !selectedTeamId) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("players")
+        .insert({
+          name: playerName.trim(),
+          team_id: selectedTeamId,
+        });
+
+      if (error) throw error;
+
+      toast.success("Joueur ajouté !");
+      setPlayerName("");
+      fetchPlayers();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeletePlayer = async (playerId: string) => {
+    try {
+      const { error } = await supabase
+        .from("players")
+        .delete()
+        .eq("id", playerId);
+
+      if (error) throw error;
+
+      toast.success("Joueur supprimé");
+      fetchPlayers();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const getPlayersByTeam = (teamId: string) => {
+    return players.filter(p => p.team_id === teamId);
+  };
+
+  if (teams.length === 0) {
+    return (
+      <Card className="glass-card p-8 text-center">
+        <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <p className="text-muted-foreground">
+          Vous devez d'abord créer des équipes avant d'ajouter des joueurs.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card className="glass-card p-6">
+        <h2 className="text-2xl font-bold mb-4">Ajouter un joueur</h2>
+        <form onSubmit={handleAddPlayer} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="teamSelect">Équipe</Label>
+              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                <SelectTrigger id="teamSelect">
+                  <SelectValue placeholder="Sélectionner une équipe" />
+                </SelectTrigger>
+                <SelectContent className="bg-background/95 backdrop-blur-sm border-border/50">
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="playerName">Nom du joueur</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="playerName"
+                  placeholder="Nom Prénom"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                />
+                <Button type="submit" disabled={loading}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter
+                </Button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {teams.map((team) => {
+          const teamPlayers = getPlayersByTeam(team.id);
+          return (
+            <Card key={team.id} className="glass-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">{team.name}</h3>
+                <span className="text-sm text-muted-foreground">
+                  {teamPlayers.length} joueur{teamPlayers.length > 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {teamPlayers.map((player, index) => (
+                  <div
+                    key={player.id}
+                    className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg hover:bg-secondary/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
+                      <span className="font-medium">{player.name}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeletePlayer(player.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+                {teamPlayers.length === 0 && (
+                  <p className="text-muted-foreground text-center py-4 text-sm">
+                    Aucun joueur dans cette équipe
+                  </p>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
