@@ -275,14 +275,16 @@ export const SwissManager = ({ tournamentId }: SwissManagerProps) => {
                 Round suivant
               </Button>
             )}
-            <Button 
-              onClick={generateSwissRound} 
-              disabled={loading || (matches.length > 0 && !canGenerateNextRound())}
-              className="gap-2"
-            >
-              <TrendingUp className="h-4 w-4" />
-              {matches.length === 0 ? `Générer Round ${currentRound}` : `Générer Round ${currentRound + 1}`}
-            </Button>
+            {currentRound === maxRound && (
+              <Button 
+                onClick={generateSwissRound} 
+                disabled={loading || (matches.length > 0 && !canGenerateNextRound())}
+                className="gap-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+                {matches.length === 0 ? `Générer Round ${currentRound}` : `Générer Round ${currentRound + 1}`}
+              </Button>
+            )}
           </div>
         </div>
 
