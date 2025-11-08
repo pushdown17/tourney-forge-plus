@@ -40,10 +40,12 @@ const Tournament = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
         <Navigation />
         <main className="container mx-auto px-4 pt-32 pb-16">
-          <p className="text-center">Chargement...</p>
+          <div className="flex justify-center items-center min-h-[400px]">
+            <p className="text-lg text-muted-foreground animate-pulse">Chargement...</p>
+          </div>
         </main>
       </div>
     );
@@ -51,70 +53,84 @@ const Tournament = () => {
 
   if (!tournament) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
         <Navigation />
         <main className="container mx-auto px-4 pt-32 pb-16">
-          <p className="text-center">Tournoi introuvable</p>
+          <Card className="glass-card p-8 text-center">
+            <p className="text-lg text-muted-foreground">Tournoi introuvable</p>
+          </Card>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
       <Navigation />
       
-      <main className="container mx-auto px-4 pt-32 pb-16">
-        <div className="mb-8">
+      <main className="container mx-auto px-4 pt-24 pb-16">
+        <div className="mb-8 animate-fade-in">
           <Link to="/">
-            <Button variant="ghost" className="mb-4">
+            <Button variant="ghost" className="mb-6 hover-scale">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Retour
             </Button>
           </Link>
           
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-2 glow-text-primary">
-                {tournament.name}
-              </h1>
-              <div className="flex items-center gap-4 text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  <span>
-                    {new Date(tournament.start_date).toLocaleDateString("fr-FR")} - {new Date(tournament.end_date).toLocaleDateString("fr-FR")}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  <span>Phase: {tournament.current_phase === "round_robin" ? "Round Robin" : "Élimination"}</span>
+          <Card className="glass-card p-6 mb-6">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold mb-3 glow-text-primary">
+                  {tournament.name}
+                </h1>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <span>
+                      {new Date(tournament.start_date).toLocaleDateString("fr-FR")} - {new Date(tournament.end_date).toLocaleDateString("fr-FR")}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    <span className="font-medium">
+                      Phase: {tournament.current_phase === "round_robin" ? "Round Robin" : "Élimination"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
 
-        <Tabs defaultValue="teams" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="teams">Équipes</TabsTrigger>
-            <TabsTrigger value="round-robin">Round Robin</TabsTrigger>
-            <TabsTrigger value="elimination">Élimination</TabsTrigger>
-            <TabsTrigger value="standings">Classement</TabsTrigger>
+        <Tabs defaultValue="teams" className="space-y-6 animate-scale-in">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1 bg-muted/50">
+            <TabsTrigger value="teams" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Équipes
+            </TabsTrigger>
+            <TabsTrigger value="round-robin" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Round Robin
+            </TabsTrigger>
+            <TabsTrigger value="elimination" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Élimination
+            </TabsTrigger>
+            <TabsTrigger value="standings" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Classement
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="teams">
+          <TabsContent value="teams" className="animate-fade-in">
             <TeamsManager tournamentId={id!} />
           </TabsContent>
 
-          <TabsContent value="round-robin">
+          <TabsContent value="round-robin" className="animate-fade-in">
             <RoundRobinManager tournamentId={id!} />
           </TabsContent>
 
-          <TabsContent value="elimination">
+          <TabsContent value="elimination" className="animate-fade-in">
             <EliminationBracket tournamentId={id!} eliminationType={tournament.elimination_type} />
           </TabsContent>
 
-          <TabsContent value="standings">
+          <TabsContent value="standings" className="animate-fade-in">
             <StandingsTable tournamentId={id!} />
           </TabsContent>
         </Tabs>
