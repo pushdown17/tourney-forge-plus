@@ -427,9 +427,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
     <div className="p-3 bg-background/50 rounded-lg space-y-2">
       <p className="font-medium text-sm">{player.name}</p>
       <div className="grid grid-cols-3 gap-2">
-        <div className="flex items-center gap-1">
+        <div className="space-y-1">
           <Label htmlFor={`goals-${player.id}`} className="text-xs">
-            <Target className="h-3 w-3 inline" />
+            Buts
           </Label>
           <Input
             id={`goals-${player.id}`}
@@ -438,12 +438,11 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             value={stats.goals || 0}
             onChange={(e) => onUpdate("goals", parseInt(e.target.value) || 0)}
             className="h-8 text-xs"
-            placeholder="Buts"
           />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="space-y-1">
           <Label htmlFor={`assists-${player.id}`} className="text-xs">
-            <Trophy className="h-3 w-3 inline" />
+            Passes
           </Label>
           <Input
             id={`assists-${player.id}`}
@@ -452,12 +451,11 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             value={stats.assists || 0}
             onChange={(e) => onUpdate("assists", parseInt(e.target.value) || 0)}
             className="h-8 text-xs"
-            placeholder="Passes"
           />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="space-y-1">
           <Label htmlFor={`fouls-${player.id}`} className="text-xs">
-            <AlertTriangle className="h-3 w-3 inline" />
+            Fautes
           </Label>
           <Input
             id={`fouls-${player.id}`}
@@ -466,14 +464,13 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             value={stats.fouls || 0}
             onChange={(e) => onUpdate("fouls", parseInt(e.target.value) || 0)}
             className="h-8 text-xs"
-            placeholder="Fautes"
           />
         </div>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <div className="flex items-center gap-1">
+        <div className="space-y-1">
           <Label htmlFor={`pen30-${player.id}`} className="text-xs">
-            <Clock className="h-3 w-3 inline" />
+            30sec
           </Label>
           <Input
             id={`pen30-${player.id}`}
@@ -482,27 +479,32 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             value={stats.penalty_30s || 0}
             onChange={(e) => onUpdate("penalty_30s", parseInt(e.target.value) || 0)}
             className="h-8 text-xs"
-            placeholder="30s"
           />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="space-y-1">
+          <Label htmlFor={`pen1m-${player.id}`} className="text-xs">
+            1min
+          </Label>
           <Input
+            id={`pen1m-${player.id}`}
             type="number"
             min="0"
             value={stats.penalty_1m || 0}
             onChange={(e) => onUpdate("penalty_1m", parseInt(e.target.value) || 0)}
             className="h-8 text-xs"
-            placeholder="1min"
           />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="space-y-1">
+          <Label htmlFor={`pen2m-${player.id}`} className="text-xs">
+            2min
+          </Label>
           <Input
+            id={`pen2m-${player.id}`}
             type="number"
             min="0"
             value={stats.penalty_2m || 0}
             onChange={(e) => onUpdate("penalty_2m", parseInt(e.target.value) || 0)}
             className="h-8 text-xs"
-            placeholder="2min"
           />
         </div>
       </div>
