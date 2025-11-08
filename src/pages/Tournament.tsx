@@ -21,24 +21,24 @@ const Tournament = () => {
   const [tournament, setTournament] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchTournament = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tournaments")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      setTournament(data);
+    } catch (error: any) {
+      toast.error("Erreur lors du chargement du tournoi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchTournament = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("tournaments")
-          .select("*")
-          .eq("id", id)
-          .single();
-
-        if (error) throw error;
-        setTournament(data);
-      } catch (error: any) {
-        toast.error("Erreur lors du chargement du tournoi");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTournament();
   }, [id]);
 
@@ -157,7 +157,12 @@ const Tournament = () => {
           </TabsContent>
 
           <TabsContent value="elimination" className="animate-fade-in">
-            <EliminationBracket tournamentId={id!} eliminationType={tournament.elimination_type} />
+            <EliminationBracket 
+              tournamentId={id!} 
+              eliminationType={tournament.elimination_type}
+              currentPhase={tournament.current_phase}
+              onPhaseChanged={fetchTournament}
+            />
           </TabsContent>
 
           <TabsContent value="standings" className="animate-fade-in">
