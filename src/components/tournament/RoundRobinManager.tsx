@@ -137,13 +137,18 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
         </div>
 
         <div className="space-y-4">
-          {matches.map((match) => (
+          {matches.filter(m => m.team1_score === null || m.team2_score === null).map((match) => (
             <MatchCard
               key={match.id}
               match={match}
               onScoreUpdate={updateScore}
             />
           ))}
+          {matches.filter(m => m.team1_score === null || m.team2_score === null).length === 0 && matches.length > 0 && (
+            <p className="text-muted-foreground text-center py-8">
+              Tous les matchs de ce round sont terminés ! 
+            </p>
+          )}
           {matches.length === 0 && (
             <p className="text-muted-foreground text-center py-8">
               Aucun match pour ce round. Cliquez sur "Générer" pour créer les matchs.
