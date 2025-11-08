@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Users, Calendar } from "lucide-react";
 import { TeamsManager } from "@/components/tournament/TeamsManager";
 import { PlayersManager } from "@/components/tournament/PlayersManager";
+import { PlayerStatsManager } from "@/components/tournament/PlayerStatsManager";
 import { RoundRobinManager } from "@/components/tournament/RoundRobinManager";
 import { SwissManager } from "@/components/tournament/SwissManager";
 import { EliminationBracket } from "@/components/tournament/EliminationBracket";
@@ -127,9 +128,10 @@ const Tournament = () => {
 
           <TabsContent value="teams" className="animate-fade-in">
             <Tabs defaultValue="manage-teams" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2 bg-muted/30">
+              <TabsList className="grid w-full grid-cols-3 bg-muted/30">
                 <TabsTrigger value="manage-teams">Gestion des équipes</TabsTrigger>
                 <TabsTrigger value="manage-players">Gestion des joueurs</TabsTrigger>
+                <TabsTrigger value="player-stats">Statistiques joueurs</TabsTrigger>
               </TabsList>
               
               <TabsContent value="manage-teams">
@@ -138,6 +140,10 @@ const Tournament = () => {
               
               <TabsContent value="manage-players">
                 <PlayersManager tournamentId={id!} />
+              </TabsContent>
+
+              <TabsContent value="player-stats">
+                <PlayerStatsManager tournamentId={id!} />
               </TabsContent>
             </Tabs>
           </TabsContent>

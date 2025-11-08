@@ -88,6 +88,73 @@ export type Database = {
           },
         ]
       }
+      player_stats: {
+        Row: {
+          assists: number
+          created_at: string
+          fouls: number
+          goals: number
+          id: string
+          match_id: string | null
+          penalty_1m: number
+          penalty_2m: number
+          penalty_30s: number
+          player_id: string
+          tournament_id: string
+          updated_at: string
+        }
+        Insert: {
+          assists?: number
+          created_at?: string
+          fouls?: number
+          goals?: number
+          id?: string
+          match_id?: string | null
+          penalty_1m?: number
+          penalty_2m?: number
+          penalty_30s?: number
+          player_id: string
+          tournament_id: string
+          updated_at?: string
+        }
+        Update: {
+          assists?: number
+          created_at?: string
+          fouls?: number
+          goals?: number
+          id?: string
+          match_id?: string | null
+          penalty_1m?: number
+          penalty_2m?: number
+          penalty_30s?: number
+          player_id?: string
+          tournament_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_stats_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_stats_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_stats_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       players: {
         Row: {
           created_at: string
