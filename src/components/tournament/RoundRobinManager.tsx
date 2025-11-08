@@ -58,29 +58,97 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
       // Determine which round to generate
       const roundToGenerate = matches.length === 0 ? currentRound : currentRound + 1;
 
-      // Fetch current stats to group teams by results
+      // Fetch all previous matches to avoid duplicates
+      const { data: previousMatches, error: prevMatchesError } = await supabase
+        .from("matches")
+        .select("team1_id, team2_id")
+        .eq("tournament_id", tournamentId)
+        .eq("phase", "round_robin");
+
+      if (prevMatchesError) throw prevMatchesError;
+
+      // Create a set of already played matchups
+      const playedMatchups = new Set(
+        (previousMatches || []).map(m => 
+          [m.team1_id, m.team2_id].sort().join("-")
+        )
+      );
+
+      // Fetch team stats for Swiss pairing
       const { data: stats, error: statsError } = await supabase
         .from("team_stats")
-        .select("*")
+        .select("team_id, points, wins, losses, draws, goals_for, goals_against")
         .eq("tournament_id", tournamentId)
-        .order("points", { ascending: false });
+        .order("points", { ascending: false })
+        .order("goals_for", { ascending: false });
 
       if (statsError) throw statsError;
 
-      // Group teams by their last result (simplified version)
-      // In a real implementation, you'd want more sophisticated grouping
-      const teamIds = teams.map(t => t.id);
-      const shuffled = [...teamIds].sort(() => Math.random() - 0.5);
-      
+      // Create a map of team stats
+      const statsMap = new Map(
+        (stats || []).map(s => [s.team_id, s])
+      );
+
+      // Sort teams by their stats (Swiss system)
+      const sortedTeams = teams.sort((a, b) => {
+        const statsA = statsMap.get(a.id) || { points: 0, goals_for: 0 };
+        const statsB = statsMap.get(b.id) || { points: 0, goals_for: 0 };
+        
+        if (statsA.points !== statsB.points) {
+          return statsB.points - statsA.points;
+        }
+        return statsB.goals_for - statsA.goals_for;
+      });
+
+      // Swiss pairing algorithm
       const newMatches = [];
-      for (let i = 0; i < shuffled.length - 1; i += 2) {
-        newMatches.push({
-          tournament_id: tournamentId,
-          phase: "round_robin",
-          round_number: roundToGenerate,
-          team1_id: shuffled[i],
-          team2_id: shuffled[i + 1],
-        });
+      const paired = new Set();
+
+      for (let i = 0; i < sortedTeams.length; i++) {
+        if (paired.has(sortedTeams[i].id)) continue;
+
+        const team1 = sortedTeams[i];
+        let team2 = null;
+
+        // Try to find the best opponent (closest in ranking that hasn't played against)
+        for (let j = i + 1; j < sortedTeams.length; j++) {
+          if (paired.has(sortedTeams[j].id)) continue;
+
+          const matchupKey = [team1.id, sortedTeams[j].id].sort().join("-");
+          
+          if (!playedMatchups.has(matchupKey)) {
+            team2 = sortedTeams[j];
+            break;
+          }
+        }
+
+        // If no suitable opponent found, pair with the closest available team
+        if (!team2) {
+          for (let j = i + 1; j < sortedTeams.length; j++) {
+            if (!paired.has(sortedTeams[j].id)) {
+              team2 = sortedTeams[j];
+              break;
+            }
+          }
+        }
+
+        if (team2) {
+          paired.add(team1.id);
+          paired.add(team2.id);
+
+          newMatches.push({
+            tournament_id: tournamentId,
+            phase: "round_robin",
+            round_number: roundToGenerate,
+            team1_id: team1.id,
+            team2_id: team2.id,
+          });
+        }
+      }
+
+      if (newMatches.length === 0) {
+        toast.error("Impossible de générer de nouveaux matchs. Toutes les équipes se sont déjà affrontées.");
+        return;
       }
 
       const { error: insertError } = await supabase
@@ -89,7 +157,7 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
 
       if (insertError) throw insertError;
 
-      toast.success(`Round ${roundToGenerate} généré !`);
+      toast.success(`Round ${roundToGenerate} généré avec ${newMatches.length} match${newMatches.length > 1 ? 's' : ''} !`);
       if (roundToGenerate > currentRound) {
         setCurrentRound(roundToGenerate);
       } else {
