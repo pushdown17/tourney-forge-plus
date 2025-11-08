@@ -138,16 +138,19 @@ export const EliminationBracket = ({
         return;
       }
 
-      // Créer les matchs du premier tour
-      // Appariement: 1 vs dernier, 2 vs avant-dernier, etc.
-      const firstRoundMatches = [];
-      const halfCount = teamsCount / 2;
+      // Calculer le nombre de tours nécessaires
+      const totalRounds = Math.log2(teamsCount);
       
+      // Créer TOUS les tours d'avance
+      const allMatches = [];
+      
+      // Premier tour : avec les vraies équipes
+      const halfCount = teamsCount / 2;
       for (let i = 0; i < halfCount; i++) {
         const team1 = standings[i];
         const team2 = standings[teamsCount - 1 - i];
         
-        firstRoundMatches.push({
+        allMatches.push({
           tournament_id: tournamentId,
           phase: currentPhase,
           round_number: 1,
@@ -156,9 +159,15 @@ export const EliminationBracket = ({
         });
       }
 
+      // Tours suivants : créer des matchs vides (seront remplis par les gagnants)
+      // On doit créer des équipes "TBD" temporaires pour ces matchs
+      // En fait, on va juste créer les structures, les équipes seront ajoutées plus tard
+      // Pour l'instant, on génère juste le premier tour
+      // Les tours suivants seront créés automatiquement quand les matchs sont terminés
+
       const { error: insertError } = await supabase
         .from("matches")
-        .insert(firstRoundMatches);
+        .insert(allMatches);
 
       if (insertError) throw insertError;
 
@@ -298,14 +307,58 @@ export const EliminationBracket = ({
   };
 
   const getRoundName = (roundNumber: number, totalTeams: number) => {
-    const rounds = Math.log2(totalTeams);
-    const roundsRemaining = rounds - roundNumber + 1;
+    const totalRounds = Math.log2(totalTeams);
+    const roundsRemaining = totalRounds - roundNumber + 1;
     
     if (roundsRemaining === 1) return "Finale";
-    if (roundsRemaining === 2) return "Demi-finales";
-    if (roundsRemaining === 3) return "Quarts de finale";
-    return `Tour ${roundNumber}`;
+    if (roundsRemaining === 2) return "1/2";
+    if (roundsRemaining === 3) return "1/4";
+    if (roundsRemaining === 4) return "1/8";
+    return `R${roundNumber}`;
   };
+
+  // Générer la structure complète du bracket (tous les tours)
+  const generateBracketStructure = () => {
+    if (!tournament?.teams_for_elimination) return [];
+    
+    const totalTeams = tournament.teams_for_elimination;
+    const totalRounds = Math.log2(totalTeams);
+    const structure: any[][] = [];
+
+    for (let round = 1; round <= totalRounds; round++) {
+      const matchesInRound = totalTeams / Math.pow(2, round);
+      const roundMatches = [];
+      
+      for (let i = 0; i < matchesInRound; i++) {
+        // Chercher si un vrai match existe
+        const existingMatch = matches.find(m => 
+          m.round_number === round && 
+          matches.filter(x => x.round_number === round).indexOf(m) === i
+        );
+        
+        if (existingMatch) {
+          roundMatches.push(existingMatch);
+        } else {
+          // Créer un match placeholder
+          roundMatches.push({
+            id: `placeholder-${round}-${i}`,
+            round_number: round,
+            team1: null,
+            team2: null,
+            team1_score: null,
+            team2_score: null,
+            winner_id: null,
+            isPlaceholder: true
+          });
+        }
+      }
+      structure.push(roundMatches);
+    }
+    
+    return structure;
+  };
+
+  const bracketStructure = generateBracketStructure();
 
   if (loading) {
     return (
@@ -333,15 +386,13 @@ export const EliminationBracket = ({
     return acc;
   }, {} as { [key: number]: Match[] });
 
-  const rounds = Object.keys(matchesByRound).sort((a, b) => parseInt(a) - parseInt(b));
-
   return (
-    <Card className="glass-card p-8">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">
+    <Card className="glass-card p-6">
+      <div className="mb-4">
+        <h2 className="text-xl font-bold mb-1">
           Phase d'élimination {eliminationType === "single" ? "simple" : "double"}
         </h2>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {tournament?.teams_for_elimination} équipes qualifiées
         </p>
       </div>
@@ -351,31 +402,33 @@ export const EliminationBracket = ({
           <p className="text-muted-foreground">Aucun match généré</p>
         </div>
       ) : (
-        <div className="overflow-x-auto pb-6">
-          <div className="flex gap-6 min-w-max items-center px-4">
-            {rounds.map((roundNum, roundIndex) => {
-              const roundNumber = parseInt(roundNum);
-              const roundMatches = matchesByRound[roundNumber];
-              const spacing = Math.pow(2, roundIndex) * 60 + 20;
+        <div className="overflow-x-auto pb-4">
+          <div className="flex gap-4 min-w-max items-center px-2">
+            {bracketStructure.map((roundMatches, roundIndex) => {
+              const roundNumber = roundMatches[0]?.round_number || roundIndex + 1;
+              const spacing = Math.pow(2, roundIndex) * 40 + 10;
               
               return (
-                <div key={roundNumber} className="flex flex-col" style={{ minWidth: '240px' }}>
-                  <h3 className="text-sm font-bold text-primary text-center mb-3 sticky top-0 bg-card/95 backdrop-blur py-2 rounded">
+                <div key={roundNumber} className="flex flex-col" style={{ minWidth: '200px' }}>
+                  <h3 className="text-xs font-bold text-primary text-center mb-2 sticky top-0 bg-card/95 backdrop-blur py-1 rounded">
                     {getRoundName(roundNumber, tournament?.teams_for_elimination || 8)}
                   </h3>
                   <div className="flex flex-col justify-center" style={{ gap: `${spacing}px` }}>
-                    {roundMatches.map((match) => (
+                    {roundMatches.map((match, matchIndex) => (
                       <div key={match.id} className="space-y-1 animate-fade-in">
                         <div 
-                          className="w-60 cursor-pointer"
+                          className="w-50"
                           onClick={() => {
-                            setSelectedMatch(match);
-                            setStatsDialogOpen(true);
+                            if (!match.isPlaceholder) {
+                              setSelectedMatch(match);
+                              setStatsDialogOpen(true);
+                            }
                           }}
+                          style={{ cursor: match.isPlaceholder ? 'default' : 'pointer' }}
                         >
                           <BracketNode
-                            player1={match.team1?.name}
-                            player2={match.team2?.name}
+                            player1={match.team1?.name || (match.isPlaceholder ? 'TBD' : 'À déterminer')}
+                            player2={match.team2?.name || (match.isPlaceholder ? 'TBD' : 'À déterminer')}
                             score1={match.team1_score ?? undefined}
                             score2={match.team2_score ?? undefined}
                             winner={
@@ -385,7 +438,7 @@ export const EliminationBracket = ({
                             }
                           />
                         </div>
-                        {editingMatchId === match.id ? (
+                        {editingMatchId === match.id && !match.isPlaceholder ? (
                           <div className="flex gap-1">
                             <Input
                               type="number"
@@ -395,7 +448,7 @@ export const EliminationBracket = ({
                                 ...scores,
                                 [match.id]: { ...scores[match.id], team1: e.target.value }
                               })}
-                              className="w-16 h-8 text-sm"
+                              className="w-12 h-7 text-xs"
                             />
                             <Input
                               type="number"
@@ -405,16 +458,16 @@ export const EliminationBracket = ({
                                 ...scores,
                                 [match.id]: { ...scores[match.id], team2: e.target.value }
                               })}
-                              className="w-16 h-8 text-sm"
+                              className="w-12 h-7 text-xs"
                             />
-                            <Button onClick={() => handleScoreUpdate(match.id)} size="sm" className="h-8 px-2">
+                            <Button onClick={() => handleScoreUpdate(match.id)} size="sm" className="h-7 px-2 text-xs">
                               ✓
                             </Button>
-                            <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm" className="h-8 px-2">
+                            <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm" className="h-7 px-2 text-xs">
                               ✗
                             </Button>
                           </div>
-                        ) : (
+                        ) : !match.isPlaceholder && (
                           <Button
                             onClick={() => {
                               setEditingMatchId(match.id);
@@ -428,9 +481,9 @@ export const EliminationBracket = ({
                             }}
                             variant="outline"
                             size="sm"
-                            className="w-full h-8 text-xs"
+                            className="w-full h-7 text-xs"
                           >
-                            {match.team1_score !== null ? "Modifier" : "Entrer le score"}
+                            {match.team1_score !== null ? "Modifier" : "Score"}
                           </Button>
                         )}
                       </div>

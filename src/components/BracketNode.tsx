@@ -12,28 +12,28 @@ export const BracketNode = ({ player1, player2, score1, score2, winner }: Bracke
   return (
     <Card className="glass-card overflow-hidden w-full hover:border-primary/50 transition-all duration-300">
       {/* Player 1 */}
-      <div className={`p-2 border-b flex justify-between items-center ${
+      <div className={`p-1.5 border-b flex justify-between items-center ${
         winner === 1 ? 'bg-primary/20' : 'bg-card'
       }`}>
-        <span className={`text-sm font-medium truncate ${winner === 1 ? 'text-primary' : ''}`}>
+        <span className={`text-xs font-medium truncate ${winner === 1 ? 'text-primary' : ''}`}>
           {player1 || 'TBD'}
         </span>
         {score1 !== undefined && (
-          <span className={`text-sm font-bold ml-2 ${winner === 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+          <span className={`text-xs font-bold ml-1 ${winner === 1 ? 'text-primary' : 'text-muted-foreground'}`}>
             {score1}
           </span>
         )}
       </div>
       
       {/* Player 2 */}
-      <div className={`p-2 flex justify-between items-center ${
+      <div className={`p-1.5 flex justify-between items-center ${
         winner === 2 ? 'bg-primary/20' : 'bg-card'
       }`}>
-        <span className={`text-sm font-medium truncate ${winner === 2 ? 'text-primary' : ''}`}>
+        <span className={`text-xs font-medium truncate ${winner === 2 ? 'text-primary' : ''}`}>
           {player2 || 'TBD'}
         </span>
         {score2 !== undefined && (
-          <span className={`text-sm font-bold ml-2 ${winner === 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+          <span className={`text-xs font-bold ml-1 ${winner === 2 ? 'text-primary' : 'text-muted-foreground'}`}>
             {score2}
           </span>
         )}
