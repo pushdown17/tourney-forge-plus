@@ -14,7 +14,237 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      matches: {
+        Row: {
+          created_at: string
+          id: string
+          match_date: string | null
+          phase: Database["public"]["Enums"]["tournament_phase"]
+          round_number: number
+          team1_id: string
+          team1_score: number | null
+          team2_id: string
+          team2_score: number | null
+          tournament_id: string
+          updated_at: string
+          winner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_date?: string | null
+          phase: Database["public"]["Enums"]["tournament_phase"]
+          round_number: number
+          team1_id: string
+          team1_score?: number | null
+          team2_id: string
+          team2_score?: number | null
+          tournament_id: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_date?: string | null
+          phase?: Database["public"]["Enums"]["tournament_phase"]
+          round_number?: number
+          team1_id?: string
+          team1_score?: number | null
+          team2_id?: string
+          team2_score?: number | null
+          tournament_id?: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_team1_id_fkey"
+            columns: ["team1_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_team2_id_fkey"
+            columns: ["team2_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "players_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_stats: {
+        Row: {
+          draws: number
+          goals_against: number
+          goals_for: number
+          id: string
+          losses: number
+          points: number
+          team_id: string
+          tournament_id: string
+          updated_at: string
+          wins: number
+        }
+        Insert: {
+          draws?: number
+          goals_against?: number
+          goals_for?: number
+          id?: string
+          losses?: number
+          points?: number
+          team_id: string
+          tournament_id: string
+          updated_at?: string
+          wins?: number
+        }
+        Update: {
+          draws?: number
+          goals_against?: number
+          goals_for?: number
+          id?: string
+          losses?: number
+          points?: number
+          team_id?: string
+          tournament_id?: string
+          updated_at?: string
+          wins?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_stats_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_stats_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          tournament_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          tournament_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournaments: {
+        Row: {
+          created_at: string
+          created_by: string
+          current_phase: Database["public"]["Enums"]["tournament_phase"]
+          elimination_type:
+            | Database["public"]["Enums"]["elimination_type"]
+            | null
+          end_date: string
+          id: string
+          name: string
+          start_date: string
+          teams_for_elimination: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          current_phase?: Database["public"]["Enums"]["tournament_phase"]
+          elimination_type?:
+            | Database["public"]["Enums"]["elimination_type"]
+            | null
+          end_date: string
+          id?: string
+          name: string
+          start_date: string
+          teams_for_elimination?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          current_phase?: Database["public"]["Enums"]["tournament_phase"]
+          elimination_type?:
+            | Database["public"]["Enums"]["elimination_type"]
+            | null
+          end_date?: string
+          id?: string
+          name?: string
+          start_date?: string
+          teams_for_elimination?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +253,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      elimination_type: "single" | "double"
+      match_result: "win" | "loss" | "draw"
+      tournament_phase: "round_robin" | "elimination"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +382,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      elimination_type: ["single", "double"],
+      match_result: ["win", "loss", "draw"],
+      tournament_phase: ["round_robin", "elimination"],
+    },
   },
 } as const
