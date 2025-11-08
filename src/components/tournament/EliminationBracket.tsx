@@ -403,21 +403,23 @@ export const EliminationBracket = ({
         </div>
       ) : (
         <div className="overflow-x-auto pb-4">
-          <div className="flex gap-3 min-w-max items-center justify-start px-2">
+          <div className="flex gap-8 min-w-max items-start px-2">
             {bracketStructure.map((roundMatches, roundIndex) => {
               const roundNumber = roundMatches[0]?.round_number || roundIndex + 1;
-              // Espacement exponentiel pour créer l'effet pyramidal
-              const baseSpacing = 8; // Espacement de base en pixels
-              const spacing = baseSpacing * Math.pow(2, roundIndex);
-              const matchHeight = 60; // Hauteur approximative d'une carte de match
-              const totalSpacing = spacing + matchHeight;
+              const totalTeams = tournament?.teams_for_elimination || 8;
+              const matchHeight = 80; // Hauteur d'un match + espacement
+              const initialSpacing = 0;
+              
+              // Calculer l'espacement et l'offset pour créer l'alignement pyramidal
+              const verticalSpacing = matchHeight * Math.pow(2, roundIndex);
+              const topOffset = (matchHeight * Math.pow(2, roundIndex) - matchHeight) / 2;
               
               return (
-                <div key={roundNumber} className="flex flex-col" style={{ minWidth: '180px' }}>
-                  <div className="text-xs font-bold text-primary text-center mb-2 h-6 flex items-center justify-center">
-                    {getRoundName(roundNumber, tournament?.teams_for_elimination || 8)}
+                <div key={roundNumber} className="flex flex-col" style={{ minWidth: '200px' }}>
+                  <div className="text-xs font-bold text-primary text-center mb-4 h-6 flex items-center justify-center">
+                    {getRoundName(roundNumber, totalTeams)}
                   </div>
-                  <div className="flex flex-col" style={{ gap: `${totalSpacing}px` }}>
+                  <div className="flex flex-col" style={{ gap: `${verticalSpacing}px`, marginTop: `${topOffset}px` }}>
                     {roundMatches.map((match, matchIndex) => (
                       <div key={match.id} className="animate-fade-in">
                         <div 
