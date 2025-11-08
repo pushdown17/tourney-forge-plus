@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_third_place_match: boolean
           match_date: string | null
           phase: Database["public"]["Enums"]["tournament_phase"]
           round_number: number
@@ -32,6 +33,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_third_place_match?: boolean
           match_date?: string | null
           phase: Database["public"]["Enums"]["tournament_phase"]
           round_number: number
@@ -46,6 +48,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_third_place_match?: boolean
           match_date?: string | null
           phase?: Database["public"]["Enums"]["tournament_phase"]
           round_number?: number

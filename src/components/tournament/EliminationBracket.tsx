@@ -22,6 +22,7 @@ interface Match {
   team2_score: number | null;
   winner_id: string | null;
   round_number: number;
+  is_third_place_match?: boolean;
   team1?: Team;
   team2?: Team;
 }
@@ -236,7 +237,8 @@ export const EliminationBracket = ({
         .select("*")
         .eq("tournament_id", tournamentId)
         .eq("phase", currentPhase)
-        .eq("round_number", completedRound);
+        .eq("round_number", completedRound)
+        .eq("is_third_place_match", false);
 
       if (matchesError) throw matchesError;
 
@@ -277,16 +279,57 @@ export const EliminationBracket = ({
         return; // Pas assez de gagnants
       }
 
-      // Créer les matchs par paires
+      // Si c'est les demi-finales (2 matchs), créer la finale ET le match pour la 3ème place
+      if (roundMatches.length === 2) {
+        // Récupérer les perdants pour le match de 3ème place
+        const losers = roundMatches.map(m => {
+          if (m.winner_id === m.team1_id) return m.team2_id;
+          return m.team1_id;
+        }).filter(Boolean);
+
+        const matchesToCreate = [
+          // La finale
+          {
+            tournament_id: tournamentId,
+            phase: currentPhase as any,
+            round_number: completedRound + 1,
+            team1_id: winners[0],
+            team2_id: winners[1],
+            is_third_place_match: false,
+          },
+          // Le match pour la 3ème place
+          {
+            tournament_id: tournamentId,
+            phase: currentPhase as any,
+            round_number: completedRound + 1,
+            team1_id: losers[0],
+            team2_id: losers[1],
+            is_third_place_match: true,
+          },
+        ];
+
+        const { error: insertError } = await supabase
+          .from("matches")
+          .insert(matchesToCreate);
+
+        if (insertError) throw insertError;
+
+        toast.success(`Finale et match pour la 3ème place générés !`);
+        await fetchTournamentAndMatches();
+        return;
+      }
+
+      // Pour les autres tours : créer les matchs par paires
       const nextRoundMatches = [];
       for (let i = 0; i < winners.length; i += 2) {
         if (i + 1 < winners.length) {
           nextRoundMatches.push({
             tournament_id: tournamentId,
-            phase: currentPhase,
+            phase: currentPhase as any,
             round_number: completedRound + 1,
             team1_id: winners[i],
             team2_id: winners[i + 1],
+            is_third_place_match: false,
           });
         }
       }
@@ -330,10 +373,11 @@ export const EliminationBracket = ({
       const roundMatches = [];
       
       for (let i = 0; i < matchesInRound; i++) {
-        // Chercher si un vrai match existe
+        // Chercher si un vrai match existe (exclure le match de 3ème place)
         const existingMatch = matches.find(m => 
           m.round_number === round && 
-          matches.filter(x => x.round_number === round).indexOf(m) === i
+          !m.is_third_place_match &&
+          matches.filter(x => x.round_number === round && !x.is_third_place_match).indexOf(m) === i
         );
         
         if (existingMatch) {
@@ -359,6 +403,9 @@ export const EliminationBracket = ({
   };
 
   const bracketStructure = generateBracketStructure();
+  
+  // Récupérer le match pour la 3ème place s'il existe
+  const thirdPlaceMatch = matches.find(m => m.is_third_place_match);
 
   if (loading) {
     return (
@@ -402,8 +449,9 @@ export const EliminationBracket = ({
           <p className="text-muted-foreground">Aucun match généré</p>
         </div>
       ) : (
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-6 min-w-max items-start px-2 relative">
+        <>
+          <div className="overflow-x-auto pb-4">
+            <div className="flex gap-6 min-w-max items-start px-2 relative">
             {bracketStructure.map((roundMatches, roundIndex) => {
               const roundNumber = roundMatches[0]?.round_number || roundIndex + 1;
               const totalTeams = tournament?.teams_for_elimination || 8;
@@ -583,13 +631,101 @@ export const EliminationBracket = ({
                           </div>
                         )}
                       </div>
-                    ))}
+                     ))}
                   </div>
                 </div>
               );
             })}
+            </div>
           </div>
-        </div>
+
+          {/* Match pour la 3ème place */}
+          {thirdPlaceMatch && (
+            <div className="mt-8 pt-6 border-t border-border">
+              <h3 className="text-sm font-bold text-primary text-center mb-4">
+                🥉 Match pour la 3ème place
+              </h3>
+              <div className="max-w-[200px] mx-auto">
+                <div className="text-center mb-0.5">
+                  <span className="text-[9px] font-semibold text-muted-foreground">
+                    M{matches.filter(m => !m.is_third_place_match).length + 1}
+                  </span>
+                </div>
+                <div 
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setSelectedMatch(thirdPlaceMatch);
+                    setStatsDialogOpen(true);
+                  }}
+                >
+                  <BracketNode
+                    player1={thirdPlaceMatch.team1?.name || 'TBD'}
+                    player2={thirdPlaceMatch.team2?.name || 'TBD'}
+                    score1={thirdPlaceMatch.team1_score ?? undefined}
+                    score2={thirdPlaceMatch.team2_score ?? undefined}
+                    winner={
+                      thirdPlaceMatch.winner_id === thirdPlaceMatch.team1_id ? 1 :
+                      thirdPlaceMatch.winner_id === thirdPlaceMatch.team2_id ? 2 :
+                      undefined
+                    }
+                  />
+                </div>
+                {thirdPlaceMatch.team1 && thirdPlaceMatch.team2 && (
+                  <div className="mt-0.5">
+                    {editingMatchId === thirdPlaceMatch.id ? (
+                      <div className="flex gap-0.5">
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={scores[thirdPlaceMatch.id]?.team1 || ""}
+                          onChange={(e) => setScores({
+                            ...scores,
+                            [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], team1: e.target.value }
+                          })}
+                          className="w-8 h-5 text-[10px] p-0.5 text-center"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={scores[thirdPlaceMatch.id]?.team2 || ""}
+                          onChange={(e) => setScores({
+                            ...scores,
+                            [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], team2: e.target.value }
+                          })}
+                          className="w-8 h-5 text-[10px] p-0.5 text-center"
+                        />
+                        <Button onClick={() => handleScoreUpdate(thirdPlaceMatch.id)} size="sm" className="h-5 px-1.5 text-[10px]">
+                          ✓
+                        </Button>
+                        <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm" className="h-5 px-1 text-[10px]">
+                          ✗
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => {
+                          setEditingMatchId(thirdPlaceMatch.id);
+                          setScores({
+                            ...scores,
+                            [thirdPlaceMatch.id]: {
+                              team1: thirdPlaceMatch.team1_score?.toString() || "",
+                              team2: thirdPlaceMatch.team2_score?.toString() || ""
+                            }
+                          });
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-5 text-[10px] py-0"
+                      >
+                        {thirdPlaceMatch.team1_score !== null ? "Modifier" : "Score"}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {selectedMatch && (
