@@ -238,110 +238,105 @@ export const EliminationBracket = ({
         .eq("tournament_id", tournamentId)
         .eq("phase", currentPhase)
         .eq("round_number", completedRound)
-        .eq("is_third_place_match", false);
+        .eq("is_third_place_match", false)
+        .order("id", { ascending: true });
 
       if (matchesError) throw matchesError;
+      if (!roundMatches || roundMatches.length === 0) return;
 
-      // Vérifier si tous les matchs ont un gagnant
-      const allMatchesCompleted = roundMatches?.every(m => m.winner_id !== null);
-      
-      if (!allMatchesCompleted) {
-        return; // Pas encore tous les matchs terminés
-      }
-
-      // Vérifier si le prochain tour existe déjà
-      const { data: existingNextRound, error: nextRoundError } = await supabase
-        .from("matches")
-        .select("id")
-        .eq("tournament_id", tournamentId)
-        .eq("phase", currentPhase)
-        .eq("round_number", completedRound + 1)
-        .limit(1);
-
-      if (nextRoundError) throw nextRoundError;
-
-      if (existingNextRound && existingNextRound.length > 0) {
-        return; // Le prochain tour existe déjà
-      }
-
-      // Si c'est la finale (1 seul match), pas de tour suivant
-      if (roundMatches.length === 1) {
+      // Si c'est la finale (1 seul match) et qu'elle est terminée
+      if (roundMatches.length === 1 && roundMatches[0].winner_id) {
         toast.success("🏆 Tournoi terminé ! Félicitations au vainqueur !");
         return;
       }
 
-      // Générer le prochain tour avec les gagnants
-      const winners = roundMatches
-        .filter(m => m.winner_id)
-        .map(m => m.winner_id);
+      // Traiter les matchs par paires pour générer les matchs du tour suivant progressivement
+      for (let i = 0; i < roundMatches.length; i += 2) {
+        if (i + 1 >= roundMatches.length) break; // Pas de paire complète
 
-      if (winners.length < 2) {
-        return; // Pas assez de gagnants
-      }
+        const match1 = roundMatches[i];
+        const match2 = roundMatches[i + 1];
 
-      // Si c'est les demi-finales (2 matchs), créer la finale ET le match pour la 3ème place
-      if (roundMatches.length === 2) {
-        // Récupérer les perdants pour le match de 3ème place
-        const losers = roundMatches.map(m => {
-          if (m.winner_id === m.team1_id) return m.team2_id;
-          return m.team1_id;
-        }).filter(Boolean);
-
-        const matchesToCreate = [
-          // La finale
-          {
-            tournament_id: tournamentId,
-            phase: currentPhase as any,
-            round_number: completedRound + 1,
-            team1_id: winners[0],
-            team2_id: winners[1],
-            is_third_place_match: false,
-          },
-          // Le match pour la 3ème place
-          {
-            tournament_id: tournamentId,
-            phase: currentPhase as any,
-            round_number: completedRound + 1,
-            team1_id: losers[0],
-            team2_id: losers[1],
-            is_third_place_match: true,
-          },
-        ];
-
-        const { error: insertError } = await supabase
-          .from("matches")
-          .insert(matchesToCreate);
-
-        if (insertError) throw insertError;
-
-        toast.success(`Finale et match pour la 3ème place générés !`);
-        await fetchTournamentAndMatches();
-        return;
-      }
-
-      // Pour les autres tours : créer les matchs par paires
-      const nextRoundMatches = [];
-      for (let i = 0; i < winners.length; i += 2) {
-        if (i + 1 < winners.length) {
-          nextRoundMatches.push({
-            tournament_id: tournamentId,
-            phase: currentPhase as any,
-            round_number: completedRound + 1,
-            team1_id: winners[i],
-            team2_id: winners[i + 1],
-            is_third_place_match: false,
-          });
+        // Vérifier si les deux matchs de la paire sont terminés
+        if (!match1.winner_id || !match2.winner_id) {
+          continue; // Cette paire n'est pas encore complète
         }
-      }
 
-      if (nextRoundMatches.length > 0) {
+        // Calculer l'index du match suivant dans le round suivant
+        const nextMatchIndex = Math.floor(i / 2);
+        
+        // Vérifier si le match du tour suivant existe déjà
+        const { data: existingMatches, error: existingError } = await supabase
+          .from("matches")
+          .select("*")
+          .eq("tournament_id", tournamentId)
+          .eq("phase", currentPhase)
+          .eq("round_number", completedRound + 1)
+          .eq("is_third_place_match", false)
+          .order("id", { ascending: true });
+
+        if (existingError) throw existingError;
+
+        // Vérifier si ce match spécifique existe déjà
+        if (existingMatches && existingMatches[nextMatchIndex]) {
+          continue; // Ce match existe déjà
+        }
+
+        // Si c'est les demi-finales (2 matchs seulement dans le round)
+        if (roundMatches.length === 2) {
+          // Récupérer les perdants pour le match de 3ème place
+          const loser1 = match1.winner_id === match1.team1_id ? match1.team2_id : match1.team1_id;
+          const loser2 = match2.winner_id === match2.team1_id ? match2.team2_id : match2.team1_id;
+
+          const matchesToCreate = [
+            // La finale
+            {
+              tournament_id: tournamentId,
+              phase: currentPhase as any,
+              round_number: completedRound + 1,
+              team1_id: match1.winner_id,
+              team2_id: match2.winner_id,
+              is_third_place_match: false,
+            },
+            // Le match pour la 3ème place
+            {
+              tournament_id: tournamentId,
+              phase: currentPhase as any,
+              round_number: completedRound + 1,
+              team1_id: loser1,
+              team2_id: loser2,
+              is_third_place_match: true,
+            },
+          ];
+
+          const { error: insertError } = await supabase
+            .from("matches")
+            .insert(matchesToCreate);
+
+          if (insertError) throw insertError;
+
+          toast.success(`Finale et match pour la 3ème place générés !`);
+          await fetchTournamentAndMatches();
+          return;
+        }
+
+        // Pour les autres tours : créer le match du tour suivant pour cette paire
+        const nextMatch = {
+          tournament_id: tournamentId,
+          phase: currentPhase as any,
+          round_number: completedRound + 1,
+          team1_id: match1.winner_id,
+          team2_id: match2.winner_id,
+          is_third_place_match: false,
+        };
+
         const { error: insertError } = await supabase
           .from("matches")
-          .insert(nextRoundMatches);
+          .insert([nextMatch]);
 
         if (insertError) throw insertError;
 
-        toast.success(`Tour ${completedRound + 1} généré automatiquement !`);
+        toast.success(`Match généré pour le tour ${completedRound + 1} !`);
         await fetchTournamentAndMatches();
       }
     } catch (error: any) {
