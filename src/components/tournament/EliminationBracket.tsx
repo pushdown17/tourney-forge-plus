@@ -196,6 +196,23 @@ export const EliminationBracket = ({
       return;
     }
 
+    // Validate input with zod
+    try {
+      const { matchScoreSchema } = await import("@/lib/validations");
+      const validation = matchScoreSchema.safeParse({
+        team1_score: team1Score,
+        team2_score: team2Score,
+      });
+
+      if (!validation.success) {
+        toast.error(validation.error.errors[0].message);
+        return;
+      }
+    } catch (validationError: any) {
+      toast.error("Erreur de validation");
+      return;
+    }
+
     const match = matches.find(m => m.id === matchId);
     if (!match) return;
 

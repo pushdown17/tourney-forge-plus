@@ -102,11 +102,23 @@ export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManage
   const insertPlayer = async (name: string, teamId: string) => {
     setLoading(true);
     try {
+      // Validate input
+      const { playerSchema } = await import("@/lib/validations");
+      const validation = playerSchema.safeParse({
+        name,
+        team_id: teamId,
+      });
+
+      if (!validation.success) {
+        toast.error(validation.error.errors[0].message);
+        return;
+      }
+
       const { error } = await supabase
         .from("players")
         .insert({
-          name: name,
-          team_id: teamId,
+          name: validation.data.name,
+          team_id: validation.data.team_id,
         });
 
       if (error) throw error;

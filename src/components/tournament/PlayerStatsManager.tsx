@@ -182,19 +182,38 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false }: PlayerSta
     }
 
     try {
+      // Validate input
+      const { playerStatsSchema } = await import("@/lib/validations");
+      const validation = playerStatsSchema.safeParse({
+        player_id: selectedPlayerId,
+        tournament_id: tournamentId,
+        match_id: selectedMatchId || null,
+        goals,
+        assists,
+        fouls,
+        penalty_30s: penalty30s,
+        penalty_1m: penalty1m,
+        penalty_2m: penalty2m,
+      });
+
+      if (!validation.success) {
+        toast.error(validation.error.errors[0].message);
+        return;
+      }
+
       const { error } = await supabase
         .from("player_stats")
-        .insert({
-          player_id: selectedPlayerId,
-          tournament_id: tournamentId,
-          match_id: selectedMatchId || null,
-          goals,
-          assists,
-          fouls,
-          penalty_30s: penalty30s,
-          penalty_1m: penalty1m,
-          penalty_2m: penalty2m,
-        });
+        .insert([{
+          player_id: validation.data.player_id,
+          tournament_id: validation.data.tournament_id,
+          match_id: validation.data.match_id,
+          goals: validation.data.goals,
+          assists: validation.data.assists,
+          fouls: validation.data.fouls,
+          penalty_30s: validation.data.penalty_30s,
+          penalty_1m: validation.data.penalty_1m,
+          penalty_2m: validation.data.penalty_2m,
+        }]);
 
       if (error) throw error;
 

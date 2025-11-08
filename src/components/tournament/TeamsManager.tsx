@@ -51,11 +51,23 @@ export const TeamsManager = ({ tournamentId, isClosed = false }: TeamsManagerPro
 
     setLoading(true);
     try {
+      // Validate input
+      const { teamSchema } = await import("@/lib/validations");
+      const validation = teamSchema.safeParse({
+        name: teamName,
+        tournament_id: tournamentId,
+      });
+
+      if (!validation.success) {
+        toast.error(validation.error.errors[0].message);
+        return;
+      }
+
       const { error } = await supabase
         .from("teams")
         .insert({
-          name: teamName,
-          tournament_id: tournamentId,
+          name: validation.data.name,
+          tournament_id: validation.data.tournament_id,
         });
 
       if (error) throw error;

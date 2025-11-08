@@ -187,15 +187,27 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false }: RoundRobin
 
   const updateScore = async (matchId: string, team1Score: number, team2Score: number) => {
     try {
+      // Validate input
+      const { matchScoreSchema } = await import("@/lib/validations");
+      const validation = matchScoreSchema.safeParse({
+        team1_score: team1Score,
+        team2_score: team2Score,
+      });
+
+      if (!validation.success) {
+        toast.error(validation.error.errors[0].message);
+        return;
+      }
+
       const match = matches.find(m => m.id === matchId);
-      const winnerId = team1Score > team2Score ? match.team1_id : 
-                      team2Score > team1Score ? match.team2_id : null;
+      const winnerId = validation.data.team1_score > validation.data.team2_score ? match.team1_id : 
+                      validation.data.team2_score > validation.data.team1_score ? match.team2_id : null;
 
       const { error } = await supabase
         .from("matches")
         .update({
-          team1_score: team1Score,
-          team2_score: team2Score,
+          team1_score: validation.data.team1_score,
+          team2_score: validation.data.team2_score,
           winner_id: winnerId,
         })
         .eq("id", matchId);
