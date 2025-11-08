@@ -228,7 +228,9 @@ export const SwissManager = ({ tournamentId }: SwissManagerProps) => {
 
       toast.success("Score enregistré !");
       setEditingMatchId(null);
-      fetchMatches();
+      
+      // Rafraîchir les matchs et le maxRound
+      await Promise.all([fetchMatches(), fetchMaxRound()]);
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -284,11 +286,17 @@ export const SwissManager = ({ tournamentId }: SwissManagerProps) => {
           </div>
         </div>
 
-        {matches.length > 0 && !canGenerateNextRound() && (
-          <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg text-sm">
-            <p className="text-foreground">
-              Complétez tous les matchs de ce round pour générer le suivant.
-            </p>
+        {matches.length > 0 && (
+          <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <p className="text-foreground">
+                Progression: {matches.filter(m => m.team1_score !== null && m.team2_score !== null).length} / {matches.length} matchs complétés
+              </p>
+            </div>
+            {canGenerateNextRound() && (
+              <span className="text-sm font-semibold text-primary">✓ Prêt pour le prochain round</span>
+            )}
           </div>
         )}
 
