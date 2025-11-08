@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trophy, TrendingUp, ChevronDown, ChevronUp, Users, Target, AlertTriangle, Clock } from "lucide-react";
+import { Trophy, TrendingUp, ChevronDown, ChevronUp, Users, Target, AlertTriangle, Clock, Zap } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface SwissManagerProps {
   tournamentId: string;
@@ -252,6 +253,17 @@ export const SwissManager = ({ tournamentId }: SwissManagerProps) => {
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Trophy className="h-6 w-6 text-primary" />
               Round Swiss {currentRound}
+              {currentRound === maxRound && (
+                <Badge variant="default" className="gap-1 animate-pulse">
+                  <Zap className="h-3 w-3" />
+                  Actuel
+                </Badge>
+              )}
+              {currentRound < maxRound && (
+                <Badge variant="secondary" className="gap-1">
+                  Terminé
+                </Badge>
+              )}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
               Les équipes sont appariées selon leur classement actuel
