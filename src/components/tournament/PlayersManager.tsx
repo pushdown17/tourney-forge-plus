@@ -24,8 +24,13 @@ export const PlayersManager = ({ tournamentId }: PlayersManagerProps) => {
 
   useEffect(() => {
     fetchTeams();
-    fetchPlayers();
   }, [tournamentId]);
+
+  useEffect(() => {
+    if (teams.length > 0) {
+      fetchPlayers();
+    }
+  }, [teams.length]);
 
   const fetchTeams = async () => {
     const { data, error } = await supabase
