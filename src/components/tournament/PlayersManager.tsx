@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Trash2, Users, GripVertical } from "lucide-react";
@@ -22,8 +22,6 @@ export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManage
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [playerName, setPlayerName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-  const [pendingPlayerData, setPendingPlayerData] = useState<{ name: string; teamId: string } | null>(null);
   const [activePlayer, setActivePlayer] = useState<any>(null);
 
   const sensors = useSensors(
@@ -84,18 +82,6 @@ export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManage
     e.preventDefault();
     if (!playerName.trim() || !selectedTeamId) return;
 
-    // Check for duplicate
-    const duplicate = players.find(
-      p => p.team_id === selectedTeamId && 
-      p.name.toLowerCase().trim() === playerName.toLowerCase().trim()
-    );
-
-    if (duplicate) {
-      setPendingPlayerData({ name: playerName.trim(), teamId: selectedTeamId });
-      setShowDuplicateDialog(true);
-      return;
-    }
-
     await insertPlayer(playerName.trim(), selectedTeamId);
   };
 
@@ -121,7 +107,14 @@ export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManage
           team_id: validation.data.team_id,
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          toast.error("Ce joueur existe déjà dans cette équipe");
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       toast.success("Joueur ajouté !");
       setPlayerName("");
@@ -131,19 +124,6 @@ export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManage
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleConfirmDuplicate = async () => {
-    if (pendingPlayerData) {
-      await insertPlayer(pendingPlayerData.name, pendingPlayerData.teamId);
-      setPendingPlayerData(null);
-    }
-    setShowDuplicateDialog(false);
-  };
-
-  const handleCancelDuplicate = () => {
-    setShowDuplicateDialog(false);
-    setPendingPlayerData(null);
   };
 
   const handleDeletePlayer = async (playerId: string) => {
@@ -191,7 +171,14 @@ export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManage
         .update({ team_id: newTeamId })
         .eq("id", playerId);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          toast.error("Un joueur avec ce nom existe déjà dans l'équipe cible");
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       const oldTeam = teams.find(t => t.id === player.team_id);
       const newTeam = teams.find(t => t.id === newTeamId);
@@ -222,22 +209,6 @@ export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManage
       onDragEnd={handleDragEnd}
     >
       <div className="space-y-6">
-        <AlertDialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Joueur en doublon détecté</AlertDialogTitle>
-              <AlertDialogDescription>
-                Un joueur avec le nom "{pendingPlayerData?.name}" existe déjà dans cette équipe. 
-                Voulez-vous quand même l'ajouter ?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={handleCancelDuplicate}>Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmDuplicate}>Ajouter quand même</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
         <Card className="glass-card p-6">
           <h2 className="text-2xl font-bold mb-4">Ajouter un joueur</h2>
           <form onSubmit={handleAddPlayer} className="space-y-4">
