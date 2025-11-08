@@ -10,6 +10,7 @@ import { ArrowLeft, Users, Calendar } from "lucide-react";
 import { TeamsManager } from "@/components/tournament/TeamsManager";
 import { PlayersManager } from "@/components/tournament/PlayersManager";
 import { RoundRobinManager } from "@/components/tournament/RoundRobinManager";
+import { SwissManager } from "@/components/tournament/SwissManager";
 import { EliminationBracket } from "@/components/tournament/EliminationBracket";
 import { StandingsTable } from "@/components/tournament/StandingsTable";
 
@@ -94,7 +95,8 @@ const Tournament = () => {
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-primary" />
                     <span className="font-medium">
-                      Phase: {tournament.current_phase === "round_robin" ? "Round Robin" : "Élimination"}
+                      Phase: {tournament.current_phase === "round_robin" ? "Round Robin" : 
+                              tournament.current_phase === "swiss" ? "Swiss Round" : "Élimination"}
                     </span>
                   </div>
                 </div>
@@ -108,8 +110,8 @@ const Tournament = () => {
             <TabsTrigger value="teams" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Équipes
             </TabsTrigger>
-            <TabsTrigger value="round-robin" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Round Robin
+            <TabsTrigger value="matches" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              {tournament.current_phase === "swiss" ? "Swiss Round" : "Round Robin"}
             </TabsTrigger>
             <TabsTrigger value="elimination" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Élimination
@@ -136,8 +138,12 @@ const Tournament = () => {
             </Tabs>
           </TabsContent>
 
-          <TabsContent value="round-robin" className="animate-fade-in">
-            <RoundRobinManager tournamentId={id!} />
+          <TabsContent value="matches" className="animate-fade-in">
+            {tournament.current_phase === "swiss" ? (
+              <SwissManager tournamentId={id!} />
+            ) : (
+              <RoundRobinManager tournamentId={id!} />
+            )}
           </TabsContent>
 
           <TabsContent value="elimination" className="animate-fade-in">
