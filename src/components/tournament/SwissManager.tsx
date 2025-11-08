@@ -609,6 +609,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
   };
 
   const totalStats = (stats.goals || 0) + (stats.assists || 0);
+  const hasFouls = (stats.fouls || 0) > 0;
+  const hasPenalties = (stats.penalty_30s || 0) > 0 || (stats.penalty_1m || 0) > 0 || (stats.penalty_2m || 0) > 0;
+  const hasAnyStats = totalStats > 0 || hasFouls || hasPenalties;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -617,9 +620,11 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
           <div className="flex items-center justify-between">
             <span className="font-medium text-sm">{player.name}</span>
             <div className="flex items-center gap-2">
-              {totalStats > 0 && (
+              {hasAnyStats && (
                 <span className="text-xs text-muted-foreground">
                   {stats.goals || 0}B {stats.assists || 0}P
+                  {hasFouls && <span className="ml-1">{stats.fouls}F</span>}
+                  {hasPenalties && <span className="ml-1 text-destructive">⚠</span>}
                 </span>
               )}
               {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
