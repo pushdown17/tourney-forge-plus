@@ -262,84 +262,88 @@ export const EliminationBracket = ({
           <p className="text-muted-foreground">Aucun match généré</p>
         </div>
       ) : (
-        <div className="space-y-8">
-          {rounds.map((roundNum) => {
-            const roundNumber = parseInt(roundNum);
-            const roundMatches = matchesByRound[roundNumber];
-            
-            return (
-              <div key={roundNumber} className="space-y-4">
-                <h3 className="text-xl font-bold text-primary">
-                  {getRoundName(roundNumber, tournament?.teams_for_elimination || 8)}
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {roundMatches.map((match) => (
-                    <div key={match.id} className="space-y-2">
-                      <BracketNode
-                        player1={match.team1?.name}
-                        player2={match.team2?.name}
-                        score1={match.team1_score ?? undefined}
-                        score2={match.team2_score ?? undefined}
-                        winner={
-                          match.winner_id === match.team1_id ? 1 :
-                          match.winner_id === match.team2_id ? 2 :
-                          undefined
-                        }
-                      />
-                      {editingMatchId === match.id ? (
-                        <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            placeholder="Score 1"
-                            value={scores[match.id]?.team1 || ""}
-                            onChange={(e) => setScores({
-                              ...scores,
-                              [match.id]: { ...scores[match.id], team1: e.target.value }
-                            })}
-                            className="w-20"
-                          />
-                          <Input
-                            type="number"
-                            placeholder="Score 2"
-                            value={scores[match.id]?.team2 || ""}
-                            onChange={(e) => setScores({
-                              ...scores,
-                              [match.id]: { ...scores[match.id], team2: e.target.value }
-                            })}
-                            className="w-20"
-                          />
-                          <Button onClick={() => handleScoreUpdate(match.id)} size="sm">
-                            ✓
+        <div className="overflow-x-auto pb-8">
+          <div className="flex gap-8 min-w-max justify-center items-center">
+            {rounds.map((roundNum, roundIndex) => {
+              const roundNumber = parseInt(roundNum);
+              const roundMatches = matchesByRound[roundNumber];
+              const matchCount = roundMatches.length;
+              const spacing = Math.pow(2, roundIndex) * 120;
+              
+              return (
+                <div key={roundNumber} className="flex flex-col gap-4" style={{ minWidth: '280px' }}>
+                  <h3 className="text-lg font-bold text-primary text-center mb-2">
+                    {getRoundName(roundNumber, tournament?.teams_for_elimination || 8)}
+                  </h3>
+                  <div className="flex flex-col justify-center" style={{ gap: `${spacing}px` }}>
+                    {roundMatches.map((match) => (
+                      <div key={match.id} className="space-y-2 animate-fade-in">
+                        <BracketNode
+                          player1={match.team1?.name}
+                          player2={match.team2?.name}
+                          score1={match.team1_score ?? undefined}
+                          score2={match.team2_score ?? undefined}
+                          winner={
+                            match.winner_id === match.team1_id ? 1 :
+                            match.winner_id === match.team2_id ? 2 :
+                            undefined
+                          }
+                        />
+                        {editingMatchId === match.id ? (
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              placeholder="Score 1"
+                              value={scores[match.id]?.team1 || ""}
+                              onChange={(e) => setScores({
+                                ...scores,
+                                [match.id]: { ...scores[match.id], team1: e.target.value }
+                              })}
+                              className="w-20"
+                            />
+                            <Input
+                              type="number"
+                              placeholder="Score 2"
+                              value={scores[match.id]?.team2 || ""}
+                              onChange={(e) => setScores({
+                                ...scores,
+                                [match.id]: { ...scores[match.id], team2: e.target.value }
+                              })}
+                              className="w-20"
+                            />
+                            <Button onClick={() => handleScoreUpdate(match.id)} size="sm">
+                              ✓
+                            </Button>
+                            <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm">
+                              ✗
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => {
+                              setEditingMatchId(match.id);
+                              setScores({
+                                ...scores,
+                                [match.id]: {
+                                  team1: match.team1_score?.toString() || "",
+                                  team2: match.team2_score?.toString() || ""
+                                }
+                              });
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                          >
+                            {match.team1_score !== null ? "Modifier" : "Entrer"} le score
                           </Button>
-                          <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm">
-                            ✗
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => {
-                            setEditingMatchId(match.id);
-                            setScores({
-                              ...scores,
-                              [match.id]: {
-                                team1: match.team1_score?.toString() || "",
-                                team2: match.team2_score?.toString() || ""
-                              }
-                            });
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                        >
-                          {match.team1_score !== null ? "Modifier" : "Entrer"} le score
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </Card>
