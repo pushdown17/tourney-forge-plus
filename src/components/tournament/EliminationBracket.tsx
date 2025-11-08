@@ -403,32 +403,39 @@ export const EliminationBracket = ({
         </div>
       ) : (
         <div className="overflow-x-auto pb-4">
-          <div className="flex gap-4 min-w-max items-center px-2">
+          <div className="flex gap-3 min-w-max items-center justify-start px-2">
             {bracketStructure.map((roundMatches, roundIndex) => {
               const roundNumber = roundMatches[0]?.round_number || roundIndex + 1;
-              const spacing = Math.pow(2, roundIndex) * 40 + 10;
+              // Espacement exponentiel pour créer l'effet pyramidal
+              const baseSpacing = 8; // Espacement de base en pixels
+              const spacing = baseSpacing * Math.pow(2, roundIndex);
+              const matchHeight = 60; // Hauteur approximative d'une carte de match
+              const totalSpacing = spacing + matchHeight;
               
               return (
-                <div key={roundNumber} className="flex flex-col" style={{ minWidth: '200px' }}>
-                  <h3 className="text-xs font-bold text-primary text-center mb-2 sticky top-0 bg-card/95 backdrop-blur py-1 rounded">
+                <div key={roundNumber} className="flex flex-col" style={{ minWidth: '180px' }}>
+                  <div className="text-xs font-bold text-primary text-center mb-2 h-6 flex items-center justify-center">
                     {getRoundName(roundNumber, tournament?.teams_for_elimination || 8)}
-                  </h3>
-                  <div className="flex flex-col justify-center" style={{ gap: `${spacing}px` }}>
+                  </div>
+                  <div className="flex flex-col" style={{ gap: `${totalSpacing}px` }}>
                     {roundMatches.map((match, matchIndex) => (
-                      <div key={match.id} className="space-y-1 animate-fade-in">
+                      <div key={match.id} className="animate-fade-in">
                         <div 
-                          className="w-50"
+                          className="w-full"
                           onClick={() => {
                             if (!match.isPlaceholder) {
                               setSelectedMatch(match);
                               setStatsDialogOpen(true);
                             }
                           }}
-                          style={{ cursor: match.isPlaceholder ? 'default' : 'pointer' }}
+                          style={{ 
+                            cursor: match.isPlaceholder ? 'default' : 'pointer',
+                            opacity: match.isPlaceholder ? 0.5 : 1
+                          }}
                         >
                           <BracketNode
-                            player1={match.team1?.name || (match.isPlaceholder ? 'TBD' : 'À déterminer')}
-                            player2={match.team2?.name || (match.isPlaceholder ? 'TBD' : 'À déterminer')}
+                            player1={match.team1?.name || 'TBD'}
+                            player2={match.team2?.name || 'TBD'}
                             score1={match.team1_score ?? undefined}
                             score2={match.team2_score ?? undefined}
                             winner={
@@ -438,53 +445,57 @@ export const EliminationBracket = ({
                             }
                           />
                         </div>
-                        {editingMatchId === match.id && !match.isPlaceholder ? (
-                          <div className="flex gap-1">
-                            <Input
-                              type="number"
-                              placeholder="Score 1"
-                              value={scores[match.id]?.team1 || ""}
-                              onChange={(e) => setScores({
-                                ...scores,
-                                [match.id]: { ...scores[match.id], team1: e.target.value }
-                              })}
-                              className="w-12 h-7 text-xs"
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Score 2"
-                              value={scores[match.id]?.team2 || ""}
-                              onChange={(e) => setScores({
-                                ...scores,
-                                [match.id]: { ...scores[match.id], team2: e.target.value }
-                              })}
-                              className="w-12 h-7 text-xs"
-                            />
-                            <Button onClick={() => handleScoreUpdate(match.id)} size="sm" className="h-7 px-2 text-xs">
-                              ✓
-                            </Button>
-                            <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                              ✗
-                            </Button>
+                        {!match.isPlaceholder && match.team1 && match.team2 && (
+                          <div className="mt-1">
+                            {editingMatchId === match.id ? (
+                              <div className="flex gap-1">
+                                <Input
+                                  type="number"
+                                  placeholder="0"
+                                  value={scores[match.id]?.team1 || ""}
+                                  onChange={(e) => setScores({
+                                    ...scores,
+                                    [match.id]: { ...scores[match.id], team1: e.target.value }
+                                  })}
+                                  className="w-10 h-6 text-xs p-1 text-center"
+                                />
+                                <Input
+                                  type="number"
+                                  placeholder="0"
+                                  value={scores[match.id]?.team2 || ""}
+                                  onChange={(e) => setScores({
+                                    ...scores,
+                                    [match.id]: { ...scores[match.id], team2: e.target.value }
+                                  })}
+                                  className="w-10 h-6 text-xs p-1 text-center"
+                                />
+                                <Button onClick={() => handleScoreUpdate(match.id)} size="sm" className="h-6 px-2 text-xs">
+                                  ✓
+                                </Button>
+                                <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm" className="h-6 px-1 text-xs">
+                                  ✗
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                onClick={() => {
+                                  setEditingMatchId(match.id);
+                                  setScores({
+                                    ...scores,
+                                    [match.id]: {
+                                      team1: match.team1_score?.toString() || "",
+                                      team2: match.team2_score?.toString() || ""
+                                    }
+                                  });
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="w-full h-6 text-xs py-0"
+                              >
+                                {match.team1_score !== null ? "Modifier" : "Score"}
+                              </Button>
+                            )}
                           </div>
-                        ) : !match.isPlaceholder && (
-                          <Button
-                            onClick={() => {
-                              setEditingMatchId(match.id);
-                              setScores({
-                                ...scores,
-                                [match.id]: {
-                                  team1: match.team1_score?.toString() || "",
-                                  team2: match.team2_score?.toString() || ""
-                                }
-                              });
-                            }}
-                            variant="outline"
-                            size="sm"
-                            className="w-full h-7 text-xs"
-                          >
-                            {match.team1_score !== null ? "Modifier" : "Score"}
-                          </Button>
                         )}
                       </div>
                     ))}
