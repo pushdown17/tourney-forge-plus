@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock } from "lucide-react";
 
 interface RoundRobinManagerProps {
   tournamentId: string;
@@ -209,6 +212,7 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
             <MatchCard
               key={match.id}
               match={match}
+              tournamentId={tournamentId}
               onScoreUpdate={updateScore}
             />
           ))}
@@ -230,41 +234,278 @@ export const RoundRobinManager = ({ tournamentId }: RoundRobinManagerProps) => {
 
 interface MatchCardProps {
   match: any;
+  tournamentId: string;
   onScoreUpdate: (matchId: string, team1Score: number, team2Score: number) => void;
 }
 
-const MatchCard = ({ match, onScoreUpdate }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
+  const [isOpen, setIsOpen] = useState(false);
+  const [team1Players, setTeam1Players] = useState<any[]>([]);
+  const [team2Players, setTeam2Players] = useState<any[]>([]);
+  const [playerStats, setPlayerStats] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchPlayers();
+      fetchPlayerStats();
+    }
+  }, [isOpen]);
+
+  const fetchPlayers = async () => {
+    const { data: players1, error: error1 } = await supabase
+      .from("players")
+      .select("*")
+      .eq("team_id", match.team1_id)
+      .order("name");
+
+    const { data: players2, error: error2 } = await supabase
+      .from("players")
+      .select("*")
+      .eq("team_id", match.team2_id)
+      .order("name");
+
+    if (!error1) setTeam1Players(players1 || []);
+    if (!error2) setTeam2Players(players2 || []);
+  };
+
+  const fetchPlayerStats = async () => {
+    const allPlayerIds = [...team1Players, ...team2Players].map(p => p.id);
+    
+    const { data, error } = await supabase
+      .from("player_stats")
+      .select("*")
+      .eq("match_id", match.id)
+      .in("player_id", allPlayerIds);
+
+    if (!error && data) {
+      const statsMap = data.reduce((acc, stat) => {
+        acc[stat.player_id] = stat;
+        return acc;
+      }, {} as Record<string, any>);
+      setPlayerStats(statsMap);
+    }
+  };
+
+  const updatePlayerStat = async (playerId: string, field: string, value: number) => {
+    const existingStat = playerStats[playerId];
+
+    if (existingStat) {
+      const { error } = await supabase
+        .from("player_stats")
+        .update({ [field]: value })
+        .eq("id", existingStat.id);
+
+      if (!error) {
+        setPlayerStats(prev => ({
+          ...prev,
+          [playerId]: { ...prev[playerId], [field]: value }
+        }));
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("player_stats")
+        .insert({
+          player_id: playerId,
+          tournament_id: tournamentId,
+          match_id: match.id,
+          [field]: value,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        setPlayerStats(prev => ({
+          ...prev,
+          [playerId]: data
+        }));
+      }
+    }
+  };
 
   return (
-    <div className="flex items-center gap-4 p-4 bg-secondary/20 rounded-lg">
-      <div className="flex-1 flex items-center justify-between">
-        <span className="font-medium">{match.team1?.name || "Équipe 1"}</span>
-        <Input
-          type="number"
-          min="0"
-          value={team1Score}
-          onChange={(e) => setTeam1Score(parseInt(e.target.value) || 0)}
-          className="w-20 text-center"
-        />
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
+      <div className="flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg">
+        <div className="flex items-center gap-4">
+          <div className="flex-1 flex items-center justify-between">
+            <span className="font-medium">{match.team1?.name || "Équipe 1"}</span>
+            <Input
+              type="number"
+              min="0"
+              value={team1Score}
+              onChange={(e) => setTeam1Score(parseInt(e.target.value) || 0)}
+              className="w-20 text-center"
+            />
+          </div>
+          <span className="text-muted-foreground">vs</span>
+          <div className="flex-1 flex items-center justify-between">
+            <Input
+              type="number"
+              min="0"
+              value={team2Score}
+              onChange={(e) => setTeam2Score(parseInt(e.target.value) || 0)}
+              className="w-20 text-center"
+            />
+            <span className="font-medium">{match.team2?.name || "Équipe 2"}</span>
+          </div>
+          <Button
+            onClick={() => onScoreUpdate(match.id, team1Score, team2Score)}
+          >
+            Valider
+          </Button>
+        </div>
+
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="w-full justify-center gap-2">
+            <Users className="h-4 w-4" />
+            Statistiques des joueurs
+            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+        </CollapsibleTrigger>
       </div>
-      <span className="text-muted-foreground">vs</span>
-      <div className="flex-1 flex items-center justify-between">
-        <Input
-          type="number"
-          min="0"
-          value={team2Score}
-          onChange={(e) => setTeam2Score(parseInt(e.target.value) || 0)}
-          className="w-20 text-center"
-        />
-        <span className="font-medium">{match.team2?.name || "Équipe 2"}</span>
+
+      <CollapsibleContent>
+        <Card className="p-4 bg-muted/30 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Team 1 Players */}
+            <div>
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                {match.team1?.name}
+              </h4>
+              <div className="space-y-2">
+                {team1Players.map((player) => (
+                  <PlayerStatsInput
+                    key={player.id}
+                    player={player}
+                    stats={playerStats[player.id] || {}}
+                    onUpdate={(field, value) => updatePlayerStat(player.id, field, value)}
+                  />
+                ))}
+                {team1Players.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Aucun joueur</p>
+                )}
+              </div>
+            </div>
+
+            {/* Team 2 Players */}
+            <div>
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                {match.team2?.name}
+              </h4>
+              <div className="space-y-2">
+                {team2Players.map((player) => (
+                  <PlayerStatsInput
+                    key={player.id}
+                    player={player}
+                    stats={playerStats[player.id] || {}}
+                    onUpdate={(field, value) => updatePlayerStat(player.id, field, value)}
+                  />
+                ))}
+                {team2Players.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Aucun joueur</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
+interface PlayerStatsInputProps {
+  player: any;
+  stats: any;
+  onUpdate: (field: string, value: number) => void;
+}
+
+const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) => {
+  return (
+    <div className="p-3 bg-background/50 rounded-lg space-y-2">
+      <p className="font-medium text-sm">{player.name}</p>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="flex items-center gap-1">
+          <Label htmlFor={`goals-${player.id}`} className="text-xs">
+            <Target className="h-3 w-3 inline" />
+          </Label>
+          <Input
+            id={`goals-${player.id}`}
+            type="number"
+            min="0"
+            value={stats.goals || 0}
+            onChange={(e) => onUpdate("goals", parseInt(e.target.value) || 0)}
+            className="h-8 text-xs"
+            placeholder="Buts"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <Label htmlFor={`assists-${player.id}`} className="text-xs">
+            <Trophy className="h-3 w-3 inline" />
+          </Label>
+          <Input
+            id={`assists-${player.id}`}
+            type="number"
+            min="0"
+            value={stats.assists || 0}
+            onChange={(e) => onUpdate("assists", parseInt(e.target.value) || 0)}
+            className="h-8 text-xs"
+            placeholder="Passes"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <Label htmlFor={`fouls-${player.id}`} className="text-xs">
+            <AlertTriangle className="h-3 w-3 inline" />
+          </Label>
+          <Input
+            id={`fouls-${player.id}`}
+            type="number"
+            min="0"
+            value={stats.fouls || 0}
+            onChange={(e) => onUpdate("fouls", parseInt(e.target.value) || 0)}
+            className="h-8 text-xs"
+            placeholder="Fautes"
+          />
+        </div>
       </div>
-      <Button
-        onClick={() => onScoreUpdate(match.id, team1Score, team2Score)}
-      >
-        Valider
-      </Button>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="flex items-center gap-1">
+          <Label htmlFor={`pen30-${player.id}`} className="text-xs">
+            <Clock className="h-3 w-3 inline" />
+          </Label>
+          <Input
+            id={`pen30-${player.id}`}
+            type="number"
+            min="0"
+            value={stats.penalty_30s || 0}
+            onChange={(e) => onUpdate("penalty_30s", parseInt(e.target.value) || 0)}
+            className="h-8 text-xs"
+            placeholder="30s"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min="0"
+            value={stats.penalty_1m || 0}
+            onChange={(e) => onUpdate("penalty_1m", parseInt(e.target.value) || 0)}
+            className="h-8 text-xs"
+            placeholder="1min"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min="0"
+            value={stats.penalty_2m || 0}
+            onChange={(e) => onUpdate("penalty_2m", parseInt(e.target.value) || 0)}
+            className="h-8 text-xs"
+            placeholder="2min"
+          />
+        </div>
+      </div>
     </div>
   );
 };
