@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BracketNode } from "@/components/BracketNode";
 import { PhaseTransition } from "./PhaseTransition";
+import { MatchStatsDialog } from "./MatchStatsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trophy } from "lucide-react";
@@ -67,6 +68,8 @@ export const EliminationBracket = ({
   const [tournament, setTournament] = useState<any>(null);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [scores, setScores] = useState<{ [key: string]: { team1: string; team2: string } }>({});
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [statsDialogOpen, setStatsDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchTournamentAndMatches();
@@ -277,7 +280,13 @@ export const EliminationBracket = ({
                   <div className="flex flex-col justify-center" style={{ gap: `${spacing}px` }}>
                     {roundMatches.map((match) => (
                       <div key={match.id} className="space-y-1 animate-fade-in">
-                        <div className="w-60">
+                        <div 
+                          className="w-60 cursor-pointer"
+                          onClick={() => {
+                            setSelectedMatch(match);
+                            setStatsDialogOpen(true);
+                          }}
+                        >
                           <BracketNode
                             player1={match.team1?.name}
                             player2={match.team2?.name}
@@ -346,6 +355,16 @@ export const EliminationBracket = ({
             })}
           </div>
         </div>
+      )}
+
+      {selectedMatch && (
+        <MatchStatsDialog
+          match={selectedMatch}
+          tournamentId={tournamentId}
+          open={statsDialogOpen}
+          onOpenChange={setStatsDialogOpen}
+          onScoreUpdate={fetchTournamentAndMatches}
+        />
       )}
     </Card>
   );
