@@ -13,6 +13,7 @@ import { RoundRobinManager } from "@/components/tournament/RoundRobinManager";
 import { SwissManager } from "@/components/tournament/SwissManager";
 import { EliminationBracket } from "@/components/tournament/EliminationBracket";
 import { StandingsTable } from "@/components/tournament/StandingsTable";
+import { TeamHistory } from "@/components/tournament/TeamHistory";
 
 const Tournament = () => {
   const { id } = useParams<{ id: string }>();
@@ -106,7 +107,7 @@ const Tournament = () => {
         </div>
 
         <Tabs defaultValue="teams" className="space-y-6 animate-scale-in">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1 bg-muted/50">
             <TabsTrigger value="teams" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Équipes
             </TabsTrigger>
@@ -118,6 +119,9 @@ const Tournament = () => {
             </TabsTrigger>
             <TabsTrigger value="standings" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Classement
+            </TabsTrigger>
+            <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Historique
             </TabsTrigger>
           </TabsList>
 
@@ -152,6 +156,10 @@ const Tournament = () => {
 
           <TabsContent value="standings" className="animate-fade-in">
             <StandingsTable tournamentId={id!} />
+          </TabsContent>
+
+          <TabsContent value="history" className="animate-fade-in">
+            <TeamHistory tournamentId={id!} />
           </TabsContent>
         </Tabs>
       </main>
