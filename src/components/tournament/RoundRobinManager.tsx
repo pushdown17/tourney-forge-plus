@@ -423,89 +423,187 @@ interface PlayerStatsInputProps {
 }
 
 const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) => {
+  const incrementStat = (field: string, current: number) => {
+    onUpdate(field, current + 1);
+  };
+
+  const decrementStat = (field: string, current: number) => {
+    if (current > 0) {
+      onUpdate(field, current - 1);
+    }
+  };
+
   return (
-    <div className="p-3 bg-background/50 rounded-lg space-y-2">
+    <div className="p-3 bg-background/50 rounded-lg space-y-3">
       <p className="font-medium text-sm">{player.name}</p>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="space-y-1">
-          <Label htmlFor={`goals-${player.id}`} className="text-xs">
-            Buts
-          </Label>
-          <Input
-            id={`goals-${player.id}`}
-            type="number"
-            min="0"
-            value={stats.goals || 0}
-            onChange={(e) => onUpdate("goals", parseInt(e.target.value) || 0)}
-            className="h-8 text-xs"
-          />
+      
+      <div className="space-y-2">
+        {/* Buts */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium min-w-[50px]">Buts</span>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => decrementStat("goals", stats.goals || 0)}
+            >
+              -
+            </Button>
+            <div className="h-8 w-12 flex items-center justify-center bg-primary/10 rounded font-bold text-sm">
+              {stats.goals || 0}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => incrementStat("goals", stats.goals || 0)}
+            >
+              +
+            </Button>
+          </div>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor={`assists-${player.id}`} className="text-xs">
-            Passes
-          </Label>
-          <Input
-            id={`assists-${player.id}`}
-            type="number"
-            min="0"
-            value={stats.assists || 0}
-            onChange={(e) => onUpdate("assists", parseInt(e.target.value) || 0)}
-            className="h-8 text-xs"
-          />
+
+        {/* Passes */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium min-w-[50px]">Passes</span>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => decrementStat("assists", stats.assists || 0)}
+            >
+              -
+            </Button>
+            <div className="h-8 w-12 flex items-center justify-center bg-primary/10 rounded font-bold text-sm">
+              {stats.assists || 0}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => incrementStat("assists", stats.assists || 0)}
+            >
+              +
+            </Button>
+          </div>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor={`fouls-${player.id}`} className="text-xs">
-            Fautes
-          </Label>
-          <Input
-            id={`fouls-${player.id}`}
-            type="number"
-            min="0"
-            value={stats.fouls || 0}
-            onChange={(e) => onUpdate("fouls", parseInt(e.target.value) || 0)}
-            className="h-8 text-xs"
-          />
+
+        {/* Fautes */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium min-w-[50px]">Fautes</span>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => decrementStat("fouls", stats.fouls || 0)}
+            >
+              -
+            </Button>
+            <div className="h-8 w-12 flex items-center justify-center bg-primary/10 rounded font-bold text-sm">
+              {stats.fouls || 0}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => incrementStat("fouls", stats.fouls || 0)}
+            >
+              +
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="space-y-1">
-          <Label htmlFor={`pen30-${player.id}`} className="text-xs">
-            30sec
-          </Label>
-          <Input
-            id={`pen30-${player.id}`}
-            type="number"
-            min="0"
-            value={stats.penalty_30s || 0}
-            onChange={(e) => onUpdate("penalty_30s", parseInt(e.target.value) || 0)}
-            className="h-8 text-xs"
-          />
+
+        {/* 30 secondes */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium min-w-[50px]">30sec</span>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => decrementStat("penalty_30s", stats.penalty_30s || 0)}
+            >
+              -
+            </Button>
+            <div className="h-8 w-12 flex items-center justify-center bg-primary/10 rounded font-bold text-sm">
+              {stats.penalty_30s || 0}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => incrementStat("penalty_30s", stats.penalty_30s || 0)}
+            >
+              +
+            </Button>
+          </div>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor={`pen1m-${player.id}`} className="text-xs">
-            1min
-          </Label>
-          <Input
-            id={`pen1m-${player.id}`}
-            type="number"
-            min="0"
-            value={stats.penalty_1m || 0}
-            onChange={(e) => onUpdate("penalty_1m", parseInt(e.target.value) || 0)}
-            className="h-8 text-xs"
-          />
+
+        {/* 1 minute */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium min-w-[50px]">1min</span>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => decrementStat("penalty_1m", stats.penalty_1m || 0)}
+            >
+              -
+            </Button>
+            <div className="h-8 w-12 flex items-center justify-center bg-primary/10 rounded font-bold text-sm">
+              {stats.penalty_1m || 0}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => incrementStat("penalty_1m", stats.penalty_1m || 0)}
+            >
+              +
+            </Button>
+          </div>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor={`pen2m-${player.id}`} className="text-xs">
-            2min
-          </Label>
-          <Input
-            id={`pen2m-${player.id}`}
-            type="number"
-            min="0"
-            value={stats.penalty_2m || 0}
-            onChange={(e) => onUpdate("penalty_2m", parseInt(e.target.value) || 0)}
-            className="h-8 text-xs"
-          />
+
+        {/* 2 minutes */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium min-w-[50px]">2min</span>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => decrementStat("penalty_2m", stats.penalty_2m || 0)}
+            >
+              -
+            </Button>
+            <div className="h-8 w-12 flex items-center justify-center bg-primary/10 rounded font-bold text-sm">
+              {stats.penalty_2m || 0}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => incrementStat("penalty_2m", stats.penalty_2m || 0)}
+            >
+              +
+            </Button>
+          </div>
         </div>
       </div>
     </div>
