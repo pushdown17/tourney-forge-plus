@@ -466,6 +466,8 @@ interface PlayerStatsInputProps {
 }
 
 const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
   const incrementStat = (field: string, current: number) => {
     onUpdate(field, current + 1);
   };
@@ -476,11 +478,28 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
     }
   };
 
+  const totalStats = (stats.goals || 0) + (stats.assists || 0);
+
   return (
-    <div className="p-3 bg-background/50 rounded-lg space-y-3">
-      <p className="font-medium text-sm">{player.name}</p>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <div className="p-2 bg-background/50 rounded-lg hover:bg-background/70 cursor-pointer transition-colors">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-sm">{player.name}</span>
+            <div className="flex items-center gap-2">
+              {totalStats > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {stats.goals || 0}B {stats.assists || 0}P
+                </span>
+              )}
+              {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </div>
+          </div>
+        </div>
+      </CollapsibleTrigger>
       
-      <div className="space-y-2">
+      <CollapsibleContent>
+        <div className="p-3 bg-background/30 rounded-lg mt-1 space-y-2">
         {/* Buts */}
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium min-w-[50px]">Buts</span>
@@ -647,8 +666,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
               +
             </Button>
           </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 };
