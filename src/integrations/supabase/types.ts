@@ -322,7 +322,12 @@ export type Database = {
     Enums: {
       elimination_type: "single" | "double"
       match_result: "win" | "loss" | "draw"
-      tournament_phase: "round_robin" | "elimination" | "swiss"
+      tournament_phase:
+        | "round_robin"
+        | "elimination"
+        | "swiss"
+        | "single_elimination"
+        | "double_elimination"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -452,7 +457,13 @@ export const Constants = {
     Enums: {
       elimination_type: ["single", "double"],
       match_result: ["win", "loss", "draw"],
-      tournament_phase: ["round_robin", "elimination", "swiss"],
+      tournament_phase: [
+        "round_robin",
+        "elimination",
+        "swiss",
+        "single_elimination",
+        "double_elimination",
+      ],
     },
   },
 } as const
