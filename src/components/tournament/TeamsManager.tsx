@@ -211,14 +211,14 @@ export const TeamsManager = ({ tournamentId }: TeamsManagerProps) => {
 
   return (
     <div className="space-y-6">
-      <Card className="glass-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Ajouter une équipe</h2>
+      <Card className="glass-card p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h2 className="text-xl md:text-2xl font-bold">Ajouter une équipe</h2>
           <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" onClick={handleOpenImportDialog}>
+              <Button variant="outline" onClick={handleOpenImportDialog} className="w-full sm:w-auto">
                 <Download className="h-4 w-4 mr-2" />
-                Importer des équipes
+                Importer
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -314,7 +314,7 @@ export const TeamsManager = ({ tournamentId }: TeamsManagerProps) => {
           </Dialog>
         </div>
 
-        <form onSubmit={handleAddTeam} className="flex gap-4">
+        <form onSubmit={handleAddTeam} className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <Label htmlFor="teamName" className="sr-only">Nom de l'équipe</Label>
             <Input
@@ -322,30 +322,32 @@ export const TeamsManager = ({ tournamentId }: TeamsManagerProps) => {
               placeholder="Nom de l'équipe"
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
+              className="h-11"
             />
           </div>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="h-11 w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Ajouter
           </Button>
         </form>
       </Card>
 
-      <Card className="glass-card p-6">
-        <h2 className="text-2xl font-bold mb-4">Équipes inscrites ({teams.length})</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <Card className="glass-card p-4 md:p-6">
+        <h2 className="text-xl md:text-2xl font-bold mb-4">Équipes inscrites ({teams.length})</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {teams.map((team) => (
             <div
               key={team.id}
-              className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg"
+              className="flex items-center justify-between p-3 md:p-4 bg-secondary/20 rounded-lg min-h-[56px]"
             >
-              <span className="font-medium">{team.name}</span>
+              <span className="font-medium text-sm md:text-base">{team.name}</span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleDeleteTeam(team.id)}
+                className="h-10 w-10 p-0"
               >
-                <Trash2 className="h-4 w-4 text-destructive" />
+                <Trash2 className="h-5 w-5 text-destructive" />
               </Button>
             </div>
           ))}

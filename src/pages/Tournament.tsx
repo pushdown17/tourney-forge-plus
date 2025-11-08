@@ -108,31 +108,50 @@ const Tournament = () => {
         </div>
 
         <Tabs defaultValue="teams" className="space-y-6 animate-scale-in">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1 bg-muted/50">
-            <TabsTrigger value="teams" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Équipes
-            </TabsTrigger>
-            <TabsTrigger value="matches" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              {tournament.current_phase === "swiss" ? "Swiss Round" : "Round Robin"}
-            </TabsTrigger>
-            <TabsTrigger value="elimination" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Élimination
-            </TabsTrigger>
-            <TabsTrigger value="standings" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Classement
-            </TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Historique
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4">
+            <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-5 h-auto p-1 bg-muted/50">
+              <TabsTrigger 
+                value="teams" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
+              >
+                Équipes
+              </TabsTrigger>
+              <TabsTrigger 
+                value="matches" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
+              >
+                {tournament.current_phase === "swiss" ? "Swiss" : "Round Robin"}
+              </TabsTrigger>
+              <TabsTrigger 
+                value="elimination" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
+              >
+                Élimination
+              </TabsTrigger>
+              <TabsTrigger 
+                value="standings" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
+              >
+                Classement
+              </TabsTrigger>
+              <TabsTrigger 
+                value="history" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
+              >
+                Historique
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="teams" className="animate-fade-in">
             <Tabs defaultValue="manage-teams" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-3 bg-muted/30">
-                <TabsTrigger value="manage-teams">Gestion des équipes</TabsTrigger>
-                <TabsTrigger value="manage-players">Gestion des joueurs</TabsTrigger>
-                <TabsTrigger value="player-stats">Statistiques joueurs</TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto -mx-4 px-4">
+                <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-3 bg-muted/30">
+                  <TabsTrigger value="manage-teams" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Équipes</TabsTrigger>
+                  <TabsTrigger value="manage-players" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Joueurs</TabsTrigger>
+                  <TabsTrigger value="player-stats" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Stats joueurs</TabsTrigger>
+                </TabsList>
+              </div>
               
               <TabsContent value="manage-teams">
                 <TeamsManager tournamentId={id!} />
