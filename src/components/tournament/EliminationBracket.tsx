@@ -262,35 +262,36 @@ export const EliminationBracket = ({
           <p className="text-muted-foreground">Aucun match généré</p>
         </div>
       ) : (
-        <div className="overflow-x-auto pb-8">
-          <div className="flex gap-8 min-w-max justify-center items-center">
+        <div className="overflow-x-auto pb-6">
+          <div className="flex gap-6 min-w-max items-center px-4">
             {rounds.map((roundNum, roundIndex) => {
               const roundNumber = parseInt(roundNum);
               const roundMatches = matchesByRound[roundNumber];
-              const matchCount = roundMatches.length;
-              const spacing = Math.pow(2, roundIndex) * 120;
+              const spacing = Math.pow(2, roundIndex) * 60 + 20;
               
               return (
-                <div key={roundNumber} className="flex flex-col gap-4" style={{ minWidth: '280px' }}>
-                  <h3 className="text-lg font-bold text-primary text-center mb-2">
+                <div key={roundNumber} className="flex flex-col" style={{ minWidth: '240px' }}>
+                  <h3 className="text-sm font-bold text-primary text-center mb-3 sticky top-0 bg-card/95 backdrop-blur py-2 rounded">
                     {getRoundName(roundNumber, tournament?.teams_for_elimination || 8)}
                   </h3>
                   <div className="flex flex-col justify-center" style={{ gap: `${spacing}px` }}>
                     {roundMatches.map((match) => (
-                      <div key={match.id} className="space-y-2 animate-fade-in">
-                        <BracketNode
-                          player1={match.team1?.name}
-                          player2={match.team2?.name}
-                          score1={match.team1_score ?? undefined}
-                          score2={match.team2_score ?? undefined}
-                          winner={
-                            match.winner_id === match.team1_id ? 1 :
-                            match.winner_id === match.team2_id ? 2 :
-                            undefined
-                          }
-                        />
+                      <div key={match.id} className="space-y-1 animate-fade-in">
+                        <div className="w-60">
+                          <BracketNode
+                            player1={match.team1?.name}
+                            player2={match.team2?.name}
+                            score1={match.team1_score ?? undefined}
+                            score2={match.team2_score ?? undefined}
+                            winner={
+                              match.winner_id === match.team1_id ? 1 :
+                              match.winner_id === match.team2_id ? 2 :
+                              undefined
+                            }
+                          />
+                        </div>
                         {editingMatchId === match.id ? (
-                          <div className="flex gap-2">
+                          <div className="flex gap-1">
                             <Input
                               type="number"
                               placeholder="Score 1"
@@ -299,7 +300,7 @@ export const EliminationBracket = ({
                                 ...scores,
                                 [match.id]: { ...scores[match.id], team1: e.target.value }
                               })}
-                              className="w-20"
+                              className="w-16 h-8 text-sm"
                             />
                             <Input
                               type="number"
@@ -309,12 +310,12 @@ export const EliminationBracket = ({
                                 ...scores,
                                 [match.id]: { ...scores[match.id], team2: e.target.value }
                               })}
-                              className="w-20"
+                              className="w-16 h-8 text-sm"
                             />
-                            <Button onClick={() => handleScoreUpdate(match.id)} size="sm">
+                            <Button onClick={() => handleScoreUpdate(match.id)} size="sm" className="h-8 px-2">
                               ✓
                             </Button>
-                            <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm">
+                            <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm" className="h-8 px-2">
                               ✗
                             </Button>
                           </div>
@@ -332,9 +333,9 @@ export const EliminationBracket = ({
                             }}
                             variant="outline"
                             size="sm"
-                            className="w-full"
+                            className="w-full h-8 text-xs"
                           >
-                            {match.team1_score !== null ? "Modifier" : "Entrer"} le score
+                            {match.team1_score !== null ? "Modifier" : "Entrer le score"}
                           </Button>
                         )}
                       </div>
