@@ -244,18 +244,21 @@ export type Database = {
       teams: {
         Row: {
           created_at: string
+          group_name: string | null
           id: string
           name: string
           tournament_id: string
         }
         Insert: {
           created_at?: string
+          group_name?: string | null
           id?: string
           name: string
           tournament_id: string
         }
         Update: {
           created_at?: string
+          group_name?: string | null
           id?: string
           name?: string
           tournament_id?: string
@@ -281,6 +284,7 @@ export type Database = {
           end_date: string
           id: string
           name: string
+          number_of_groups: number | null
           start_date: string
           teams_for_elimination: number | null
           updated_at: string
@@ -295,6 +299,7 @@ export type Database = {
           end_date: string
           id?: string
           name: string
+          number_of_groups?: number | null
           start_date: string
           teams_for_elimination?: number | null
           updated_at?: string
@@ -309,6 +314,7 @@ export type Database = {
           end_date?: string
           id?: string
           name?: string
+          number_of_groups?: number | null
           start_date?: string
           teams_for_elimination?: number | null
           updated_at?: string
