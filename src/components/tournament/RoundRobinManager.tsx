@@ -331,6 +331,50 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
         }));
       }
     }
+
+    // Si c'est un but, mettre à jour le score du match
+    if (field === "goals") {
+      await updateMatchScoresFromPlayerStats();
+    }
+  };
+
+  const updateMatchScoresFromPlayerStats = async () => {
+    // Récupérer tous les stats des joueurs pour ce match
+    const { data: allStats, error } = await supabase
+      .from("player_stats")
+      .select("player_id, goals")
+      .eq("match_id", match.id);
+
+    if (error || !allStats) return;
+
+    // Calculer les scores pour chaque équipe
+    const team1PlayerIds = team1Players.map(p => p.id);
+    const team2PlayerIds = team2Players.map(p => p.id);
+
+    const team1Goals = allStats
+      .filter(stat => team1PlayerIds.includes(stat.player_id))
+      .reduce((sum, stat) => sum + (stat.goals || 0), 0);
+
+    const team2Goals = allStats
+      .filter(stat => team2PlayerIds.includes(stat.player_id))
+      .reduce((sum, stat) => sum + (stat.goals || 0), 0);
+
+    // Mettre à jour les scores locaux
+    setTeam1Score(team1Goals);
+    setTeam2Score(team2Goals);
+
+    // Mettre à jour le match dans la base de données
+    const winnerId = team1Goals > team2Goals ? match.team1_id : 
+                    team2Goals > team1Goals ? match.team2_id : null;
+
+    await supabase
+      .from("matches")
+      .update({
+        team1_score: team1Goals,
+        team2_score: team2Goals,
+        winner_id: winnerId,
+      })
+      .eq("id", match.id);
   };
 
   return (
