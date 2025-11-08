@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 const CreateTournament = () => {
   const navigate = useNavigate();
   const [tournamentName, setTournamentName] = useState("");
-  const [format, setFormat] = useState<"round-robin" | "single" | "double">("round-robin");
+  const [format, setFormat] = useState<"round-robin" | "swiss" | "round-robin-single" | "round-robin-double" | "swiss-single" | "swiss-double">("round-robin");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [teamsForElimination, setTeamsForElimination] = useState("16");
@@ -41,15 +41,26 @@ const CreateTournament = () => {
         return;
       }
 
+      // Déterminer la phase initiale et le type d'élimination
+      const currentPhase = format === "round-robin" || format === "round-robin-single" || format === "round-robin-double" 
+        ? "round_robin" 
+        : "swiss";
+      
+      const eliminationType = format === "round-robin" || format === "swiss"
+        ? null
+        : format.includes("single")
+        ? "single"
+        : "double";
+
       const { data, error } = await supabase
         .from("tournaments")
         .insert({
           name: tournamentName,
           start_date: startDate,
           end_date: endDate,
-          current_phase: "round_robin",
-          elimination_type: format === "round-robin" ? null : format,
-          teams_for_elimination: format === "round-robin" ? null : parseInt(teamsForElimination),
+          current_phase: currentPhase,
+          elimination_type: eliminationType,
+          teams_for_elimination: eliminationType ? parseInt(teamsForElimination) : null,
           created_by: session.user.id,
         })
         .select()
@@ -76,7 +87,7 @@ const CreateTournament = () => {
             Créer un tournoi
           </h1>
           <p className="text-muted-foreground text-center mb-12">
-            Configurez votre tournoi hybride Round Robin + Élimination
+            Configurez votre tournoi avec le format de votre choix
           </p>
 
           <Card className="glass-card p-8">
@@ -127,13 +138,16 @@ const CreateTournament = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="round-robin">Round Robin uniquement</SelectItem>
-                    <SelectItem value="single">Round Robin + Simple Élimination</SelectItem>
-                    <SelectItem value="double">Round Robin + Double Élimination</SelectItem>
+                    <SelectItem value="round-robin-single">Round Robin + Simple Élimination</SelectItem>
+                    <SelectItem value="round-robin-double">Round Robin + Double Élimination</SelectItem>
+                    <SelectItem value="swiss">Swiss Round uniquement</SelectItem>
+                    <SelectItem value="swiss-single">Swiss Round + Simple Élimination</SelectItem>
+                    <SelectItem value="swiss-double">Swiss Round + Double Élimination</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {format !== "round-robin" && (
+              {format !== "round-robin" && format !== "swiss" && (
                 <div className="space-y-2">
                   <Label htmlFor="teamsForElimination">Nombre d'équipes qualifiées pour la phase finale</Label>
                   <Select value={teamsForElimination} onValueChange={setTeamsForElimination}>
