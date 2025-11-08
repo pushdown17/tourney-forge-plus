@@ -554,6 +554,8 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                     player={player}
                     stats={playerStats[player.id] || {}}
                     onUpdate={(field, value) => updatePlayerStat(player.id, field, value)}
+                    onEditStart={() => !isEditing && setEditingMatchId(match.id)}
+                    onEditEnd={() => setEditingMatchId(null)}
                   />
                 ))}
                 {team1Players.length === 0 && (
@@ -575,6 +577,8 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                     player={player}
                     stats={playerStats[player.id] || {}}
                     onUpdate={(field, value) => updatePlayerStat(player.id, field, value)}
+                    onEditStart={() => !isEditing && setEditingMatchId(match.id)}
+                    onEditEnd={() => setEditingMatchId(null)}
                   />
                 ))}
                 {team2Players.length === 0 && (
@@ -593,10 +597,21 @@ interface PlayerStatsInputProps {
   player: any;
   stats: any;
   onUpdate: (field: string, value: number) => void;
+  onEditStart: () => void;
+  onEditEnd: () => void;
 }
 
-const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) => {
+const PlayerStatsInput = ({ player, stats, onUpdate, onEditStart, onEditEnd }: PlayerStatsInputProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
+      onEditStart();
+    } else {
+      onEditEnd();
+    }
+  };
   
   const incrementStat = (field: string, current: number) => {
     onUpdate(field, current + 1);
@@ -614,7 +629,7 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
   const hasAnyStats = totalStats > 0 || hasFouls || hasPenalties;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={isOpen} onOpenChange={handleOpenChange}>
       <CollapsibleTrigger asChild>
         <div className="p-2 bg-background/50 rounded-lg hover:bg-background/70 cursor-pointer transition-colors">
           <div className="flex items-center justify-between">
