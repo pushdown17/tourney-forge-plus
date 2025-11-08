@@ -50,14 +50,27 @@ export const PlayerStatsManager = ({ tournamentId }: PlayerStatsManagerProps) =>
   }, [tournamentId]);
 
   const fetchAllPlayers = async () => {
+    const { data: teamsData, error: teamsError } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("tournament_id", tournamentId);
+
+    if (teamsError || !teamsData) {
+      toast.error("Erreur lors du chargement des équipes");
+      return;
+    }
+
+    const teamIds = teamsData.map(t => t.id);
+
     const { data, error } = await supabase
       .from("players")
       .select(`
         id,
         name,
-        team:team_id(id, name, tournament_id)
+        team_id,
+        team:team_id(id, name)
       `)
-      .eq("team.tournament_id", tournamentId)
+      .in("team_id", teamIds)
       .order("name");
 
     if (error) {
@@ -65,7 +78,9 @@ export const PlayerStatsManager = ({ tournamentId }: PlayerStatsManagerProps) =>
       return;
     }
 
-    setAllPlayers(data || []);
+    // Filter out players without a team
+    const playersWithTeams = (data || []).filter(p => p.team);
+    setAllPlayers(playersWithTeams);
   };
 
   const fetchMatches = async () => {
@@ -92,20 +107,34 @@ export const PlayerStatsManager = ({ tournamentId }: PlayerStatsManagerProps) =>
   const fetchPlayerStats = async () => {
     setLoading(true);
     try {
+      // Fetch teams for this tournament
+      const { data: teamsData, error: teamsError } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("tournament_id", tournamentId);
+
+      if (teamsError) throw teamsError;
+
+      const teamIds = (teamsData || []).map(t => t.id);
+
       // Fetch all players with their teams
       const { data: playersData, error: playersError } = await supabase
         .from("players")
         .select(`
           id,
           name,
-          team:team_id(id, name, tournament_id)
+          team_id,
+          team:team_id(id, name)
         `)
-        .eq("team.tournament_id", tournamentId);
+        .in("team_id", teamIds);
 
       if (playersError) throw playersError;
 
+      // Filter players with teams only
+      const validPlayers = (playersData || []).filter(p => p.team);
+
       // Fetch all stats for these players
-      const playerIds = (playersData || []).map(p => p.id);
+      const playerIds = validPlayers.map(p => p.id);
       
       const { data: statsData, error: statsError } = await supabase
         .from("player_stats")
@@ -116,7 +145,7 @@ export const PlayerStatsManager = ({ tournamentId }: PlayerStatsManagerProps) =>
       if (statsError) throw statsError;
 
       // Aggregate stats per player
-      const playersWithStats: PlayerWithStats[] = (playersData || []).map(player => {
+      const playersWithStats: PlayerWithStats[] = validPlayers.map(player => {
         const playerStats = (statsData || []).filter(s => s.player_id === player.id);
         
         return {
@@ -231,7 +260,7 @@ export const PlayerStatsManager = ({ tournamentId }: PlayerStatsManagerProps) =>
                     <SelectContent>
                       {allPlayers.map((player) => (
                         <SelectItem key={player.id} value={player.id}>
-                          {player.name} - {player.team?.name}
+                          {player.name} - {player.team?.name || "Sans équipe"}
                         </SelectItem>
                       ))}
                     </SelectContent>
