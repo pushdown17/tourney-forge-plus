@@ -16,12 +16,8 @@ type Tournament = {
 };
 
 type PlayerResult = {
-  id: string;
   name: string;
-  team_id: string;
-  team_name: string;
-  tournament_id: string;
-  tournament_name: string;
+  tournaments_count: number;
   total_goals: number;
   total_assists: number;
   total_fouls: number;
@@ -71,36 +67,44 @@ export const SearchBar = () => {
 
       if (playersError) throw playersError;
 
-      // Get player stats
-      const playersWithStats = await Promise.all(
-        (playersData || []).map(async (player: any) => {
-          const { data: stats } = await supabase
-            .from("player_stats")
-            .select("goals, assists, fouls, match_id")
-            .eq("player_id", player.id);
+      // Get player stats and group by name
+      const playersMap = new Map<string, PlayerResult>();
+      
+      for (const player of playersData || []) {
+        const { data: stats } = await supabase
+          .from("player_stats")
+          .select("goals, assists, fouls, match_id")
+          .eq("player_id", player.id);
 
-          const uniqueMatches = new Set(stats?.map(s => s.match_id).filter(Boolean));
-          const totalGoals = stats?.reduce((sum, s) => sum + (s.goals || 0), 0) || 0;
-          const totalAssists = stats?.reduce((sum, s) => sum + (s.assists || 0), 0) || 0;
-          const totalFouls = stats?.reduce((sum, s) => sum + (s.fouls || 0), 0) || 0;
+        const uniqueMatches = new Set(stats?.map(s => s.match_id).filter(Boolean));
+        const totalGoals = stats?.reduce((sum, s) => sum + (s.goals || 0), 0) || 0;
+        const totalAssists = stats?.reduce((sum, s) => sum + (s.assists || 0), 0) || 0;
+        const totalFouls = stats?.reduce((sum, s) => sum + (s.fouls || 0), 0) || 0;
 
-          return {
-            id: player.id,
+        if (playersMap.has(player.name)) {
+          const existing = playersMap.get(player.name)!;
+          playersMap.set(player.name, {
             name: player.name,
-            team_id: player.team_id,
-            team_name: player.teams.name,
-            tournament_id: player.teams.tournament_id,
-            tournament_name: player.teams.tournaments.name,
+            tournaments_count: existing.tournaments_count + 1,
+            total_goals: existing.total_goals + totalGoals,
+            total_assists: existing.total_assists + totalAssists,
+            total_fouls: existing.total_fouls + totalFouls,
+            matches_played: existing.matches_played + uniqueMatches.size,
+          });
+        } else {
+          playersMap.set(player.name, {
+            name: player.name,
+            tournaments_count: 1,
             total_goals: totalGoals,
             total_assists: totalAssists,
             total_fouls: totalFouls,
             matches_played: uniqueMatches.size,
-          };
-        })
-      );
+          });
+        }
+      }
 
       setTournaments(tournamentsData || []);
-      setPlayers(playersWithStats);
+      setPlayers(Array.from(playersMap.values()));
       setShowResults(true);
     } catch (error) {
       console.error("Error searching:", error);
@@ -171,8 +175,8 @@ export const SearchBar = () => {
                   <div className="space-y-2">
                     {players.map((player) => (
                       <Link
-                        key={player.id}
-                        to={`/tournament/${player.tournament_id}?tab=standings`}
+                        key={player.name}
+                        to={`/player/${encodeURIComponent(player.name)}`}
                         onClick={() => setShowResults(false)}
                       >
                         <Card className="p-3 hover:bg-primary/10 transition-colors cursor-pointer">
@@ -180,7 +184,7 @@ export const SearchBar = () => {
                             <div>
                               <div className="font-medium">{player.name}</div>
                               <div className="text-sm text-muted-foreground">
-                                {player.team_name} • {player.tournament_name}
+                                {player.tournaments_count} tournoi{player.tournaments_count > 1 ? "s" : ""}
                               </div>
                             </div>
                             <div className="flex gap-2">

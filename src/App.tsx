@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import CreateTournament from "./pages/CreateTournament";
 import Tournament from "./pages/Tournament";
 import BracketDemo from "./pages/BracketDemo";
+import PlayerProfile from "./pages/PlayerProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/create-tournament" element={<CreateTournament />} />
           <Route path="/tournament/:id" element={<Tournament />} />
           <Route path="/bracket-demo" element={<BracketDemo />} />
+          <Route path="/player/:name" element={<PlayerProfile />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
