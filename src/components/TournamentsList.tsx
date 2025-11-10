@@ -70,8 +70,8 @@ export const TournamentsList = () => {
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 <span>
-                  Format: {tournament.current_phase === "round_robin" ? "Round Robin" : tournament.current_phase === "swiss" ? "Swiss Round" : "Élimination"}
-                  {tournament.elimination_type && tournament.current_phase !== "elimination" && (
+                  Format: {tournament.initial_phase === "swiss" ? "Swiss Round" : "Round Robin"}
+                  {tournament.elimination_type && (
                     <> + {tournament.elimination_type === "single" ? "Simple" : "Double"} Élimination</>
                   )}
                 </span>

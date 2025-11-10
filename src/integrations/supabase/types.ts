@@ -283,6 +283,7 @@ export type Database = {
             | null
           end_date: string
           id: string
+          initial_phase: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed: boolean
           name: string
           number_of_groups: number | null
@@ -299,6 +300,7 @@ export type Database = {
             | null
           end_date: string
           id?: string
+          initial_phase?: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed?: boolean
           name: string
           number_of_groups?: number | null
@@ -315,6 +317,7 @@ export type Database = {
             | null
           end_date?: string
           id?: string
+          initial_phase?: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed?: boolean
           name?: string
           number_of_groups?: number | null

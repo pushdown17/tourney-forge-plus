@@ -59,6 +59,7 @@ const CreateTournament = () => {
           start_date: startDate,
           end_date: endDate,
           current_phase: currentPhase,
+          initial_phase: currentPhase,
           elimination_type: eliminationType,
           teams_for_elimination: eliminationType ? parseInt(teamsForElimination) : null,
           created_by: session.user.id,
