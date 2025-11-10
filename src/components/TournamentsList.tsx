@@ -70,14 +70,12 @@ export const TournamentsList = () => {
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 <span>
-                  Phase: {tournament.current_phase === "round_robin" ? "Round Robin" : "Élimination"}
+                  Format: Round Robin
+                  {tournament.elimination_type && (
+                    <> + {tournament.elimination_type === "single" ? "Simple" : "Double"} Élimination</>
+                  )}
                 </span>
               </div>
-              {tournament.elimination_type && (
-                <div className="text-xs">
-                  Format final: {tournament.elimination_type === "single" ? "Simple" : "Double"} élimination
-                </div>
-              )}
             </div>
           </Card>
         </Link>
