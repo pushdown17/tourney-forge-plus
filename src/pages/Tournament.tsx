@@ -214,11 +214,11 @@ const Tournament = () => {
               </div>
               
               <TabsContent value="manage-teams">
-                <TeamsManager tournamentId={id!} isClosed={tournament.is_closed} />
+                <TeamsManager tournamentId={id!} isClosed={tournament.is_closed} isCreator={isCreator} />
               </TabsContent>
               
               <TabsContent value="manage-players">
-                <PlayersManager tournamentId={id!} isClosed={tournament.is_closed} />
+                <PlayersManager tournamentId={id!} isClosed={tournament.is_closed} isCreator={isCreator} />
               </TabsContent>
 
               <TabsContent value="player-stats">

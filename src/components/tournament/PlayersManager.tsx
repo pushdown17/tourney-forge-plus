@@ -14,9 +14,10 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 interface PlayersManagerProps {
   tournamentId: string;
   isClosed?: boolean;
+  isCreator?: boolean;
 }
 
-export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManagerProps) => {
+export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = false }: PlayersManagerProps) => {
   const [teams, setTeams] = useState<any[]>([]);
   const [players, setPlayers] = useState<any[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
@@ -209,50 +210,54 @@ export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManage
       onDragEnd={handleDragEnd}
     >
       <div className="space-y-6">
-        <Card className="glass-card p-6">
-          <h2 className="text-2xl font-bold mb-4">Ajouter un joueur</h2>
-          <form onSubmit={handleAddPlayer} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="teamSelect">Équipe</Label>
-                <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-                  <SelectTrigger id="teamSelect">
-                    <SelectValue placeholder="Sélectionner une équipe" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background/95 backdrop-blur-sm border-border/50">
-                    {teams.map((team) => (
-                      <SelectItem key={team.id} value={team.id}>
-                        {team.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="playerName">Nom du joueur</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="playerName"
-                    placeholder="Nom Prénom"
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                  />
-                  <Button type="submit" disabled={loading || isClosed}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ajouter
-                  </Button>
+        {isCreator && (
+          <>
+            <Card className="glass-card p-6">
+              <h2 className="text-2xl font-bold mb-4">Ajouter un joueur</h2>
+              <form onSubmit={handleAddPlayer} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="teamSelect">Équipe</Label>
+                    <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                      <SelectTrigger id="teamSelect">
+                        <SelectValue placeholder="Sélectionner une équipe" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background/95 backdrop-blur-sm border-border/50">
+                        {teams.map((team) => (
+                          <SelectItem key={team.id} value={team.id}>
+                            {team.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="playerName">Nom du joueur</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="playerName"
+                        placeholder="Nom Prénom"
+                        value={playerName}
+                        onChange={(e) => setPlayerName(e.target.value)}
+                      />
+                      <Button type="submit" disabled={loading || isClosed}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Ajouter
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </form>
-        </Card>
+              </form>
+            </Card>
 
-        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
-          <p className="text-sm text-foreground flex items-center gap-2">
-            <GripVertical className="h-4 w-4" />
-            Astuce : Glissez-déposez un joueur sur une autre équipe pour le transférer
-          </p>
-        </div>
+            <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+              <p className="text-sm text-foreground flex items-center gap-2">
+                <GripVertical className="h-4 w-4" />
+                Astuce : Glissez-déposez un joueur sur une autre équipe pour le transférer
+              </p>
+            </div>
+          </>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {teams.map((team) => {
@@ -264,6 +269,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false }: PlayersManage
                 players={teamPlayers}
                 onDeletePlayer={handleDeletePlayer}
                 isClosed={isClosed}
+                isCreator={isCreator}
               />
             );
           })}
@@ -287,9 +293,10 @@ interface TeamCardProps {
   players: any[];
   onDeletePlayer: (playerId: string) => void;
   isClosed?: boolean;
+  isCreator?: boolean;
 }
 
-const TeamCard = ({ team, players, onDeletePlayer, isClosed = false }: TeamCardProps) => {
+const TeamCard = ({ team, players, onDeletePlayer, isClosed = false, isCreator = false }: TeamCardProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: team.id,
   });
@@ -315,6 +322,7 @@ const TeamCard = ({ team, players, onDeletePlayer, isClosed = false }: TeamCardP
             index={index}
             onDelete={onDeletePlayer}
             isClosed={isClosed}
+            isCreator={isCreator}
           />
         ))}
         {players.length === 0 && (
@@ -332,11 +340,13 @@ interface DraggablePlayerProps {
   index: number;
   onDelete: (playerId: string) => void;
   isClosed?: boolean;
+  isCreator?: boolean;
 }
 
-const DraggablePlayer = ({ player, index, onDelete, isClosed = false }: DraggablePlayerProps) => {
+const DraggablePlayer = ({ player, index, onDelete, isClosed = false, isCreator = false }: DraggablePlayerProps) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: player.id,
+    disabled: !isCreator,
   });
 
   const style = transform
@@ -349,28 +359,30 @@ const DraggablePlayer = ({ player, index, onDelete, isClosed = false }: Draggabl
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center justify-between p-3 bg-secondary/20 rounded-lg hover:bg-secondary/30 transition-all cursor-grab active:cursor-grabbing ${
-        isDragging ? "opacity-50 scale-95" : ""
-      }`}
-      {...attributes}
-      {...listeners}
+      className={`flex items-center justify-between p-3 bg-secondary/20 rounded-lg hover:bg-secondary/30 transition-all ${
+        isCreator ? "cursor-grab active:cursor-grabbing" : ""
+      } ${isDragging ? "opacity-50 scale-95" : ""}`}
+      {...(isCreator ? attributes : {})}
+      {...(isCreator ? listeners : {})}
     >
       <div className="flex items-center gap-3">
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
+        {isCreator && <GripVertical className="h-4 w-4 text-muted-foreground" />}
         <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
         <span className="font-medium">{player.name}</span>
       </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(player.id);
-        }}
-        disabled={isClosed}
-      >
-        <Trash2 className="h-4 w-4 text-destructive" />
-      </Button>
+      {isCreator && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(player.id);
+          }}
+          disabled={isClosed}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      )}
     </div>
   );
 };

@@ -13,9 +13,10 @@ import { Plus, Trash2, Download, Users } from "lucide-react";
 interface TeamsManagerProps {
   tournamentId: string;
   isClosed?: boolean;
+  isCreator?: boolean;
 }
 
-export const TeamsManager = ({ tournamentId, isClosed = false }: TeamsManagerProps) => {
+export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false }: TeamsManagerProps) => {
   const [teams, setTeams] = useState<any[]>([]);
   const [teamName, setTeamName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -224,126 +225,128 @@ export const TeamsManager = ({ tournamentId, isClosed = false }: TeamsManagerPro
 
   return (
     <div className="space-y-6">
-      <Card className="glass-card p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <h2 className="text-xl md:text-2xl font-bold">Ajouter une équipe</h2>
-          <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline" onClick={handleOpenImportDialog} className="w-full sm:w-auto">
-                <Download className="h-4 w-4 mr-2" />
-                Importer
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Importer des équipes existantes</DialogTitle>
-                <DialogDescription>
-                  Sélectionnez un tournoi et les équipes (avec leurs joueurs) à importer
-                </DialogDescription>
-              </DialogHeader>
+      {isCreator && (
+        <Card className="glass-card p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-xl md:text-2xl font-bold">Ajouter une équipe</h2>
+            <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline" onClick={handleOpenImportDialog} className="w-full sm:w-auto">
+                  <Download className="h-4 w-4 mr-2" />
+                  Importer
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Importer des équipes existantes</DialogTitle>
+                  <DialogDescription>
+                    Sélectionnez un tournoi et les équipes (avec leurs joueurs) à importer
+                  </DialogDescription>
+                </DialogHeader>
 
-              <div className="space-y-4 mt-4">
-                {tournaments.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <p className="text-muted-foreground">
-                      Aucun autre tournoi trouvé
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <div>
-                      <Label>Sélectionner un tournoi</Label>
-                      <Select value={selectedTournamentId} onValueChange={setSelectedTournamentId}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tournaments.map((tournament) => (
-                            <SelectItem key={tournament.id} value={tournament.id}>
-                              {tournament.name} - {new Date(tournament.start_date).toLocaleDateString("fr-FR")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                <div className="space-y-4 mt-4">
+                  {tournaments.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                      <p className="text-muted-foreground">
+                        Aucun autre tournoi trouvé
+                      </p>
                     </div>
-
-                    {availableTeams.length > 0 ? (
-                      <>
-                        <div className="border-t pt-4">
-                          <Label className="mb-3 block">Équipes disponibles ({availableTeams.length})</Label>
-                          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                            {availableTeams.map((team) => (
-                              <div
-                                key={team.id}
-                                className="flex items-start gap-3 p-3 bg-secondary/20 rounded-lg hover:bg-secondary/30 transition-colors"
-                              >
-                                <Checkbox
-                                  checked={selectedTeamIds.has(team.id)}
-                                  onCheckedChange={() => toggleTeamSelection(team.id)}
-                                />
-                                <div className="flex-1">
-                                  <p className="font-medium">{team.name}</p>
-                                  {team.players && team.players.length > 0 && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {team.players.length} joueur{team.players.length > 1 ? "s" : ""}: {team.players.map((p: any) => p.name).join(", ")}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
+                  ) : (
+                    <>
+                      <div>
+                        <Label>Sélectionner un tournoi</Label>
+                        <Select value={selectedTournamentId} onValueChange={setSelectedTournamentId}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tournaments.map((tournament) => (
+                              <SelectItem key={tournament.id} value={tournament.id}>
+                                {tournament.name} - {new Date(tournament.start_date).toLocaleDateString("fr-FR")}
+                              </SelectItem>
                             ))}
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end gap-2 pt-4 border-t">
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setShowImportDialog(false);
-                              setSelectedTeamIds(new Set());
-                            }}
-                          >
-                            Annuler
-                          </Button>
-                          <Button
-                            onClick={handleImportTeams}
-                            disabled={importing || selectedTeamIds.size === 0 || isClosed}
-                          >
-                            {importing ? "Import en cours..." : `Importer ${selectedTeamIds.size} équipe(s)`}
-                          </Button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground">
-                          Aucune équipe dans ce tournoi
-                        </p>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
 
-        <form onSubmit={handleAddTeam} className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
-            <Label htmlFor="teamName" className="sr-only">Nom de l'équipe</Label>
-            <Input
-              id="teamName"
-              placeholder="Nom de l'équipe"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              className="h-11"
-            />
+                      {availableTeams.length > 0 ? (
+                        <>
+                          <div className="border-t pt-4">
+                            <Label className="mb-3 block">Équipes disponibles ({availableTeams.length})</Label>
+                            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                              {availableTeams.map((team) => (
+                                <div
+                                  key={team.id}
+                                  className="flex items-start gap-3 p-3 bg-secondary/20 rounded-lg hover:bg-secondary/30 transition-colors"
+                                >
+                                  <Checkbox
+                                    checked={selectedTeamIds.has(team.id)}
+                                    onCheckedChange={() => toggleTeamSelection(team.id)}
+                                  />
+                                  <div className="flex-1">
+                                    <p className="font-medium">{team.name}</p>
+                                    {team.players && team.players.length > 0 && (
+                                      <p className="text-sm text-muted-foreground">
+                                        {team.players.length} joueur{team.players.length > 1 ? "s" : ""}: {team.players.map((p: any) => p.name).join(", ")}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-4 border-t">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setShowImportDialog(false);
+                                setSelectedTeamIds(new Set());
+                              }}
+                            >
+                              Annuler
+                            </Button>
+                            <Button
+                              onClick={handleImportTeams}
+                              disabled={importing || selectedTeamIds.size === 0 || isClosed}
+                            >
+                              {importing ? "Import en cours..." : `Importer ${selectedTeamIds.size} équipe(s)`}
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-8">
+                          <p className="text-muted-foreground">
+                            Aucune équipe dans ce tournoi
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
-          <Button type="submit" disabled={loading || isClosed} className="h-11 w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter
-          </Button>
-        </form>
-      </Card>
+
+          <form onSubmit={handleAddTeam} className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <Label htmlFor="teamName" className="sr-only">Nom de l'équipe</Label>
+              <Input
+                id="teamName"
+                placeholder="Nom de l'équipe"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                className="h-11"
+              />
+            </div>
+            <Button type="submit" disabled={loading || isClosed} className="h-11 w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter
+            </Button>
+          </form>
+        </Card>
+      )}
 
       <Card className="glass-card p-4 md:p-6">
         <h2 className="text-xl md:text-2xl font-bold mb-4">Équipes inscrites ({teams.length})</h2>
@@ -354,15 +357,17 @@ export const TeamsManager = ({ tournamentId, isClosed = false }: TeamsManagerPro
               className="flex items-center justify-between p-3 md:p-4 bg-secondary/20 rounded-lg min-h-[56px]"
             >
               <span className="font-medium text-sm md:text-base">{team.name}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDeleteTeam(team.id)}
-                className="h-10 w-10 p-0"
-                disabled={isClosed}
-              >
-                <Trash2 className="h-5 w-5 text-destructive" />
-              </Button>
+              {isCreator && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeleteTeam(team.id)}
+                  className="h-10 w-10 p-0"
+                  disabled={isClosed}
+                >
+                  <Trash2 className="h-5 w-5 text-destructive" />
+                </Button>
+              )}
             </div>
           ))}
         </div>
