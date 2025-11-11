@@ -386,13 +386,14 @@ export const EliminationBracket = ({
       const matchesInRound = totalTeams / Math.pow(2, round);
       const roundMatches = [];
       
+      // Filtrer et trier les matchs de ce round (exclure le match de 3ème place)
+      const roundMatchesSorted = matches
+        .filter(m => m.round_number === round && !m.is_third_place_match)
+        .sort((a, b) => a.id.localeCompare(b.id)); // Tri stable par ID
+      
       for (let i = 0; i < matchesInRound; i++) {
-        // Chercher si un vrai match existe (exclure le match de 3ème place)
-        const existingMatch = matches.find(m => 
-          m.round_number === round && 
-          !m.is_third_place_match &&
-          matches.filter(x => x.round_number === round && !x.is_third_place_match).indexOf(m) === i
-        );
+        // Prendre le i-ème match de ce round
+        const existingMatch = roundMatchesSorted[i];
         
         if (existingMatch) {
           roundMatches.push(existingMatch);
