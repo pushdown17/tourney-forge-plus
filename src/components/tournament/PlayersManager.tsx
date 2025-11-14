@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PlayerAutocomplete } from "@/components/ui/player-autocomplete";
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -234,11 +234,11 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
                   <div>
                     <Label htmlFor="playerName">Nom du joueur</Label>
                     <div className="flex gap-2">
-                      <Input
-                        id="playerName"
-                        placeholder="Nom Prénom"
+                      <PlayerAutocomplete
                         value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
+                        onChange={setPlayerName}
+                        placeholder="Nom Prénom"
+                        disabled={loading || isClosed}
                       />
                       <Button type="submit" disabled={loading || isClosed}>
                         <Plus className="h-4 w-4 mr-2" />
