@@ -45,38 +45,75 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
 
   const fetchTeams = async () => {
     const { data, error } = await supabase
-      .from("teams")
-      .select("*")
+      .from("tournament_teams")
+      .select(`
+        id,
+        group_name,
+        team:team_id (
+          id,
+          name
+        )
+      `)
       .eq("tournament_id", tournamentId)
-      .order("name");
+      .order("team(name)");
 
     if (error) {
       toast.error("Erreur lors du chargement des équipes");
       return;
     }
 
-    setTeams(data || []);
-    if (data && data.length > 0 && !selectedTeamId) {
-      setSelectedTeamId(data[0].id);
+    // Transform to expected format
+    const transformedTeams = (data || []).map((tt: any) => ({
+      id: tt.id,
+      name: tt.team.name,
+      team_id: tt.team.id,
+    }));
+
+    setTeams(transformedTeams);
+    if (transformedTeams.length > 0 && !selectedTeamId) {
+      setSelectedTeamId(transformedTeams[0].id);
     }
   };
 
   const fetchPlayers = async () => {
     const { data, error } = await supabase
-      .from("players")
+      .from("tournament_team_players")
       .select(`
-        *,
-        team:team_id(id, name)
+        id,
+        tournament_team_id,
+        player:player_id (
+          id,
+          name
+        ),
+        tournament_team:tournament_team_id (
+          id,
+          team:team_id (
+            id,
+            name
+          )
+        )
       `)
-      .in("team_id", teams.map(t => t.id))
-      .order("name");
+      .in("tournament_team_id", teams.map(t => t.id))
+      .order("player(name)");
 
     if (error) {
       toast.error("Erreur lors du chargement des joueurs");
       return;
     }
 
-    setPlayers(data || []);
+    // Transform to expected format
+    const transformedPlayers = (data || []).map((ttp: any) => ({
+      id: ttp.player.id,
+      tournament_team_player_id: ttp.id,
+      name: ttp.player.name,
+      team_id: ttp.tournament_team_id,
+      team: {
+        id: ttp.tournament_team.team.id,
+        name: ttp.tournament_team.team.name,
+      },
+    }));
+
+    setPlayers(transformedPlayers);
   };
 
   const handleAddPlayer = async (e: React.FormEvent) => {
@@ -86,14 +123,14 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
     await insertPlayer(playerName.trim(), selectedTeamId);
   };
 
-  const insertPlayer = async (name: string, teamId: string) => {
+  const insertPlayer = async (name: string, tournamentTeamId: string) => {
     setLoading(true);
     try {
       // Validate input
       const { playerSchema } = await import("@/lib/validations");
       const validation = playerSchema.safeParse({
         name,
-        team_id: teamId,
+        team_id: tournamentTeamId, // Using team_id field for validation even though it's tournament_team_id
       });
 
       if (!validation.success) {
@@ -101,18 +138,56 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
         return;
       }
 
-      const { error } = await supabase
+      // Check if player already exists in this tournament team
+      const { data: existingLink } = await supabase
+        .from("tournament_team_players")
+        .select("id, player:player_id(name)")
+        .eq("tournament_team_id", tournamentTeamId)
+        .eq("player.name", validation.data.name)
+        .maybeSingle();
+
+      if (existingLink) {
+        toast.error("Ce joueur existe déjà dans cette équipe");
+        return;
+      }
+
+      // Check if player exists globally
+      const { data: existingPlayer } = await supabase
         .from("players")
+        .select("id")
+        .eq("name", validation.data.name)
+        .maybeSingle();
+
+      let playerId: string;
+
+      if (existingPlayer) {
+        // Reuse existing player
+        playerId = existingPlayer.id;
+      } else {
+        // Create new global player
+        const { data: newPlayer, error: playerError } = await supabase
+          .from("players")
+          .insert({ name: validation.data.name })
+          .select("id")
+          .single();
+
+        if (playerError) throw playerError;
+        playerId = newPlayer.id;
+      }
+
+      // Link player to tournament team
+      const { error: linkError } = await supabase
+        .from("tournament_team_players")
         .insert({
-          name: validation.data.name,
-          team_id: validation.data.team_id,
+          tournament_team_id: tournamentTeamId,
+          player_id: playerId,
         });
 
-      if (error) {
-        if (error.code === '23505') {
+      if (linkError) {
+        if (linkError.code === '23505') {
           toast.error("Ce joueur existe déjà dans cette équipe");
         } else {
-          throw error;
+          throw linkError;
         }
         return;
       }
@@ -127,16 +202,17 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
     }
   };
 
-  const handleDeletePlayer = async (playerId: string) => {
+  const handleDeletePlayer = async (tournamentTeamPlayerId: string) => {
     try {
+      // Delete from tournament_team_players (not from global players table)
       const { error } = await supabase
-        .from("players")
+        .from("tournament_team_players")
         .delete()
-        .eq("id", playerId);
+        .eq("id", tournamentTeamPlayerId);
 
       if (error) throw error;
 
-      toast.success("Joueur supprimé");
+      toast.success("Joueur retiré de l'équipe");
       fetchPlayers();
     } catch (error: any) {
       toast.error(error.message);
@@ -160,29 +236,53 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
     if (!over || active.id === over.id) return;
 
     const playerId = active.id as string;
-    const newTeamId = over.id as string;
+    const newTournamentTeamId = over.id as string;
 
     const player = players.find(p => p.id === playerId);
-    if (!player || player.team_id === newTeamId) return;
+    if (!player || player.team_id === newTournamentTeamId) return;
 
-    // Update player's team
+    // Update player's tournament team
     try {
-      const { error } = await supabase
-        .from("players")
-        .update({ team_id: newTeamId })
-        .eq("id", playerId);
+      // Check if player already exists in target team
+      const { data: existingLink } = await supabase
+        .from("tournament_team_players")
+        .select("id")
+        .eq("tournament_team_id", newTournamentTeamId)
+        .eq("player_id", playerId)
+        .maybeSingle();
 
-      if (error) {
-        if (error.code === '23505') {
+      if (existingLink) {
+        toast.error("Ce joueur existe déjà dans l'équipe cible");
+        return;
+      }
+
+      // Delete old link
+      const { error: deleteError } = await supabase
+        .from("tournament_team_players")
+        .delete()
+        .eq("id", player.tournament_team_player_id);
+
+      if (deleteError) throw deleteError;
+
+      // Create new link
+      const { error: insertError } = await supabase
+        .from("tournament_team_players")
+        .insert({
+          tournament_team_id: newTournamentTeamId,
+          player_id: playerId,
+        });
+
+      if (insertError) {
+        if (insertError.code === '23505') {
           toast.error("Un joueur avec ce nom existe déjà dans l'équipe cible");
         } else {
-          throw error;
+          throw insertError;
         }
         return;
       }
 
       const oldTeam = teams.find(t => t.id === player.team_id);
-      const newTeam = teams.find(t => t.id === newTeamId);
+      const newTeam = teams.find(t => t.id === newTournamentTeamId);
 
       toast.success(`${player.name} transféré de ${oldTeam?.name} vers ${newTeam?.name}`);
       fetchPlayers();
@@ -317,7 +417,7 @@ const TeamCard = ({ team, players, onDeletePlayer, isClosed = false, isCreator =
       <div className="space-y-2">
         {players.map((player, index) => (
           <DraggablePlayer
-            key={player.id}
+            key={player.tournament_team_player_id}
             player={player}
             index={index}
             onDelete={onDeletePlayer}
@@ -376,7 +476,7 @@ const DraggablePlayer = ({ player, index, onDelete, isClosed = false, isCreator 
           size="sm"
           onClick={(e) => {
             e.stopPropagation();
-            onDelete(player.id);
+            onDelete(player.tournament_team_player_id);
           }}
           disabled={isClosed}
         >
