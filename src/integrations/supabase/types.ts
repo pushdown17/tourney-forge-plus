@@ -27,6 +27,8 @@ export type Database = {
           team2_id: string
           team2_score: number | null
           tournament_id: string
+          tournament_team1_id: string | null
+          tournament_team2_id: string | null
           updated_at: string
           winner_id: string | null
         }
@@ -42,6 +44,8 @@ export type Database = {
           team2_id: string
           team2_score?: number | null
           tournament_id: string
+          tournament_team1_id?: string | null
+          tournament_team2_id?: string | null
           updated_at?: string
           winner_id?: string | null
         }
@@ -57,6 +61,8 @@ export type Database = {
           team2_id?: string
           team2_score?: number | null
           tournament_id?: string
+          tournament_team1_id?: string | null
+          tournament_team2_id?: string | null
           updated_at?: string
           winner_id?: string | null
         }
@@ -83,6 +89,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "matches_tournament_team1_id_fkey"
+            columns: ["tournament_team1_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_tournament_team2_id_fkey"
+            columns: ["tournament_team2_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_teams"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "matches_winner_id_fkey"
             columns: ["winner_id"]
             isOneToOne: false
@@ -104,6 +124,7 @@ export type Database = {
           penalty_30s: number
           player_id: string
           tournament_id: string
+          tournament_team_player_id: string | null
           updated_at: string
         }
         Insert: {
@@ -118,6 +139,7 @@ export type Database = {
           penalty_30s?: number
           player_id: string
           tournament_id: string
+          tournament_team_player_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -132,6 +154,7 @@ export type Database = {
           penalty_30s?: number
           player_id?: string
           tournament_id?: string
+          tournament_team_player_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -154,6 +177,13 @@ export type Database = {
             columns: ["tournament_id"]
             isOneToOne: false
             referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_stats_tournament_team_player_id_fkey"
+            columns: ["tournament_team_player_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_team_players"
             referencedColumns: ["id"]
           },
         ]
@@ -197,6 +227,7 @@ export type Database = {
           points: number
           team_id: string
           tournament_id: string
+          tournament_team_id: string | null
           updated_at: string
           wins: number
         }
@@ -209,6 +240,7 @@ export type Database = {
           points?: number
           team_id: string
           tournament_id: string
+          tournament_team_id?: string | null
           updated_at?: string
           wins?: number
         }
@@ -221,6 +253,7 @@ export type Database = {
           points?: number
           team_id?: string
           tournament_id?: string
+          tournament_team_id?: string | null
           updated_at?: string
           wins?: number
         }
@@ -237,6 +270,13 @@ export type Database = {
             columns: ["tournament_id"]
             isOneToOne: false
             referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_stats_tournament_team_id_fkey"
+            columns: ["tournament_team_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_teams"
             referencedColumns: ["id"]
           },
         ]
@@ -266,6 +306,81 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "teams_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_team_players: {
+        Row: {
+          created_at: string
+          id: string
+          player_id: string
+          tournament_team_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          player_id: string
+          tournament_team_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          player_id?: string
+          tournament_team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_team_players_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_team_players_tournament_team_id_fkey"
+            columns: ["tournament_team_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_teams: {
+        Row: {
+          created_at: string
+          group_name: string | null
+          id: string
+          team_id: string
+          tournament_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_name?: string | null
+          id?: string
+          team_id: string
+          tournament_id: string
+        }
+        Update: {
+          created_at?: string
+          group_name?: string | null
+          id?: string
+          team_id?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_teams_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_teams_tournament_id_fkey"
             columns: ["tournament_id"]
             isOneToOne: false
             referencedRelation: "tournaments"
