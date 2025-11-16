@@ -33,17 +33,32 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
 
   const fetchTeams = async () => {
     const { data, error } = await supabase
-      .from("teams")
-      .select("*")
+      .from("tournament_teams")
+      .select(`
+        id,
+        group_name,
+        team:team_id (
+          id,
+          name
+        )
+      `)
       .eq("tournament_id", tournamentId)
-      .order("name");
+      .order("team(name)");
 
     if (error) {
       toast.error("Erreur lors du chargement des équipes");
       return;
     }
 
-    setTeams(data || []);
+    // Transform data to match expected format
+    const transformedTeams = (data || []).map((tt: any) => ({
+      id: tt.team.id,
+      tournament_team_id: tt.id,
+      name: tt.team.name,
+      group_name: tt.group_name,
+    }));
+
+    setTeams(transformedTeams);
   };
 
   const handleAddTeam = async (e: React.FormEvent) => {
@@ -64,18 +79,56 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
         return;
       }
 
-      const { error } = await supabase
+      // Check if team already exists in this tournament
+      const { data: existingTournamentTeam } = await supabase
+        .from("tournament_teams")
+        .select("id, team:team_id(name)")
+        .eq("tournament_id", tournamentId)
+        .eq("team.name", validation.data.name)
+        .maybeSingle();
+
+      if (existingTournamentTeam) {
+        toast.error("Cette équipe existe déjà dans ce tournoi");
+        return;
+      }
+
+      // Check if team exists globally
+      const { data: existingTeam } = await supabase
         .from("teams")
+        .select("id")
+        .eq("name", validation.data.name)
+        .maybeSingle();
+
+      let teamId: string;
+
+      if (existingTeam) {
+        // Reuse existing team
+        teamId = existingTeam.id;
+      } else {
+        // Create new global team
+        const { data: newTeam, error: teamError } = await supabase
+          .from("teams")
+          .insert({ name: validation.data.name })
+          .select("id")
+          .single();
+
+        if (teamError) throw teamError;
+        teamId = newTeam.id;
+      }
+
+      // Link team to tournament
+      const { error: linkError } = await supabase
+        .from("tournament_teams")
         .insert({
-          name: validation.data.name,
-          tournament_id: validation.data.tournament_id,
+          tournament_id: tournamentId,
+          team_id: teamId,
         });
 
-      if (error) {
-        if (error.code === '23505') {
+      if (linkError) {
+        if (linkError.code === '23505') {
           toast.error("Cette équipe existe déjà dans ce tournoi");
         } else {
-          throw error;
+          throw linkError;
         }
         return;
       }
@@ -90,16 +143,17 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
     }
   };
 
-  const handleDeleteTeam = async (teamId: string) => {
+  const handleDeleteTeam = async (tournamentTeamId: string) => {
     try {
+      // Delete from tournament_teams (not from global teams table)
       const { error } = await supabase
-        .from("teams")
+        .from("tournament_teams")
         .delete()
-        .eq("id", teamId);
+        .eq("id", tournamentTeamId);
 
       if (error) throw error;
 
-      toast.success("Équipe supprimée");
+      toast.success("Équipe retirée du tournoi");
       fetchTeams();
     } catch (error: any) {
       toast.error(error.message);
