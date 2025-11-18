@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { BracketNode } from "@/components/BracketNode";
 import { PhaseTransition } from "./PhaseTransition";
 import { MatchStatsDialog } from "./MatchStatsDialog";
+import { ScoreInput } from "@/components/ui/score-input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trophy } from "lucide-react";
@@ -611,26 +612,25 @@ export const EliminationBracket = ({
                         {!match.isPlaceholder && match.team1 && match.team2 && (
                           <div className="mt-0.5">
                             {editingMatchId === match.id ? (
-                              <div className="flex gap-0.5">
-                                <Input
-                                  type="number"
-                                  placeholder="0"
-                                  value={scores[match.id]?.team1 || ""}
-                                  onChange={(e) => setScores({
+                              <div className="flex gap-0.5 items-center justify-center">
+                                <ScoreInput
+                                  compact
+                                  value={parseInt(scores[match.id]?.team1 || "0")}
+                                  onChange={(value) => setScores({
                                     ...scores,
-                                    [match.id]: { ...scores[match.id], team1: e.target.value }
+                                    [match.id]: { ...scores[match.id], team1: value.toString() }
                                   })}
-                                  className="w-8 h-5 text-[10px] p-0.5 text-center"
+                                  disabled={isClosed}
                                 />
-                                <Input
-                                  type="number"
-                                  placeholder="0"
-                                  value={scores[match.id]?.team2 || ""}
-                                  onChange={(e) => setScores({
+                                <span className="text-[8px] text-muted-foreground">-</span>
+                                <ScoreInput
+                                  compact
+                                  value={parseInt(scores[match.id]?.team2 || "0")}
+                                  onChange={(value) => setScores({
                                     ...scores,
-                                    [match.id]: { ...scores[match.id], team2: e.target.value }
+                                    [match.id]: { ...scores[match.id], team2: value.toString() }
                                   })}
-                                  className="w-8 h-5 text-[10px] p-0.5 text-center"
+                                  disabled={isClosed}
                                 />
                                 <Button onClick={() => handleScoreUpdate(match.id)} size="sm" className="h-5 px-1.5 text-[10px]" disabled={isClosed}>
                                   ✓
@@ -704,26 +704,25 @@ export const EliminationBracket = ({
                 {thirdPlaceMatch.team1 && thirdPlaceMatch.team2 && (
                   <div className="mt-0.5">
                     {editingMatchId === thirdPlaceMatch.id ? (
-                      <div className="flex gap-0.5">
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={scores[thirdPlaceMatch.id]?.team1 || ""}
-                          onChange={(e) => setScores({
+                      <div className="flex gap-0.5 items-center justify-center">
+                        <ScoreInput
+                          compact
+                          value={parseInt(scores[thirdPlaceMatch.id]?.team1 || "0")}
+                          onChange={(value) => setScores({
                             ...scores,
-                            [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], team1: e.target.value }
+                            [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], team1: value.toString() }
                           })}
-                          className="w-8 h-5 text-[10px] p-0.5 text-center"
+                          disabled={isClosed}
                         />
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={scores[thirdPlaceMatch.id]?.team2 || ""}
-                          onChange={(e) => setScores({
+                        <span className="text-[8px] text-muted-foreground">-</span>
+                        <ScoreInput
+                          compact
+                          value={parseInt(scores[thirdPlaceMatch.id]?.team2 || "0")}
+                          onChange={(value) => setScores({
                             ...scores,
-                            [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], team2: e.target.value }
+                            [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], team2: value.toString() }
                           })}
-                          className="w-8 h-5 text-[10px] p-0.5 text-center"
+                          disabled={isClosed}
                         />
                         <Button onClick={() => handleScoreUpdate(thirdPlaceMatch.id)} size="sm" className="h-5 px-1.5 text-[10px]" disabled={isClosed}>
                           ✓

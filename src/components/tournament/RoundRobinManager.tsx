@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScoreInput } from "@/components/ui/score-input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -410,29 +411,23 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
         <div className="flex items-center gap-4">
           <div className="flex-1 flex items-center justify-between">
             <span className="font-medium">{match.team1?.name || "Équipe 1"}</span>
-            <Input
-              type="number"
-              min="0"
+            <ScoreInput
               value={team1Score}
-              onChange={(e) => {
-                setTeam1Score(parseInt(e.target.value) || 0);
+              onChange={(value) => {
+                setTeam1Score(value);
                 if (!isEditing) setEditingMatchId(match.id);
               }}
-              className="w-20 text-center"
               disabled={isLocked || isClosed}
             />
           </div>
           <span className="text-muted-foreground">vs</span>
           <div className="flex-1 flex items-center justify-between">
-            <Input
-              type="number"
-              min="0"
+            <ScoreInput
               value={team2Score}
-              onChange={(e) => {
-                setTeam2Score(parseInt(e.target.value) || 0);
+              onChange={(value) => {
+                setTeam2Score(value);
                 if (!isEditing) setEditingMatchId(match.id);
               }}
-              className="w-20 text-center"
               disabled={isLocked || isClosed}
             />
             <span className="font-medium">{match.team2?.name || "Équipe 2"}</span>
