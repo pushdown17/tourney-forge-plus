@@ -193,19 +193,19 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          team_id: string
+          team_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
-          team_id: string
+          team_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
-          team_id?: string
+          team_id?: string | null
         }
         Relationships: [
           {
@@ -287,21 +287,21 @@ export type Database = {
           group_name: string | null
           id: string
           name: string
-          tournament_id: string
+          tournament_id: string | null
         }
         Insert: {
           created_at?: string
           group_name?: string | null
           id?: string
           name: string
-          tournament_id: string
+          tournament_id?: string | null
         }
         Update: {
           created_at?: string
           group_name?: string | null
           id?: string
           name?: string
-          tournament_id?: string
+          tournament_id?: string | null
         }
         Relationships: [
           {

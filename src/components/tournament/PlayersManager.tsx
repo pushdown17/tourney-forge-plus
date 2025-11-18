@@ -167,7 +167,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
         // Create new global player
         const { data: newPlayer, error: playerError } = await supabase
           .from("players")
-          .insert({ name: validation.data.name })
+          .insert({ name: validation.data.name, team_id: null })
           .select("id")
           .single();
 
