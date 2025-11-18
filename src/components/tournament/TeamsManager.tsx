@@ -108,7 +108,7 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
         // Create new global team
         const { data: newTeam, error: teamError } = await supabase
           .from("teams")
-          .insert({ name: validation.data.name })
+          .insert({ name: validation.data.name, tournament_id: null })
           .select("id")
           .single();
 
@@ -184,21 +184,39 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
 
   const fetchTeamsFromTournament = async (sourceTournamentId: string) => {
     const { data, error } = await supabase
-      .from("teams")
+      .from("tournament_teams")
       .select(`
         id,
-        name,
-        players:players(id, name)
+        group_name,
+        team:team_id (
+          id,
+          name
+        ),
+        tournament_team_players!inner (
+          player:player_id (
+            id,
+            name
+          )
+        )
       `)
       .eq("tournament_id", sourceTournamentId)
-      .order("name");
+      .order("team(name)");
 
     if (error) {
       toast.error("Erreur lors du chargement des équipes");
       return;
     }
 
-    setAvailableTeams(data || []);
+    // Transform to expected format
+    const transformedTeams = (data || []).map((tt: any) => ({
+      id: tt.id,
+      name: tt.team.name,
+      team_id: tt.team.id,
+      group_name: tt.group_name,
+      players: tt.tournament_team_players.map((ttp: any) => ttp.player),
+    }));
+
+    setAvailableTeams(transformedTeams);
   };
 
   useEffect(() => {
@@ -230,39 +248,73 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
 
     setImporting(true);
     try {
-      const teamsToImport = availableTeams.filter(t => selectedTeamIds.has(t.id));
+      const teamsToImport = availableTeams.filter(team => selectedTeamIds.has(team.id));
 
       for (const team of teamsToImport) {
-        // Insert team
-        const { data: newTeam, error: teamError } = await supabase
-          .from("teams")
+        // Check if team already exists in this tournament
+        const { data: existingTournamentTeam } = await supabase
+          .from("tournament_teams")
+          .select("id")
+          .eq("tournament_id", tournamentId)
+          .eq("team_id", team.team_id)
+          .maybeSingle();
+
+        if (existingTournamentTeam) {
+          toast.error(`L'équipe ${team.name} existe déjà dans ce tournoi`);
+          continue;
+        }
+
+        // Link team to tournament
+        const { data: newTournamentTeam, error: linkError } = await supabase
+          .from("tournament_teams")
           .insert({
-            name: team.name,
             tournament_id: tournamentId,
+            team_id: team.team_id,
+            group_name: team.group_name,
           })
           .select()
           .single();
 
-        if (teamError) {
-          if (teamError.code === '23505') {
-            toast.error(`L'équipe "${team.name}" existe déjà dans ce tournoi`);
-            continue;
-          }
-          throw teamError;
-        }
+        if (linkError) throw linkError;
 
-        // Insert players if any
+        // Import players if any
         if (team.players && team.players.length > 0) {
-          const playersToInsert = team.players.map((player: any) => ({
-            name: player.name,
-            team_id: newTeam.id,
-          }));
+          for (const player of team.players) {
+            // Check if player exists globally
+            const { data: existingPlayer } = await supabase
+              .from("players")
+              .select("id")
+              .eq("name", player.name)
+              .maybeSingle();
 
-          const { error: playersError } = await supabase
-            .from("players")
-            .insert(playersToInsert);
+            let playerId: string;
 
-          if (playersError) throw playersError;
+            if (existingPlayer) {
+              playerId = existingPlayer.id;
+            } else {
+              // Create new global player
+              const { data: newPlayer, error: playerError } = await supabase
+                .from("players")
+                .insert({ name: player.name, team_id: null })
+                .select("id")
+                .single();
+
+              if (playerError) throw playerError;
+              playerId = newPlayer.id;
+            }
+
+            // Link player to tournament team
+            const { error: playerLinkError } = await supabase
+              .from("tournament_team_players")
+              .insert({
+                tournament_team_id: newTournamentTeam.id,
+                player_id: playerId,
+              });
+
+            if (playerLinkError && playerLinkError.code !== '23505') {
+              throw playerLinkError;
+            }
+          }
         }
       }
 
