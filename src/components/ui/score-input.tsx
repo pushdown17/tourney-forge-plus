@@ -4,14 +4,16 @@ import { Minus, Plus } from "lucide-react";
 interface ScoreInputProps {
   value: number;
   onChange: (value: number) => void;
+  onIncrement?: () => void;
   disabled?: boolean;
   className?: string;
   compact?: boolean;
 }
 
-export const ScoreInput = ({ value, onChange, disabled = false, className = "", compact = false }: ScoreInputProps) => {
+export const ScoreInput = ({ value, onChange, onIncrement, disabled = false, className = "", compact = false }: ScoreInputProps) => {
   const increment = () => {
     onChange(value + 1);
+    onIncrement?.();
   };
 
   const decrement = () => {

@@ -9,6 +9,7 @@ import { ScoreInput } from "@/components/ui/score-input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trophy } from "lucide-react";
+import { GoalScorerDialog } from "./GoalScorerDialog";
 
 interface Team {
   id: string;
@@ -74,6 +75,8 @@ export const EliminationBracket = ({
   const [scores, setScores] = useState<{ [key: string]: { team1: string; team2: string } }>({});
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
+  const [goalScorerDialogOpen, setGoalScorerDialogOpen] = useState(false);
+  const [scoringTeam, setScoringTeam] = useState<{ id: string; name: string; matchId: string } | null>(null);
 
   useEffect(() => {
     fetchTournamentAndMatches();
@@ -620,6 +623,14 @@ export const EliminationBracket = ({
                                     ...scores,
                                     [match.id]: { ...scores[match.id], team1: value.toString() }
                                   })}
+                                  onIncrement={() => {
+                                    setScoringTeam({ 
+                                      id: match.team1_id, 
+                                      name: match.team1?.name || "TBD",
+                                      matchId: match.id
+                                    });
+                                    setGoalScorerDialogOpen(true);
+                                  }}
                                   disabled={isClosed}
                                 />
                                 <span className="text-[8px] text-muted-foreground">-</span>
@@ -630,6 +641,14 @@ export const EliminationBracket = ({
                                     ...scores,
                                     [match.id]: { ...scores[match.id], team2: value.toString() }
                                   })}
+                                  onIncrement={() => {
+                                    setScoringTeam({ 
+                                      id: match.team2_id, 
+                                      name: match.team2?.name || "TBD",
+                                      matchId: match.id
+                                    });
+                                    setGoalScorerDialogOpen(true);
+                                  }}
                                   disabled={isClosed}
                                 />
                                 <Button onClick={() => handleScoreUpdate(match.id)} size="sm" className="h-5 px-1.5 text-[10px]" disabled={isClosed}>
@@ -712,6 +731,14 @@ export const EliminationBracket = ({
                             ...scores,
                             [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], team1: value.toString() }
                           })}
+                          onIncrement={() => {
+                            setScoringTeam({ 
+                              id: thirdPlaceMatch.team1_id, 
+                              name: thirdPlaceMatch.team1?.name || "TBD",
+                              matchId: thirdPlaceMatch.id
+                            });
+                            setGoalScorerDialogOpen(true);
+                          }}
                           disabled={isClosed}
                         />
                         <span className="text-[8px] text-muted-foreground">-</span>
@@ -722,6 +749,14 @@ export const EliminationBracket = ({
                             ...scores,
                             [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], team2: value.toString() }
                           })}
+                          onIncrement={() => {
+                            setScoringTeam({ 
+                              id: thirdPlaceMatch.team2_id, 
+                              name: thirdPlaceMatch.team2?.name || "TBD",
+                              matchId: thirdPlaceMatch.id
+                            });
+                            setGoalScorerDialogOpen(true);
+                          }}
                           disabled={isClosed}
                         />
                         <Button onClick={() => handleScoreUpdate(thirdPlaceMatch.id)} size="sm" className="h-5 px-1.5 text-[10px]" disabled={isClosed}>
@@ -766,6 +801,20 @@ export const EliminationBracket = ({
           open={statsDialogOpen}
           onOpenChange={setStatsDialogOpen}
           onScoreUpdate={fetchTournamentAndMatches}
+        />
+      )}
+
+      {scoringTeam && (
+        <GoalScorerDialog
+          open={goalScorerDialogOpen}
+          onOpenChange={setGoalScorerDialogOpen}
+          teamId={scoringTeam.id}
+          teamName={scoringTeam.name}
+          matchId={scoringTeam.matchId}
+          tournamentId={tournamentId}
+          onGoalRecorded={() => {
+            // Refresh if needed
+          }}
         />
       )}
     </Card>
