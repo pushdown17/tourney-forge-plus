@@ -18,6 +18,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock } from "lucide-react";
+import { GoalScorerDialog } from "./GoalScorerDialog";
 
 interface RoundRobinManagerProps {
   tournamentId: string;
@@ -278,6 +279,8 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   const [team2Players, setTeam2Players] = useState<any[]>([]);
   const [playerStats, setPlayerStats] = useState<Record<string, any>>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [goalScorerDialogOpen, setGoalScorerDialogOpen] = useState(false);
+  const [scoringTeam, setScoringTeam] = useState<{ id: string; name: string } | null>(null);
   
   const isLocked = editingMatchId !== null && editingMatchId !== match.id;
   const isEditing = editingMatchId === match.id;
@@ -417,6 +420,10 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                 setTeam1Score(value);
                 if (!isEditing) setEditingMatchId(match.id);
               }}
+              onIncrement={() => {
+                setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Équipe 1" });
+                setGoalScorerDialogOpen(true);
+              }}
               disabled={isLocked || isClosed}
             />
           </div>
@@ -427,6 +434,10 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               onChange={(value) => {
                 setTeam2Score(value);
                 if (!isEditing) setEditingMatchId(match.id);
+              }}
+              onIncrement={() => {
+                setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Équipe 2" });
+                setGoalScorerDialogOpen(true);
               }}
               disabled={isLocked || isClosed}
             />
@@ -536,6 +547,21 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {scoringTeam && (
+        <GoalScorerDialog
+          open={goalScorerDialogOpen}
+          onOpenChange={setGoalScorerDialogOpen}
+          teamId={scoringTeam.id}
+          teamName={scoringTeam.name}
+          matchId={match.id}
+          tournamentId={tournamentId}
+          onGoalRecorded={() => {
+            // Refresh player stats if needed
+            fetchPlayerStats();
+          }}
+        />
+      )}
     </Collapsible>
   );
 };
