@@ -288,9 +288,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   useEffect(() => {
     if (isOpen) {
       fetchPlayers();
-      fetchPlayerStats();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (team1Players.length > 0 || team2Players.length > 0) {
+      fetchPlayerStats();
+    }
+  }, [team1Players, team2Players, goalScorerDialogOpen]);
 
   const fetchPlayers = async () => {
     const { data: players1, error: error1 } = await supabase
@@ -551,13 +556,19 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
       {scoringTeam && (
         <GoalScorerDialog
           open={goalScorerDialogOpen}
-          onOpenChange={setGoalScorerDialogOpen}
+          onOpenChange={(open) => {
+            setGoalScorerDialogOpen(open);
+            if (!open) {
+              // Recharger les stats quand le dialog se ferme
+              fetchPlayerStats();
+            }
+          }}
           teamId={scoringTeam.id}
           teamName={scoringTeam.name}
           matchId={match.id}
           tournamentId={tournamentId}
           onGoalRecorded={() => {
-            // Refresh player stats if needed
+            // Recharger immédiatement après l'enregistrement
             fetchPlayerStats();
           }}
         />
