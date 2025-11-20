@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { Trophy, TrendingUp, ChevronDown, ChevronUp, Users, Target, AlertTriangle, Clock, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { GoalScorerDialog } from "./GoalScorerDialog";
+import { QuickStatDialog } from "./QuickStatDialog";
 
 interface SwissManagerProps {
   tournamentId: string;
@@ -403,6 +404,9 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [goalScorerDialogOpen, setGoalScorerDialogOpen] = useState(false);
   const [scoringTeam, setScoringTeam] = useState<{ id: string; name: string } | null>(null);
+  const [quickStatDialogOpen, setQuickStatDialogOpen] = useState(false);
+  const [quickStatType, setQuickStatType] = useState<"assists" | "fouls" | "penalty_30s" | "penalty_1m" | "penalty_2m">("assists");
+  const [quickStatTeam, setQuickStatTeam] = useState<{ id: string; name: string } | null>(null);
   
   const isLocked = editingMatchId !== null && editingMatchId !== match.id;
   const isEditing = editingMatchId === match.id;
@@ -585,7 +589,78 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             />
             <span className="font-medium flex-1 text-right">{match.team2?.name || "Équipe 2"}</span>
           </div>
-          <div className="flex gap-2">
+        </div>
+
+        {/* Onglets stats rapides */}
+        <div className="flex flex-wrap gap-2 justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setQuickStatType("assists");
+              setQuickStatTeam(null);
+              setQuickStatDialogOpen(true);
+            }}
+            disabled={isLocked || isClosed}
+            className="text-xs"
+          >
+            Passes
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setQuickStatType("fouls");
+              setQuickStatTeam(null);
+              setQuickStatDialogOpen(true);
+            }}
+            disabled={isLocked || isClosed}
+            className="text-xs"
+          >
+            Fautes
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setQuickStatType("penalty_30s");
+              setQuickStatTeam(null);
+              setQuickStatDialogOpen(true);
+            }}
+            disabled={isLocked || isClosed}
+            className="text-xs"
+          >
+            30 sec
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setQuickStatType("penalty_1m");
+              setQuickStatTeam(null);
+              setQuickStatDialogOpen(true);
+            }}
+            disabled={isLocked || isClosed}
+            className="text-xs"
+          >
+            1 min
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setQuickStatType("penalty_2m");
+              setQuickStatTeam(null);
+              setQuickStatDialogOpen(true);
+            }}
+            disabled={isLocked || isClosed}
+            className="text-xs"
+          >
+            2 min
+          </Button>
+        </div>
+
+        <div className="flex gap-2 justify-end">
             {isEditing && (
               <Button
                 onClick={() => {
@@ -609,19 +684,18 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           </div>
         </div>
 
-        <CollapsibleTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full justify-center gap-2"
-            disabled={isLocked || isClosed}
-          >
-            <Users className="h-4 w-4" />
-            Statistiques des joueurs
-            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-        </CollapsibleTrigger>
-      </div>
+      <CollapsibleTrigger asChild>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="w-full justify-center gap-2"
+          disabled={isLocked || isClosed}
+        >
+          <Users className="h-4 w-4" />
+          Statistiques des joueurs
+          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
+      </CollapsibleTrigger>
 
       <CollapsibleContent>
         <Card className="p-4 bg-muted/30 space-y-4">
@@ -707,6 +781,33 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           tournamentId={tournamentId}
           onGoalRecorded={() => {
             // Recharger immédiatement après l'enregistrement
+            fetchPlayerStats();
+          }}
+        />
+      )}
+
+      {quickStatDialogOpen && (
+        <QuickStatDialog
+          open={quickStatDialogOpen}
+          onOpenChange={(open) => {
+            setQuickStatDialogOpen(open);
+            if (!open) {
+              fetchPlayerStats();
+            }
+          }}
+          team1={{ id: match.team1_id, name: match.team1?.name || "Équipe 1" }}
+          team2={{ id: match.team2_id, name: match.team2?.name || "Équipe 2" }}
+          matchId={match.id}
+          tournamentId={tournamentId}
+          statType={quickStatType}
+          statLabel={
+            quickStatType === "assists" ? "Passe décisive" :
+            quickStatType === "fouls" ? "Faute" :
+            quickStatType === "penalty_30s" ? "Pénalité 30 sec" :
+            quickStatType === "penalty_1m" ? "Pénalité 1 min" :
+            "Pénalité 2 min"
+          }
+          onStatRecorded={() => {
             fetchPlayerStats();
           }}
         />
