@@ -401,6 +401,7 @@ export type Database = {
           initial_phase: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed: boolean
           name: string
+          number_of_fields: number | null
           number_of_groups: number | null
           start_date: string
           teams_for_elimination: number | null
@@ -418,6 +419,7 @@ export type Database = {
           initial_phase?: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed?: boolean
           name: string
+          number_of_fields?: number | null
           number_of_groups?: number | null
           start_date: string
           teams_for_elimination?: number | null
@@ -435,6 +437,7 @@ export type Database = {
           initial_phase?: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed?: boolean
           name?: string
+          number_of_fields?: number | null
           number_of_groups?: number | null
           start_date?: string
           teams_for_elimination?: number | null

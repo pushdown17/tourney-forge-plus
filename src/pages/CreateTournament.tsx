@@ -15,6 +15,7 @@ const CreateTournament = () => {
   const [format, setFormat] = useState<"round-robin" | "swiss" | "round-robin-single" | "round-robin-double" | "swiss-single" | "swiss-double">("round-robin");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [numberOfFields, setNumberOfFields] = useState("1");
   const [teamsForElimination, setTeamsForElimination] = useState("16");
   const [loading, setLoading] = useState(false);
 
@@ -62,6 +63,7 @@ const CreateTournament = () => {
           initial_phase: currentPhase,
           elimination_type: eliminationType,
           teams_for_elimination: eliminationType ? parseInt(teamsForElimination) : null,
+          number_of_fields: parseInt(numberOfFields),
           created_by: session.user.id,
         })
         .select()
@@ -144,6 +146,21 @@ const CreateTournament = () => {
                     <SelectItem value="swiss">Swiss Round uniquement</SelectItem>
                     <SelectItem value="swiss-single">Swiss Round + Simple Élimination</SelectItem>
                     <SelectItem value="swiss-double">Swiss Round + Double Élimination</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="numberOfFields">Nombre de terrains</Label>
+                <Select value={numberOfFields} onValueChange={setNumberOfFields}>
+                  <SelectTrigger id="numberOfFields" className="bg-secondary/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 terrain</SelectItem>
+                    <SelectItem value="2">2 terrains</SelectItem>
+                    <SelectItem value="3">3 terrains</SelectItem>
+                    <SelectItem value="4">4 terrains</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
