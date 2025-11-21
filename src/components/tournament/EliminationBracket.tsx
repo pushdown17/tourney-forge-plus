@@ -25,6 +25,7 @@ interface Match {
   winner_id: string | null;
   round_number: number;
   is_third_place_match?: boolean;
+  field_number?: number;
   team1?: Team;
   team2?: Team;
 }
@@ -77,6 +78,7 @@ export const EliminationBracket = ({
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
   const [goalScorerDialogOpen, setGoalScorerDialogOpen] = useState(false);
   const [scoringTeam, setScoringTeam] = useState<{ id: string; name: string; matchId: string } | null>(null);
+  const [numberOfFields, setNumberOfFields] = useState(1);
 
   useEffect(() => {
     fetchTournamentAndMatches();
@@ -94,6 +96,7 @@ export const EliminationBracket = ({
 
       if (tournamentError) throw tournamentError;
       setTournament(tournamentData);
+      setNumberOfFields(tournamentData.number_of_fields || 1);
 
       // Récupérer les matchs d'élimination
       const { data: matchesData, error: matchesError } = await supabase
@@ -157,12 +160,16 @@ export const EliminationBracket = ({
         const team1 = standings[i];
         const team2 = standings[teamsCount - 1 - i];
         
+        // Affecter un terrain en round-robin
+        const fieldNumber = (i % numberOfFields) + 1;
+        
         allMatches.push({
           tournament_id: tournamentId,
           phase: currentPhase,
           round_number: 1,
           team1_id: team1.team_id,
           team2_id: team2.team_id,
+          field_number: fieldNumber,
         });
       }
 
@@ -336,6 +343,7 @@ export const EliminationBracket = ({
               team1_id: match1.winner_id,
               team2_id: match2.winner_id,
               is_third_place_match: false,
+              field_number: 1,
             });
           }
 
@@ -347,10 +355,14 @@ export const EliminationBracket = ({
               team1_id: loser1,
               team2_id: loser2,
               is_third_place_match: true,
+              field_number: 2,
             });
           }
         } else {
           // Pour les autres tours : créer le match du tour suivant pour cette paire
+          // Affecter un terrain en round-robin
+          const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
+          
           matchesToCreate.push({
             tournament_id: tournamentId,
             phase: currentPhase as any,
@@ -358,6 +370,7 @@ export const EliminationBracket = ({
             team1_id: match1.winner_id,
             team2_id: match2.winner_id,
             is_third_place_match: false,
+            field_number: fieldNumber,
           });
         }
       }
@@ -580,14 +593,21 @@ export const EliminationBracket = ({
                         })}
                       </svg>
                     )}
-                    {roundMatches.map((match, matchIndex) => (
+                     {roundMatches.map((match, matchIndex) => (
                       <div key={match.id} className="animate-fade-in">
-                        <div className="text-center mb-0.5">
+                        <div className="text-center mb-0.5 space-y-0.5">
                           <span className="text-[9px] font-semibold text-muted-foreground">
                             M{matchNumberStart + matchIndex}
                           </span>
+                          {match.field_number && (
+                            <div>
+                              <span className="text-[8px] text-primary/70 font-medium">
+                                T{match.field_number}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <div 
+                        <div
                           className="w-full"
                           onClick={() => {
                             if (!match.isPlaceholder) {
@@ -696,12 +716,19 @@ export const EliminationBracket = ({
                 🥉 Match pour la 3ème place
               </h3>
               <div className="max-w-[200px] mx-auto">
-                <div className="text-center mb-0.5">
+                <div className="text-center mb-0.5 space-y-0.5">
                   <span className="text-[9px] font-semibold text-muted-foreground">
                     M{matches.filter(m => !m.is_third_place_match).length + 1}
                   </span>
+                  {thirdPlaceMatch.field_number && (
+                    <div>
+                      <span className="text-[8px] text-primary/70 font-medium">
+                        T{thirdPlaceMatch.field_number}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div 
+                <div
                   className="cursor-pointer"
                   onClick={() => {
                     setSelectedMatch(thirdPlaceMatch);
