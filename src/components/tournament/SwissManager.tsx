@@ -34,9 +34,21 @@ export const SwissManager = ({ tournamentId, isClosed = false }: SwissManagerPro
   const [maxRound, setMaxRound] = useState(1);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [numberOfFields, setNumberOfFields] = useState(1);
 
   useEffect(() => {
     const initializeRound = async () => {
+      // Récupérer le nombre de terrains du tournoi
+      const { data: tournament } = await supabase
+        .from("tournaments")
+        .select("number_of_fields")
+        .eq("id", tournamentId)
+        .single();
+      
+      if (tournament?.number_of_fields) {
+        setNumberOfFields(tournament.number_of_fields);
+      }
+
       const max = await fetchMaxRound();
       if (!initialized && max > 0) {
         setCurrentRound(max);
@@ -194,12 +206,16 @@ export const SwissManager = ({ tournamentId, isClosed = false }: SwissManagerPro
           paired.add(team1.id);
           paired.add(team2.id);
 
+          // Affecter un terrain en round-robin
+          const fieldNumber = (newMatches.length % numberOfFields) + 1;
+
           newMatches.push({
             tournament_id: tournamentId,
             phase: "swiss",
             round_number: roundToGenerate,
             team1_id: team1.id,
             team2_id: team2.id,
+            field_number: fieldNumber,
           });
         }
       }
@@ -552,6 +568,13 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
       <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border border-border/50 hover:border-primary/50 transition-colors ${isLocked ? 'opacity-50' : ''}`}>
+        {match.field_number && (
+          <div className="flex items-center justify-center mb-1">
+            <Badge variant="outline" className="text-xs">
+              Terrain {match.field_number}
+            </Badge>
+          </div>
+        )}
         {isLocked && (
           <div className="text-xs text-muted-foreground mb-2">
             🔒 Veuillez valider le match en cours avant de modifier celui-ci

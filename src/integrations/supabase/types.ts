@@ -17,6 +17,7 @@ export type Database = {
       matches: {
         Row: {
           created_at: string
+          field_number: number | null
           id: string
           is_third_place_match: boolean
           match_date: string | null
@@ -34,6 +35,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          field_number?: number | null
           id?: string
           is_third_place_match?: boolean
           match_date?: string | null
@@ -51,6 +53,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          field_number?: number | null
           id?: string
           is_third_place_match?: boolean
           match_date?: string | null
