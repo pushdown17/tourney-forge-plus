@@ -365,15 +365,29 @@ export const SwissManager = ({ tournamentId, isClosed = false }: SwissManagerPro
           {matches.filter(m => m.team1_score === null || m.team2_score === null).length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-3">Matchs en cours</h3>
-              {matches.filter(m => m.team1_score === null || m.team2_score === null).map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  tournamentId={tournamentId}
-                  onScoreUpdate={updateScore}
-                  isClosed={isClosed}
-                />
-              ))}
+              {matches.filter(m => m.team1_score === null || m.team2_score === null).map((match) => {
+                // Vérifier si ce match est le prochain à jouer sur son terrain
+                const matchesOnSameField = matches
+                  .filter(m => m.field_number === match.field_number)
+                  .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                
+                const firstUnfinishedOnField = matchesOnSameField.find(
+                  m => m.team1_score === null || m.team2_score === null
+                );
+                
+                const isLockedByPreviousMatch = firstUnfinishedOnField?.id !== match.id;
+
+                return (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    tournamentId={tournamentId}
+                    onScoreUpdate={updateScore}
+                    isClosed={isClosed}
+                    isLockedByPreviousMatch={isLockedByPreviousMatch}
+                  />
+                );
+              })}
             </div>
           )}
           
@@ -404,9 +418,10 @@ interface MatchCardProps {
   tournamentId: string;
   onScoreUpdate: (matchId: string, team1Score: number, team2Score: number) => void;
   isClosed?: boolean;
+  isLockedByPreviousMatch?: boolean;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLockedByPreviousMatch = false }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -562,12 +577,18 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: Mat
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
-      <div className="flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border border-border/50 hover:border-primary/50 transition-colors">
+      <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border border-border/50 hover:border-primary/50 transition-colors ${isLockedByPreviousMatch ? 'opacity-50' : ''}`}>
         {match.field_number && (
           <div className="flex items-center justify-center mb-1">
             <Badge variant="outline" className="text-xs">
               Terrain {match.field_number}
             </Badge>
+          </div>
+        )}
+        {isLockedByPreviousMatch && (
+          <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            🔒 Un match précédent doit être terminé sur le terrain {match.field_number} avant de modifier celui-ci
           </div>
         )}
         <div className="flex items-center gap-4">
@@ -583,7 +604,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: Mat
                 setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Équipe 1" });
                 setGoalScorerDialogOpen(true);
               }}
-              disabled={isClosed}
+              disabled={isClosed || isLockedByPreviousMatch}
             />
           </div>
           <span className="text-muted-foreground font-bold">vs</span>
@@ -598,7 +619,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: Mat
                 setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Équipe 2" });
                 setGoalScorerDialogOpen(true);
               }}
-              disabled={isClosed}
+              disabled={isClosed || isLockedByPreviousMatch}
             />
             <span className="font-medium flex-1 text-right">{match.team2?.name || "Équipe 2"}</span>
           </div>
@@ -614,7 +635,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: Mat
               setQuickStatTeam(null);
               setQuickStatDialogOpen(true);
             }}
-            disabled={isClosed}
+            disabled={isClosed || isLockedByPreviousMatch}
             className="text-xs"
           >
             Passes
@@ -627,7 +648,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: Mat
               setQuickStatTeam(null);
               setQuickStatDialogOpen(true);
             }}
-            disabled={isClosed}
+            disabled={isClosed || isLockedByPreviousMatch}
             className="text-xs"
           >
             Fautes
@@ -640,7 +661,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: Mat
               setQuickStatTeam(null);
               setQuickStatDialogOpen(true);
             }}
-            disabled={isClosed}
+            disabled={isClosed || isLockedByPreviousMatch}
             className="text-xs"
           >
             30 sec
@@ -653,7 +674,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: Mat
               setQuickStatTeam(null);
               setQuickStatDialogOpen(true);
             }}
-            disabled={isClosed}
+            disabled={isClosed || isLockedByPreviousMatch}
             className="text-xs"
           >
             1 min
@@ -666,7 +687,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: Mat
               setQuickStatTeam(null);
               setQuickStatDialogOpen(true);
             }}
-            disabled={isClosed}
+            disabled={isClosed || isLockedByPreviousMatch}
             className="text-xs"
           >
             2 min
@@ -690,7 +711,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: Mat
             <Button
               onClick={handleValidateScore}
               size="sm"
-              disabled={isClosed}
+              disabled={isClosed || isLockedByPreviousMatch}
             >
               Valider
             </Button>
@@ -702,7 +723,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: Mat
           variant="ghost" 
           size="sm" 
           className="w-full justify-center gap-2"
-          disabled={isClosed}
+          disabled={isClosed || isLockedByPreviousMatch}
         >
           <Users className="h-4 w-4" />
           Statistiques des joueurs
