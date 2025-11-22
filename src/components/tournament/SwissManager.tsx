@@ -32,7 +32,6 @@ export const SwissManager = ({ tournamentId, isClosed = false }: SwissManagerPro
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
   const [maxRound, setMaxRound] = useState(1);
-  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [numberOfFields, setNumberOfFields] = useState(1);
 
@@ -277,7 +276,6 @@ export const SwissManager = ({ tournamentId, isClosed = false }: SwissManagerPro
       if (error) throw error;
 
       toast.success("Score enregistré !");
-      setEditingMatchId(null);
       
       // Rafraîchir les matchs et le maxRound
       await Promise.all([fetchMatches(), fetchMaxRound()]);
@@ -373,8 +371,6 @@ export const SwissManager = ({ tournamentId, isClosed = false }: SwissManagerPro
                   match={match}
                   tournamentId={tournamentId}
                   onScoreUpdate={updateScore}
-                  editingMatchId={editingMatchId}
-                  setEditingMatchId={setEditingMatchId}
                   isClosed={isClosed}
                 />
               ))}
@@ -407,12 +403,10 @@ interface MatchCardProps {
   match: any;
   tournamentId: string;
   onScoreUpdate: (matchId: string, team1Score: number, team2Score: number) => void;
-  editingMatchId: string | null;
-  setEditingMatchId: (id: string | null) => void;
   isClosed?: boolean;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -425,9 +419,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   const [quickStatDialogOpen, setQuickStatDialogOpen] = useState(false);
   const [quickStatType, setQuickStatType] = useState<"assists" | "fouls" | "penalty_30s" | "penalty_1m" | "penalty_2m">("assists");
   const [quickStatTeam, setQuickStatTeam] = useState<{ id: string; name: string } | null>(null);
-  
-  const isLocked = editingMatchId !== null && editingMatchId !== match.id;
-  const isEditing = editingMatchId === match.id;
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -565,21 +557,17 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   const confirmValidateScore = () => {
     onScoreUpdate(match.id, team1Score, team2Score);
     setShowConfirmDialog(false);
+    setIsEditing(false);
   };
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
-      <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border border-border/50 hover:border-primary/50 transition-colors ${isLocked ? 'opacity-50' : ''}`}>
+      <div className="flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border border-border/50 hover:border-primary/50 transition-colors">
         {match.field_number && (
           <div className="flex items-center justify-center mb-1">
             <Badge variant="outline" className="text-xs">
               Terrain {match.field_number}
             </Badge>
-          </div>
-        )}
-        {isLocked && (
-          <div className="text-xs text-muted-foreground mb-2">
-            🔒 Veuillez valider le match en cours avant de modifier celui-ci
           </div>
         )}
         <div className="flex items-center gap-4">
@@ -589,13 +577,13 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               value={team1Score}
               onChange={(value) => {
                 setTeam1Score(value);
-                if (!isEditing) setEditingMatchId(match.id);
+                if (!isEditing) setIsEditing(true);
               }}
               onIncrement={() => {
                 setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Équipe 1" });
                 setGoalScorerDialogOpen(true);
               }}
-              disabled={isLocked || isClosed}
+              disabled={isClosed}
             />
           </div>
           <span className="text-muted-foreground font-bold">vs</span>
@@ -604,13 +592,13 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               value={team2Score}
               onChange={(value) => {
                 setTeam2Score(value);
-                if (!isEditing) setEditingMatchId(match.id);
+                if (!isEditing) setIsEditing(true);
               }}
               onIncrement={() => {
                 setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Équipe 2" });
                 setGoalScorerDialogOpen(true);
               }}
-              disabled={isLocked || isClosed}
+              disabled={isClosed}
             />
             <span className="font-medium flex-1 text-right">{match.team2?.name || "Équipe 2"}</span>
           </div>
@@ -626,7 +614,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               setQuickStatTeam(null);
               setQuickStatDialogOpen(true);
             }}
-            disabled={isLocked || isClosed}
+            disabled={isClosed}
             className="text-xs"
           >
             Passes
@@ -639,7 +627,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               setQuickStatTeam(null);
               setQuickStatDialogOpen(true);
             }}
-            disabled={isLocked || isClosed}
+            disabled={isClosed}
             className="text-xs"
           >
             Fautes
@@ -652,7 +640,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               setQuickStatTeam(null);
               setQuickStatDialogOpen(true);
             }}
-            disabled={isLocked || isClosed}
+            disabled={isClosed}
             className="text-xs"
           >
             30 sec
@@ -665,7 +653,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               setQuickStatTeam(null);
               setQuickStatDialogOpen(true);
             }}
-            disabled={isLocked || isClosed}
+            disabled={isClosed}
             className="text-xs"
           >
             1 min
@@ -678,7 +666,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               setQuickStatTeam(null);
               setQuickStatDialogOpen(true);
             }}
-            disabled={isLocked || isClosed}
+            disabled={isClosed}
             className="text-xs"
           >
             2 min
@@ -691,7 +679,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                 onClick={() => {
                   setTeam1Score(match.team1_score ?? 0);
                   setTeam2Score(match.team2_score ?? 0);
-                  setEditingMatchId(null);
+                  setIsEditing(false);
                 }}
                 size="sm"
                 variant="outline"
@@ -702,7 +690,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             <Button
               onClick={handleValidateScore}
               size="sm"
-              disabled={isLocked || isClosed}
+              disabled={isClosed}
             >
               Valider
             </Button>
@@ -714,7 +702,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           variant="ghost" 
           size="sm" 
           className="w-full justify-center gap-2"
-          disabled={isLocked || isClosed}
+          disabled={isClosed}
         >
           <Users className="h-4 w-4" />
           Statistiques des joueurs
@@ -738,8 +726,8 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                     player={player}
                     stats={playerStats[player.id] || {}}
                     onUpdate={(field, value) => updatePlayerStat(player.id, field, value)}
-                    onEditStart={() => !isEditing && setEditingMatchId(match.id)}
-                    onEditEnd={() => setEditingMatchId(null)}
+                    onEditStart={() => !isEditing && setIsEditing(true)}
+                    onEditEnd={() => setIsEditing(false)}
                   />
                 ))}
                 {team1Players.length === 0 && (
@@ -761,8 +749,8 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                     player={player}
                     stats={playerStats[player.id] || {}}
                     onUpdate={(field, value) => updatePlayerStat(player.id, field, value)}
-                    onEditStart={() => !isEditing && setEditingMatchId(match.id)}
-                    onEditEnd={() => setEditingMatchId(null)}
+                    onEditStart={() => !isEditing && setIsEditing(true)}
+                    onEditEnd={() => setIsEditing(false)}
                   />
                 ))}
                 {team2Players.length === 0 && (
