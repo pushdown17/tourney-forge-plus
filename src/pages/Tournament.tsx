@@ -180,7 +180,7 @@ const Tournament = () => {
                 value="matches" 
                 className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
               >
-                {tournament.current_phase === "swiss" ? "Swiss" : "Round Robin"}
+                {tournament.initial_phase === "swiss" ? "Swiss" : "Round Robin"}
               </TabsTrigger>
               <TabsTrigger 
                 value="elimination" 
@@ -228,10 +228,10 @@ const Tournament = () => {
           </TabsContent>
 
           <TabsContent value="matches" className="animate-fade-in">
-            {tournament.current_phase === "swiss" ? (
-              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} />
+            {(tournament.initial_phase === "swiss" || tournament.current_phase === "swiss") ? (
+              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} />
             ) : (
-              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} />
+              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} />
             )}
           </TabsContent>
 
