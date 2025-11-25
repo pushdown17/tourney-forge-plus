@@ -24,6 +24,8 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
   const [availableTeams, setAvailableTeams] = useState<any[]>([]);
+  const [allTeams, setAllTeams] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
 
@@ -160,74 +162,62 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
     }
   };
 
-  const fetchTournamentsForImport = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
+  const fetchAllTeams = async () => {
+    // Récupérer toutes les équipes de la base de données
     const { data, error } = await supabase
-      .from("tournaments")
-      .select("id, name, start_date")
-      .eq("created_by", session.user.id)
-      .neq("id", tournamentId)
-      .order("start_date", { ascending: false });
-
-    if (error) {
-      toast.error("Erreur lors du chargement des tournois");
-      return;
-    }
-
-    setTournaments(data || []);
-    if (data && data.length > 0) {
-      setSelectedTournamentId(data[0].id);
-    }
-  };
-
-  const fetchTeamsFromTournament = async (sourceTournamentId: string) => {
-    const { data, error } = await supabase
-      .from("tournament_teams")
+      .from("teams")
       .select(`
         id,
-        group_name,
-        team:team_id (
+        name,
+        players!players_team_id_fkey (
           id,
           name
-        ),
-        tournament_team_players!inner (
-          player:player_id (
-            id,
-            name
-          )
         )
       `)
-      .eq("tournament_id", sourceTournamentId)
-      .order("team(name)");
+      .order("name");
 
     if (error) {
       toast.error("Erreur lors du chargement des équipes");
       return;
     }
 
-    // Transform to expected format
-    const transformedTeams = (data || []).map((tt: any) => ({
-      id: tt.id,
-      name: tt.team.name,
-      team_id: tt.team.id,
-      group_name: tt.group_name,
-      players: tt.tournament_team_players.map((ttp: any) => ttp.player),
-    }));
+    // Exclure les équipes déjà dans ce tournoi
+    const { data: currentTeams } = await supabase
+      .from("tournament_teams")
+      .select("team_id")
+      .eq("tournament_id", tournamentId);
 
-    setAvailableTeams(transformedTeams);
+    const currentTeamIds = new Set((currentTeams || []).map(tt => tt.team_id));
+
+    const filteredTeams = (data || [])
+      .filter(team => !currentTeamIds.has(team.id))
+      .map(team => ({
+        id: team.id,
+        name: team.name,
+        team_id: team.id,
+        players: team.players || [],
+      }));
+
+    setAllTeams(filteredTeams);
+    setAvailableTeams(filteredTeams);
   };
 
   useEffect(() => {
-    if (selectedTournamentId) {
-      fetchTeamsFromTournament(selectedTournamentId);
+    // Filtrer les équipes selon le terme de recherche
+    if (searchTerm.trim() === "") {
+      setAvailableTeams(allTeams);
+    } else {
+      const filtered = allTeams.filter(team => 
+        team.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setAvailableTeams(filtered);
     }
-  }, [selectedTournamentId]);
+  }, [searchTerm, allTeams]);
 
   const handleOpenImportDialog = () => {
     setShowImportDialog(true);
-    fetchTournamentsForImport();
+    setSearchTerm("");
+    fetchAllTeams();
   };
 
   const toggleTeamSelection = (teamId: string) => {
@@ -270,7 +260,6 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
           .insert({
             tournament_id: tournamentId,
             team_id: team.team_id,
-            group_name: team.group_name,
           })
           .select()
           .single();
@@ -280,35 +269,12 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
         // Import players if any
         if (team.players && team.players.length > 0) {
           for (const player of team.players) {
-            // Check if player exists globally
-            const { data: existingPlayer } = await supabase
-              .from("players")
-              .select("id")
-              .eq("name", player.name)
-              .maybeSingle();
-
-            let playerId: string;
-
-            if (existingPlayer) {
-              playerId = existingPlayer.id;
-            } else {
-              // Create new global player
-              const { data: newPlayer, error: playerError } = await supabase
-                .from("players")
-                .insert({ name: player.name, team_id: null })
-                .select("id")
-                .single();
-
-              if (playerError) throw playerError;
-              playerId = newPlayer.id;
-            }
-
             // Link player to tournament team
             const { error: playerLinkError } = await supabase
               .from("tournament_team_players")
               .insert({
                 tournament_team_id: newTournamentTeam.id,
-                player_id: playerId,
+                player_id: player.id,
               });
 
             if (playerLinkError && playerLinkError.code !== '23505') {
@@ -321,6 +287,7 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
       toast.success(`${selectedTeamIds.size} équipe(s) importée(s) avec succès !`);
       setShowImportDialog(false);
       setSelectedTeamIds(new Set());
+      setSearchTerm("");
       fetchTeams();
     } catch (error: any) {
       toast.error(error.message);
@@ -346,89 +313,78 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
                 <DialogHeader>
                   <DialogTitle>Importer des équipes existantes</DialogTitle>
                   <DialogDescription>
-                    Sélectionnez un tournoi et les équipes (avec leurs joueurs) à importer
+                    Sélectionnez les équipes (avec leurs joueurs) à importer
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 mt-4">
-                  {tournaments.length === 0 ? (
+                  <div>
+                    <Label htmlFor="search">Rechercher une équipe</Label>
+                    <Input
+                      id="search"
+                      placeholder="Nom de l'équipe..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  {availableTeams.length > 0 ? (
+                    <>
+                      <div className="border-t pt-4">
+                        <Label className="mb-3 block">
+                          Équipes disponibles ({availableTeams.length})
+                          {searchTerm && ` - Résultats de la recherche`}
+                        </Label>
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                          {availableTeams.map((team) => (
+                            <div
+                              key={team.id}
+                              className="flex items-start gap-3 p-3 bg-secondary/20 rounded-lg hover:bg-secondary/30 transition-colors"
+                            >
+                              <Checkbox
+                                checked={selectedTeamIds.has(team.id)}
+                                onCheckedChange={() => toggleTeamSelection(team.id)}
+                              />
+                              <div className="flex-1">
+                                <p className="font-medium">{team.name}</p>
+                                {team.players && team.players.length > 0 && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {team.players.length} joueur{team.players.length > 1 ? "s" : ""}: {team.players.map((p: any) => p.name).join(", ")}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-4 border-t">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowImportDialog(false);
+                            setSelectedTeamIds(new Set());
+                            setSearchTerm("");
+                          }}
+                        >
+                          Annuler
+                        </Button>
+                        <Button
+                          onClick={handleImportTeams}
+                          disabled={importing || selectedTeamIds.size === 0 || isClosed}
+                        >
+                          {importing ? "Import en cours..." : `Importer ${selectedTeamIds.size} équipe(s)`}
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
                     <div className="text-center py-8">
                       <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                       <p className="text-muted-foreground">
-                        Aucun autre tournoi trouvé
+                        {searchTerm ? "Aucune équipe trouvée" : "Aucune équipe disponible"}
                       </p>
                     </div>
-                  ) : (
-                    <>
-                      <div>
-                        <Label>Sélectionner un tournoi</Label>
-                        <Select value={selectedTournamentId} onValueChange={setSelectedTournamentId}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {tournaments.map((tournament) => (
-                              <SelectItem key={tournament.id} value={tournament.id}>
-                                {tournament.name} - {new Date(tournament.start_date).toLocaleDateString("fr-FR")}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {availableTeams.length > 0 ? (
-                        <>
-                          <div className="border-t pt-4">
-                            <Label className="mb-3 block">Équipes disponibles ({availableTeams.length})</Label>
-                            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                              {availableTeams.map((team) => (
-                                <div
-                                  key={team.id}
-                                  className="flex items-start gap-3 p-3 bg-secondary/20 rounded-lg hover:bg-secondary/30 transition-colors"
-                                >
-                                  <Checkbox
-                                    checked={selectedTeamIds.has(team.id)}
-                                    onCheckedChange={() => toggleTeamSelection(team.id)}
-                                  />
-                                  <div className="flex-1">
-                                    <p className="font-medium">{team.name}</p>
-                                    {team.players && team.players.length > 0 && (
-                                      <p className="text-sm text-muted-foreground">
-                                        {team.players.length} joueur{team.players.length > 1 ? "s" : ""}: {team.players.map((p: any) => p.name).join(", ")}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end gap-2 pt-4 border-t">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setShowImportDialog(false);
-                                setSelectedTeamIds(new Set());
-                              }}
-                            >
-                              Annuler
-                            </Button>
-                            <Button
-                              onClick={handleImportTeams}
-                              disabled={importing || selectedTeamIds.size === 0 || isClosed}
-                            >
-                              {importing ? "Import en cours..." : `Importer ${selectedTeamIds.size} équipe(s)`}
-                            </Button>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-center py-8">
-                          <p className="text-muted-foreground">
-                            Aucune équipe dans ce tournoi
-                          </p>
-                        </div>
-                      )}
-                    </>
                   )}
                 </div>
               </DialogContent>
