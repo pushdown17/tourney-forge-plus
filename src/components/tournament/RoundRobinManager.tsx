@@ -24,9 +24,10 @@ import { QuickStatDialog } from "./QuickStatDialog";
 interface RoundRobinManagerProps {
   tournamentId: string;
   isClosed?: boolean;
+  currentPhase?: string;
 }
 
-export const RoundRobinManager = ({ tournamentId, isClosed = false }: RoundRobinManagerProps) => {
+export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase }: RoundRobinManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -230,10 +231,22 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false }: RoundRobin
       <Card className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Round {currentRound}</h2>
-          <Button onClick={generateNextRound} disabled={loading || isClosed}>
+          <Button 
+            onClick={generateNextRound} 
+            disabled={loading || isClosed || (currentPhase && currentPhase !== "round_robin")}
+          >
             {matches.length === 0 ? `Générer le Round ${currentRound}` : `Générer le Round ${currentRound + 1}`}
           </Button>
         </div>
+
+        {currentPhase && currentPhase !== "round_robin" && (
+          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <p className="text-foreground">
+              Le tournoi est en phase {currentPhase === "elimination" ? "éliminatoire" : currentPhase}. Vous ne pouvez plus générer de nouveaux rounds Round Robin.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-4">
           {matches.filter(m => m.team1_score === null || m.team2_score === null).map((match) => (

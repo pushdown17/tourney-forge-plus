@@ -25,9 +25,10 @@ import { QuickStatDialog } from "./QuickStatDialog";
 interface SwissManagerProps {
   tournamentId: string;
   isClosed?: boolean;
+  currentPhase?: string;
 }
 
-export const SwissManager = ({ tournamentId, isClosed = false }: SwissManagerProps) => {
+export const SwissManager = ({ tournamentId, isClosed = false, currentPhase }: SwissManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -337,7 +338,7 @@ export const SwissManager = ({ tournamentId, isClosed = false }: SwissManagerPro
             {currentRound === maxRound && (
               <Button 
                 onClick={generateSwissRound} 
-                disabled={loading || (matches.length > 0 && !canGenerateNextRound()) || isClosed}
+                disabled={loading || (matches.length > 0 && !canGenerateNextRound()) || isClosed || (currentPhase && currentPhase !== "swiss")}
                 className="gap-2"
               >
                 <TrendingUp className="h-4 w-4" />
@@ -355,9 +356,18 @@ export const SwissManager = ({ tournamentId, isClosed = false }: SwissManagerPro
                 Progression: {matches.filter(m => m.team1_score !== null && m.team2_score !== null).length} / {matches.length} matchs complétés
               </p>
             </div>
-            {canGenerateNextRound() && (
+            {canGenerateNextRound() && currentPhase === "swiss" && (
               <span className="text-sm font-semibold text-primary">✓ Prêt pour le prochain round</span>
             )}
+          </div>
+        )}
+        
+        {currentPhase && currentPhase !== "swiss" && (
+          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <p className="text-foreground">
+              Le tournoi est en phase {currentPhase === "elimination" ? "éliminatoire" : currentPhase}. Vous ne pouvez plus générer de nouveaux rounds Swiss.
+            </p>
           </div>
         )}
 
