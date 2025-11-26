@@ -247,11 +247,31 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
 
   const openPlayersDialogForTeam = async (teamId: string, teamName: string, tournamentTeamId: string) => {
     try {
-      // First, get all tournament_team records for this team in other tournaments
+      // 1) Récupérer tous les IDs d'équipes qui ont exactement le même nom
+      const { data: sameNameTeams, error: teamsError } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("name", teamName);
+
+      if (teamsError) throw teamsError;
+
+      const sameNameTeamIds = (sameNameTeams || []).map(t => t.id);
+
+      if (sameNameTeamIds.length === 0) {
+        setHistoricalPlayers([]);
+        setCurrentTeamForPlayers({ id: teamId, name: teamName, tournament_team_id: tournamentTeamId });
+        setSelectedPlayerIds(new Set());
+        setNewPlayerName("");
+        setShowPlayersDialog(true);
+        return;
+      }
+
+      // 2) Pour toutes ces équipes, récupérer les enregistrements tournament_teams
+      //    des anciens tournois (tournament_id différent de l'actuel)
       const { data: tournamentTeams, error: ttError } = await supabase
         .from("tournament_teams")
         .select("id")
-        .eq("team_id", teamId)
+        .in("team_id", sameNameTeamIds)
         .neq("tournament_id", tournamentId);
 
       if (ttError) throw ttError;
@@ -267,7 +287,7 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
 
       const tournamentTeamIds = tournamentTeams.map(tt => tt.id);
 
-      // Fetch historical players for this team from previous tournaments
+      // 3) Récupérer les joueurs rattachés à ces tournament_team_ids
       const { data: players, error } = await supabase
         .from("tournament_team_players")
         .select(`
@@ -281,7 +301,7 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
 
       if (error) throw error;
 
-      // Extract unique players
+      // Extraire les joueurs uniques (par id)
       const uniquePlayers = Array.from(
         new Map(
           (players || [])
