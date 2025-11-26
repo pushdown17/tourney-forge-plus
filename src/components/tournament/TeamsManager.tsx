@@ -572,7 +572,7 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleDeleteTeam(team.id)}
+                  onClick={() => handleDeleteTeam(team.tournament_team_id)}
                   className="h-10 w-10 p-0"
                   disabled={isClosed}
                 >
