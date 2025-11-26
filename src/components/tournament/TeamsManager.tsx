@@ -247,6 +247,26 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
 
   const openPlayersDialogForTeam = async (teamId: string, teamName: string, tournamentTeamId: string) => {
     try {
+      // First, get all tournament_team records for this team in other tournaments
+      const { data: tournamentTeams, error: ttError } = await supabase
+        .from("tournament_teams")
+        .select("id")
+        .eq("team_id", teamId)
+        .neq("tournament_id", tournamentId);
+
+      if (ttError) throw ttError;
+
+      if (!tournamentTeams || tournamentTeams.length === 0) {
+        setHistoricalPlayers([]);
+        setCurrentTeamForPlayers({ id: teamId, name: teamName, tournament_team_id: tournamentTeamId });
+        setSelectedPlayerIds(new Set());
+        setNewPlayerName("");
+        setShowPlayersDialog(true);
+        return;
+      }
+
+      const tournamentTeamIds = tournamentTeams.map(tt => tt.id);
+
       // Fetch historical players for this team from previous tournaments
       const { data: players, error } = await supabase
         .from("tournament_team_players")
@@ -254,13 +274,9 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
           player:player_id (
             id,
             name
-          ),
-          tournament_team:tournament_team_id (
-            tournament_id
           )
         `)
-        .eq("tournament_team.team_id", teamId)
-        .neq("tournament_team.tournament_id", tournamentId);
+        .in("tournament_team_id", tournamentTeamIds);
 
       if (error) throw error;
 
