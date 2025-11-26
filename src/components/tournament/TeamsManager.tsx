@@ -189,17 +189,22 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
 
     const currentTeamIds = new Set((currentTeams || []).map(tt => tt.team_id));
 
-    const filteredTeams = (data || [])
-      .filter(team => !currentTeamIds.has(team.id))
-      .map(team => ({
-        id: team.id,
-        name: team.name,
-        team_id: team.id,
-        players: team.players || [],
-      }));
+  const filteredTeams = (data || [])
+    .filter(team => !currentTeamIds.has(team.id))
+    .map(team => ({
+      id: team.id,
+      name: team.name,
+      team_id: team.id,
+      players: team.players || [],
+    }));
 
-    setAllTeams(filteredTeams);
-    setAvailableTeams(filteredTeams);
+  // Remove duplicates by team name, keeping only the first occurrence
+  const uniqueTeams = filteredTeams.filter((team, index, self) =>
+    index === self.findIndex(t => t.name === team.name)
+  );
+
+  setAllTeams(uniqueTeams);
+  setAvailableTeams(uniqueTeams);
   };
 
   useEffect(() => {
