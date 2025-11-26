@@ -271,7 +271,8 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
       const { data: players, error } = await supabase
         .from("tournament_team_players")
         .select(`
-          player:player_id (
+          player_id,
+          players (
             id,
             name
           )
@@ -284,8 +285,8 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
       const uniquePlayers = Array.from(
         new Map(
           (players || [])
-            .filter(p => p.player)
-            .map((p: any) => [p.player.id, p.player])
+            .filter(p => p.players)
+            .map((p: any) => [p.players.id, p.players])
         ).values()
       );
 
