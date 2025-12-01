@@ -28,11 +28,6 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
-  const [showPlayersDialog, setShowPlayersDialog] = useState(false);
-  const [currentTeamForPlayers, setCurrentTeamForPlayers] = useState<{ id: string; name: string; tournament_team_id: string } | null>(null);
-  const [historicalPlayers, setHistoricalPlayers] = useState<any[]>([]);
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
-  const [newPlayerName, setNewPlayerName] = useState("");
 
   useEffect(() => {
     fetchTeams();
@@ -145,9 +140,6 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
       toast.success("Équipe ajoutée !");
       setTeamName("");
       await fetchTeams();
-      
-      // Open players dialog for the newly added team
-      await openPlayersDialogForTeam(teamId, validation.data.name, newTournamentTeam.id);
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -245,145 +237,6 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
     setSelectedTeamIds(newSelection);
   };
 
-  const openPlayersDialogForTeam = async (teamId: string, teamName: string, tournamentTeamId: string) => {
-    try {
-      // 1) Récupérer tous les IDs d'équipes qui ont exactement le même nom
-      const { data: sameNameTeams, error: teamsError } = await supabase
-        .from("teams")
-        .select("id")
-        .eq("name", teamName);
-
-      if (teamsError) throw teamsError;
-
-      const sameNameTeamIds = (sameNameTeams || []).map(t => t.id);
-
-      if (sameNameTeamIds.length === 0) {
-        setHistoricalPlayers([]);
-        setCurrentTeamForPlayers({ id: teamId, name: teamName, tournament_team_id: tournamentTeamId });
-        setSelectedPlayerIds(new Set());
-        setNewPlayerName("");
-        setShowPlayersDialog(true);
-        return;
-      }
-
-      // 2) Pour toutes ces équipes, récupérer les enregistrements tournament_teams
-      //    des anciens tournois (tournament_id différent de l'actuel)
-      const { data: tournamentTeams, error: ttError } = await supabase
-        .from("tournament_teams")
-        .select("id")
-        .in("team_id", sameNameTeamIds)
-        .neq("tournament_id", tournamentId);
-
-      if (ttError) throw ttError;
-
-      if (!tournamentTeams || tournamentTeams.length === 0) {
-        setHistoricalPlayers([]);
-        setCurrentTeamForPlayers({ id: teamId, name: teamName, tournament_team_id: tournamentTeamId });
-        setSelectedPlayerIds(new Set());
-        setNewPlayerName("");
-        setShowPlayersDialog(true);
-        return;
-      }
-
-      const tournamentTeamIds = tournamentTeams.map(tt => tt.id);
-
-      // 3) Récupérer les joueurs rattachés à ces tournament_team_ids
-      const { data: players, error } = await supabase
-        .from("tournament_team_players")
-        .select(`
-          player_id,
-          players (
-            id,
-            name
-          )
-        `)
-        .in("tournament_team_id", tournamentTeamIds);
-
-      if (error) throw error;
-
-      // Extraire les joueurs uniques (par id)
-      const uniquePlayers = Array.from(
-        new Map(
-          (players || [])
-            .filter(p => p.players)
-            .map((p: any) => [p.players.id, p.players])
-        ).values()
-      );
-
-      setHistoricalPlayers(uniquePlayers);
-      setCurrentTeamForPlayers({ id: teamId, name: teamName, tournament_team_id: tournamentTeamId });
-      setSelectedPlayerIds(new Set());
-      setNewPlayerName("");
-      setShowPlayersDialog(true);
-    } catch (error: any) {
-      toast.error("Erreur lors du chargement des joueurs");
-    }
-  };
-
-  const togglePlayerSelection = (playerId: string) => {
-    const newSelection = new Set(selectedPlayerIds);
-    if (newSelection.has(playerId)) {
-      newSelection.delete(playerId);
-    } else {
-      newSelection.add(playerId);
-    }
-    setSelectedPlayerIds(newSelection);
-  };
-
-  const handleAddNewPlayer = async () => {
-    if (!newPlayerName.trim() || !currentTeamForPlayers) return;
-
-    try {
-      // Create new player
-      const { data: newPlayer, error: playerError } = await supabase
-        .from("players")
-        .insert({ name: newPlayerName.trim(), team_id: currentTeamForPlayers.id })
-        .select("id, name")
-        .single();
-
-      if (playerError) throw playerError;
-
-      // Add to historical players list and select it
-      setHistoricalPlayers([...historicalPlayers, newPlayer]);
-      setSelectedPlayerIds(new Set([...selectedPlayerIds, newPlayer.id]));
-      setNewPlayerName("");
-      toast.success("Joueur ajouté !");
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
-  const handleImportSelectedPlayers = async () => {
-    if (!currentTeamForPlayers) return;
-
-    try {
-      const playersToImport = historicalPlayers.filter(player => selectedPlayerIds.has(player.id));
-
-      for (const player of playersToImport) {
-        const { error } = await supabase
-          .from("tournament_team_players")
-          .insert({
-            tournament_team_id: currentTeamForPlayers.tournament_team_id,
-            player_id: player.id,
-          });
-
-        if (error && error.code !== '23505') {
-          throw error;
-        }
-      }
-
-      if (selectedPlayerIds.size > 0) {
-        toast.success(`${selectedPlayerIds.size} joueur(s) ajouté(s) à l'équipe !`);
-      }
-      
-      setShowPlayersDialog(false);
-      setCurrentTeamForPlayers(null);
-      setHistoricalPlayers([]);
-      setSelectedPlayerIds(new Set());
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
 
   const handleImportTeams = async () => {
     if (selectedTeamIds.size === 0) {
@@ -444,21 +297,6 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
       setSelectedTeamIds(new Set());
       setSearchTerm("");
       await fetchTeams();
-      
-      // Open players dialog for the first imported team if only one was selected
-      if (selectedTeamIds.size === 1) {
-        const importedTeam = teamsToImport[0];
-        const { data: tournamentTeam } = await supabase
-          .from("tournament_teams")
-          .select("id")
-          .eq("tournament_id", tournamentId)
-          .eq("team_id", importedTeam.team_id)
-          .single();
-        
-        if (tournamentTeam) {
-          await openPlayersDialogForTeam(importedTeam.team_id, importedTeam.name, tournamentTeam.id);
-        }
-      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -610,81 +448,6 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
         )}
       </Card>
 
-      <Dialog open={showPlayersDialog} onOpenChange={setShowPlayersDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Ajouter des joueurs à {currentTeamForPlayers?.name}</DialogTitle>
-            <DialogDescription>
-              Sélectionnez les joueurs qui ont déjà joué avec cette équipe ou ajoutez-en de nouveaux
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 mt-4">
-            {historicalPlayers.length > 0 && (
-              <div className="border-t pt-4">
-                <Label className="mb-3 block">
-                  Joueurs ayant déjà joué avec cette équipe ({historicalPlayers.length})
-                </Label>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                  {historicalPlayers.map((player: any) => (
-                    <div
-                      key={player.id}
-                      className="flex items-center gap-3 p-3 bg-secondary/20 rounded-lg hover:bg-secondary/30 transition-colors"
-                    >
-                      <Checkbox
-                        checked={selectedPlayerIds.has(player.id)}
-                        onCheckedChange={() => togglePlayerSelection(player.id)}
-                      />
-                      <p className="font-medium">{player.name}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="border-t pt-4">
-              <Label className="mb-2 block">Ajouter un nouveau joueur</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Nom du joueur"
-                  value={newPlayerName}
-                  onChange={(e) => setNewPlayerName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddNewPlayer();
-                    }
-                  }}
-                />
-                <Button onClick={handleAddNewPlayer} disabled={!newPlayerName.trim()}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowPlayersDialog(false);
-                  setCurrentTeamForPlayers(null);
-                  setHistoricalPlayers([]);
-                  setSelectedPlayerIds(new Set());
-                }}
-              >
-                Passer
-              </Button>
-              <Button
-                onClick={handleImportSelectedPlayers}
-                disabled={selectedPlayerIds.size === 0}
-              >
-                Valider ({selectedPlayerIds.size} joueur{selectedPlayerIds.size > 1 ? "s" : ""})
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
