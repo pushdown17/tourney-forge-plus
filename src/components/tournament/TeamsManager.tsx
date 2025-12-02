@@ -175,14 +175,7 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
     // Récupérer toutes les équipes de la base de données
     const { data, error } = await supabase
       .from("teams")
-      .select(`
-        id,
-        name,
-        players!players_team_id_fkey (
-          id,
-          name
-        )
-      `)
+      .select("id, name")
       .order("name");
 
     if (error) {
@@ -204,7 +197,6 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
       id: team.id,
       name: team.name,
       team_id: team.id,
-      players: team.players || [],
     }));
 
   // Remove duplicates by team name, keeping only the first occurrence
@@ -280,23 +272,6 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
           .single();
 
         if (linkError) throw linkError;
-
-        // Import players if any
-        if (team.players && team.players.length > 0) {
-          for (const player of team.players) {
-            // Link player to tournament team
-            const { error: playerLinkError } = await supabase
-              .from("tournament_team_players")
-              .insert({
-                tournament_team_id: newTournamentTeam.id,
-                player_id: player.id,
-              });
-
-            if (playerLinkError && playerLinkError.code !== '23505') {
-              throw playerLinkError;
-            }
-          }
-        }
       }
 
       toast.success(`${selectedTeamIds.size} équipe(s) importée(s) avec succès !`);
@@ -328,7 +303,7 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
                 <DialogHeader>
                   <DialogTitle>Importer des équipes existantes</DialogTitle>
                   <DialogDescription>
-                    Sélectionnez les équipes (avec leurs joueurs) à importer
+                    Sélectionnez les équipes à importer. Les joueurs devront être ajoutés manuellement.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -363,11 +338,6 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
                               />
                               <div className="flex-1">
                                 <p className="font-medium">{team.name}</p>
-                                {team.players && team.players.length > 0 && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {team.players.length} joueur{team.players.length > 1 ? "s" : ""}: {team.players.map((p: any) => p.name).join(", ")}
-                                  </p>
-                                )}
                               </div>
                             </div>
                           ))}
