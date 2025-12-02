@@ -109,7 +109,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase }: S
         .from("tournament_teams")
         .select(`
           team_id,
-          teams!inner(id, name)
+          teams (id, name)
         `)
         .eq("tournament_id", tournamentId);
 
