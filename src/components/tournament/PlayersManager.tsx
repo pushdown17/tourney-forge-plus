@@ -138,31 +138,36 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
         return;
       }
 
-      // Check if player already exists in this tournament team
-      const { data: existingLink } = await supabase
-        .from("tournament_team_players")
-        .select("id, player:player_id(name)")
-        .eq("tournament_team_id", tournamentTeamId)
-        .eq("player.name", validation.data.name)
-        .maybeSingle();
+      console.log("Checking for existing player in team:", { name: validation.data.name, tournamentTeamId });
 
-      if (existingLink) {
-        toast.error("Ce joueur existe déjà dans cette équipe");
-        return;
-      }
-
-      // Check if player exists globally
+      // Check if player exists globally (case-insensitive)
       const { data: existingPlayer } = await supabase
         .from("players")
-        .select("id")
-        .eq("name", validation.data.name)
+        .select("id, name")
+        .ilike("name", validation.data.name)
         .maybeSingle();
+
+      console.log("Existing player found:", existingPlayer);
 
       let playerId: string;
 
       if (existingPlayer) {
-        // Reuse existing player
+        // Reuse existing player - now check if already in this team
         playerId = existingPlayer.id;
+        
+        const { data: existingLink } = await supabase
+          .from("tournament_team_players")
+          .select("id")
+          .eq("tournament_team_id", tournamentTeamId)
+          .eq("player_id", playerId)
+          .maybeSingle();
+
+        console.log("Existing link in team:", existingLink);
+
+        if (existingLink) {
+          toast.error("Ce joueur existe déjà dans cette équipe");
+          return;
+        }
       } else {
         // Create new global player
         const { data: newPlayer, error: playerError } = await supabase
@@ -171,9 +176,18 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
           .select("id")
           .single();
 
-        if (playerError) throw playerError;
+        if (playerError) {
+          if (playerError.code === '23505') {
+            toast.error("Un joueur avec ce nom existe déjà");
+          } else {
+            throw playerError;
+          }
+          return;
+        }
         playerId = newPlayer.id;
       }
+
+      console.log("Linking player to team:", { playerId, tournamentTeamId });
 
       // Link player to tournament team
       const { error: linkError } = await supabase
