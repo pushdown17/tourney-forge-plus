@@ -94,11 +94,11 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
         return;
       }
 
-      // Check if team exists globally
+      // Check if team exists globally (case-insensitive)
       const { data: existingTeam } = await supabase
         .from("teams")
-        .select("id")
-        .eq("name", validation.data.name)
+        .select("id, name")
+        .ilike("name", validation.data.name)
         .maybeSingle();
 
       let teamId: string;
@@ -114,7 +114,14 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
           .select("id")
           .single();
 
-        if (teamError) throw teamError;
+        if (teamError) {
+          if (teamError.code === '23505') {
+            toast.error("Une équipe avec ce nom existe déjà");
+          } else {
+            throw teamError;
+          }
+          return;
+        }
         teamId = newTeam.id;
       }
 
