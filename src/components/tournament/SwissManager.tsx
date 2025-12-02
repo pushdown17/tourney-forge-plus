@@ -107,12 +107,15 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase }: S
       // Fetch all teams via tournament_teams
       const { data: tournamentTeams, error: teamsError } = await supabase
         .from("tournament_teams")
-        .select("team:team_id(id, name)")
+        .select(`
+          team_id,
+          teams!inner(id, name)
+        `)
         .eq("tournament_id", tournamentId);
 
       if (teamsError) throw teamsError;
 
-      const teams = tournamentTeams?.map(tt => tt.team).filter(Boolean) || [];
+      const teams = tournamentTeams?.map(tt => tt.teams).filter(Boolean) || [];
 
       if (!teams || teams.length < 2) {
         toast.error("Il faut au moins 2 équipes pour créer des matchs");
