@@ -27,7 +27,7 @@ export type Database = {
           team1_score: number | null
           team2_id: string
           team2_score: number | null
-          tournament_id: string
+          tournament_id: string | null
           tournament_team1_id: string | null
           tournament_team2_id: string | null
           updated_at: string
@@ -45,7 +45,7 @@ export type Database = {
           team1_score?: number | null
           team2_id: string
           team2_score?: number | null
-          tournament_id: string
+          tournament_id?: string | null
           tournament_team1_id?: string | null
           tournament_team2_id?: string | null
           updated_at?: string
@@ -63,7 +63,7 @@ export type Database = {
           team1_score?: number | null
           team2_id?: string
           team2_score?: number | null
-          tournament_id?: string
+          tournament_id?: string | null
           tournament_team1_id?: string | null
           tournament_team2_id?: string | null
           updated_at?: string
@@ -125,8 +125,8 @@ export type Database = {
           penalty_1m: number
           penalty_2m: number
           penalty_30s: number
-          player_id: string
-          tournament_id: string
+          player_id: string | null
+          tournament_id: string | null
           tournament_team_player_id: string | null
           updated_at: string
         }
@@ -140,8 +140,8 @@ export type Database = {
           penalty_1m?: number
           penalty_2m?: number
           penalty_30s?: number
-          player_id: string
-          tournament_id: string
+          player_id?: string | null
+          tournament_id?: string | null
           tournament_team_player_id?: string | null
           updated_at?: string
         }
@@ -155,8 +155,8 @@ export type Database = {
           penalty_1m?: number
           penalty_2m?: number
           penalty_30s?: number
-          player_id?: string
-          tournament_id?: string
+          player_id?: string | null
+          tournament_id?: string | null
           tournament_team_player_id?: string | null
           updated_at?: string
         }
@@ -228,8 +228,8 @@ export type Database = {
           id: string
           losses: number
           points: number
-          team_id: string
-          tournament_id: string
+          team_id: string | null
+          tournament_id: string | null
           tournament_team_id: string | null
           updated_at: string
           wins: number
@@ -241,8 +241,8 @@ export type Database = {
           id?: string
           losses?: number
           points?: number
-          team_id: string
-          tournament_id: string
+          team_id?: string | null
+          tournament_id?: string | null
           tournament_team_id?: string | null
           updated_at?: string
           wins?: number
@@ -254,8 +254,8 @@ export type Database = {
           id?: string
           losses?: number
           points?: number
-          team_id?: string
-          tournament_id?: string
+          team_id?: string | null
+          tournament_id?: string | null
           tournament_team_id?: string | null
           updated_at?: string
           wins?: number
@@ -287,34 +287,20 @@ export type Database = {
       teams: {
         Row: {
           created_at: string
-          group_name: string | null
           id: string
           name: string
-          tournament_id: string | null
         }
         Insert: {
           created_at?: string
-          group_name?: string | null
           id?: string
           name: string
-          tournament_id?: string | null
         }
         Update: {
           created_at?: string
-          group_name?: string | null
           id?: string
           name?: string
-          tournament_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "teams_tournament_id_fkey"
-            columns: ["tournament_id"]
-            isOneToOne: false
-            referencedRelation: "tournaments"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       tournament_team_players: {
         Row: {

@@ -53,15 +53,10 @@ export const SearchBar = () => {
 
       if (tournamentsError) throw tournamentsError;
 
-      // Search players with their stats
+      // Search players by name (players are now independent of teams/tournaments)
       const { data: playersData, error: playersError } = await supabase
         .from("players")
-        .select(`
-          id,
-          name,
-          team_id,
-          teams!inner(name, tournament_id, tournaments!inner(name))
-        `)
+        .select("id, name")
         .ilike("name", `%${searchQuery}%`)
         .limit(5);
 
