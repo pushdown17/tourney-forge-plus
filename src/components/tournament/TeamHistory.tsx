@@ -52,19 +52,27 @@ export const TeamHistory = ({ tournamentId }: TeamHistoryProps) => {
 
   const fetchTeams = async () => {
     const { data, error } = await supabase
-      .from("teams")
-      .select("id, name")
-      .eq("tournament_id", tournamentId)
-      .order("name");
+      .from("tournament_teams")
+      .select(`
+        team_id,
+        teams!inner (id, name)
+      `)
+      .eq("tournament_id", tournamentId);
 
     if (error) {
       toast.error("Erreur lors du chargement des équipes");
       return;
     }
 
-    setTeams(data || []);
-    if (data && data.length > 0) {
-      setSelectedTeamId(data[0].id);
+    // Transform to expected format
+    const teamsData = (data || []).map((item: any) => ({
+      id: item.teams.id,
+      name: item.teams.name
+    })).sort((a, b) => a.name.localeCompare(b.name));
+    
+    setTeams(teamsData);
+    if (teamsData.length > 0) {
+      setSelectedTeamId(teamsData[0].id);
     }
   };
 

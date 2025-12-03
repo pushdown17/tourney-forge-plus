@@ -51,36 +51,32 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false }: PlayerSta
   }, [tournamentId]);
 
   const fetchAllPlayers = async () => {
-    const { data: teamsData, error: teamsError } = await supabase
-      .from("teams")
-      .select("id")
-      .eq("tournament_id", tournamentId);
-
-    if (teamsError || !teamsData) {
-      toast.error("Erreur lors du chargement des équipes");
-      return;
-    }
-
-    const teamIds = teamsData.map(t => t.id);
-
+    // Get players via tournament_team_players for this tournament
     const { data, error } = await supabase
-      .from("players")
+      .from("tournament_team_players")
       .select(`
-        id,
-        name,
-        team_id,
-        team:team_id(id, name)
+        player_id,
+        players!inner (id, name),
+        tournament_teams!inner (
+          team_id,
+          teams!inner (id, name)
+        )
       `)
-      .in("team_id", teamIds)
-      .order("name");
+      .eq("tournament_teams.tournament_id", tournamentId);
 
     if (error) {
       toast.error("Erreur lors du chargement des joueurs");
       return;
     }
 
-    // Filter out players without a team
-    const playersWithTeams = (data || []).filter(p => p.team);
+    // Transform data to expected format
+    const playersWithTeams = (data || []).map((item: any) => ({
+      id: item.players.id,
+      name: item.players.name,
+      team_id: item.tournament_teams.team_id,
+      team: { id: item.tournament_teams.teams.id, name: item.tournament_teams.teams.name }
+    }));
+    
     setAllPlayers(playersWithTeams);
   };
 
@@ -108,34 +104,35 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false }: PlayerSta
   const fetchPlayerStats = async () => {
     setLoading(true);
     try {
-      // Fetch teams for this tournament
-      const { data: teamsData, error: teamsError } = await supabase
-        .from("teams")
-        .select("id")
-        .eq("tournament_id", tournamentId);
-
-      if (teamsError) throw teamsError;
-
-      const teamIds = (teamsData || []).map(t => t.id);
-
-      // Fetch all players with their teams
-      const { data: playersData, error: playersError } = await supabase
-        .from("players")
+      // Fetch players via tournament_team_players for this tournament
+      const { data: tournamentPlayersData, error: tournamentPlayersError } = await supabase
+        .from("tournament_team_players")
         .select(`
-          id,
-          name,
-          team_id,
-          team:team_id(id, name)
+          player_id,
+          players!inner (id, name),
+          tournament_teams!inner (
+            team_id,
+            teams!inner (id, name)
+          )
         `)
-        .in("team_id", teamIds);
+        .eq("tournament_teams.tournament_id", tournamentId);
 
-      if (playersError) throw playersError;
+      if (tournamentPlayersError) throw tournamentPlayersError;
 
-      // Filter players with teams only
-      const validPlayers = (playersData || []).filter(p => p.team);
+      // Transform to valid players format
+      const validPlayers = (tournamentPlayersData || []).map((item: any) => ({
+        id: item.players.id,
+        name: item.players.name,
+        team: { id: item.tournament_teams.teams.id, name: item.tournament_teams.teams.name }
+      }));
 
       // Fetch all stats for these players
       const playerIds = validPlayers.map(p => p.id);
+      
+      if (playerIds.length === 0) {
+        setPlayers([]);
+        return;
+      }
       
       const { data: statsData, error: statsError } = await supabase
         .from("player_stats")
@@ -146,7 +143,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false }: PlayerSta
       if (statsError) throw statsError;
 
       // Aggregate stats per player
-      const playersWithStats: PlayerWithStats[] = validPlayers.map(player => {
+      const playersWithStats: PlayerWithStats[] = validPlayers.map((player: any) => {
         const playerStats = (statsData || []).filter(s => s.player_id === player.id);
         
         return {

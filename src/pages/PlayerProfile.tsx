@@ -38,12 +38,7 @@ export default function PlayerProfile() {
         // Fetch all players with this name
         const { data: players, error: playersError } = await supabase
           .from("players")
-          .select(`
-            id,
-            name,
-            team_id,
-            teams!inner(name, tournament_id, tournaments!inner(name))
-          `)
+          .select("id, name")
           .ilike("name", name);
 
         if (playersError) throw playersError;
@@ -53,30 +48,59 @@ export default function PlayerProfile() {
           return;
         }
 
-        // Fetch stats for all these players
-        const tournamentsData = await Promise.all(
-          players.map(async (player: any) => {
+        // Fetch tournament participation for each player via tournament_team_players
+        const tournamentsData: {
+          id: string;
+          name: string;
+          teamName: string;
+          goals: number;
+          assists: number;
+          fouls: number;
+          matches: number;
+        }[] = [];
+
+        for (const player of players) {
+          // Get all tournament participations for this player
+          const { data: participations } = await supabase
+            .from("tournament_team_players")
+            .select(`
+              tournament_team_id,
+              tournament_teams!inner (
+                tournament_id,
+                tournaments!inner (id, name),
+                teams!inner (name)
+              )
+            `)
+            .eq("player_id", player.id);
+
+          if (!participations) continue;
+
+          for (const participation of participations as any[]) {
+            const tournamentId = participation.tournament_teams.tournament_id;
+            
+            // Get stats for this player in this tournament
             const { data: stats } = await supabase
               .from("player_stats")
               .select("goals, assists, fouls, match_id")
-              .eq("player_id", player.id);
+              .eq("player_id", player.id)
+              .eq("tournament_id", tournamentId);
 
             const uniqueMatches = new Set(stats?.map(s => s.match_id).filter(Boolean));
             const goals = stats?.reduce((sum, s) => sum + (s.goals || 0), 0) || 0;
             const assists = stats?.reduce((sum, s) => sum + (s.assists || 0), 0) || 0;
             const fouls = stats?.reduce((sum, s) => sum + (s.fouls || 0), 0) || 0;
 
-            return {
-              id: player.teams.tournament_id,
-              name: player.teams.tournaments.name,
-              teamName: player.teams.name,
+            tournamentsData.push({
+              id: participation.tournament_teams.tournaments.id,
+              name: participation.tournament_teams.tournaments.name,
+              teamName: participation.tournament_teams.teams.name,
               goals,
               assists,
               fouls,
               matches: uniqueMatches.size,
-            };
-          })
-        );
+            });
+          }
+        }
 
         const totalGoals = tournamentsData.reduce((sum, t) => sum + t.goals, 0);
         const totalAssists = tournamentsData.reduce((sum, t) => sum + t.assists, 0);
