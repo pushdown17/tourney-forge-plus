@@ -305,17 +305,86 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   const isLocked = editingMatchId !== null && editingMatchId !== match.id;
   const isEditing = editingMatchId === match.id;
 
+  // Charger les joueurs au montage pour pouvoir calculer les scores
+  useEffect(() => {
+    fetchPlayers();
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       fetchPlayers();
     }
   }, [isOpen]);
 
+  // Calculer les scores depuis player_stats si match non validé
   useEffect(() => {
     if (team1Players.length > 0 || team2Players.length > 0) {
       fetchPlayerStats();
     }
   }, [team1Players, team2Players, goalScorerDialogOpen]);
+
+  // Calculer scores depuis player_stats si match pas encore validé
+  useEffect(() => {
+    if (match.team1_score === null && match.team2_score === null) {
+      loadScoresFromPlayerStats();
+    }
+  }, []);
+
+  const loadScoresFromPlayerStats = async () => {
+    const { data: allStats } = await supabase
+      .from("player_stats")
+      .select("player_id, goals")
+      .eq("match_id", match.id);
+
+    if (!allStats || allStats.length === 0) return;
+
+    // On doit récupérer les joueurs pour savoir qui appartient à quelle équipe
+    const { data: tt1 } = await supabase
+      .from("tournament_teams")
+      .select("id")
+      .eq("tournament_id", tournamentId)
+      .eq("team_id", match.team1_id)
+      .maybeSingle();
+
+    const { data: tt2 } = await supabase
+      .from("tournament_teams")
+      .select("id")
+      .eq("tournament_id", tournamentId)
+      .eq("team_id", match.team2_id)
+      .maybeSingle();
+
+    let team1PlayerIds: string[] = [];
+    let team2PlayerIds: string[] = [];
+
+    if (tt1?.id) {
+      const { data: p1 } = await supabase
+        .from("tournament_team_players")
+        .select("player_id")
+        .eq("tournament_team_id", tt1.id);
+      team1PlayerIds = (p1 || []).map(p => p.player_id);
+    }
+
+    if (tt2?.id) {
+      const { data: p2 } = await supabase
+        .from("tournament_team_players")
+        .select("player_id")
+        .eq("tournament_team_id", tt2.id);
+      team2PlayerIds = (p2 || []).map(p => p.player_id);
+    }
+
+    const team1Goals = allStats
+      .filter(stat => team1PlayerIds.includes(stat.player_id))
+      .reduce((sum, stat) => sum + (stat.goals || 0), 0);
+
+    const team2Goals = allStats
+      .filter(stat => team2PlayerIds.includes(stat.player_id))
+      .reduce((sum, stat) => sum + (stat.goals || 0), 0);
+
+    if (team1Goals > 0 || team2Goals > 0) {
+      setTeam1Score(team1Goals);
+      setTeam2Score(team2Goals);
+    }
+  };
 
   const fetchPlayers = async () => {
     // Get tournament_team for team1
