@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
+import { MatchStatsRecap } from "./MatchStatsRecap";
 
 interface RoundRobinManagerProps {
   tournamentId: string;
@@ -627,12 +628,23 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
       </CollapsibleContent>
 
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer le score final</AlertDialogTitle>
-            <AlertDialogDescription>
-              Confirmez-vous le score final de ce match ?<br />
-              <strong>{match.team1?.name}</strong> : {team1Score} - {team2Score} : <strong>{match.team2?.name}</strong>
+            <AlertDialogDescription asChild>
+              <div>
+                <p>
+                  Confirmez-vous le score final de ce match ?<br />
+                  <strong>{match.team1?.name}</strong> : {team1Score} - {team2Score} : <strong>{match.team2?.name}</strong>
+                </p>
+                <MatchStatsRecap
+                  team1Name={match.team1?.name || "Équipe 1"}
+                  team2Name={match.team2?.name || "Équipe 2"}
+                  team1Players={team1Players}
+                  team2Players={team2Players}
+                  playerStats={playerStats}
+                />
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
