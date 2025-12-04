@@ -61,11 +61,13 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
   const generateNextRound = async () => {
     setLoading(true);
     try {
-      // Fetch all teams
-      const { data: teams, error: teamsError } = await supabase
-        .from("teams")
-        .select("id")
+      // Fetch all teams via tournament_teams
+      const { data: tournamentTeams, error: teamsError } = await supabase
+        .from("tournament_teams")
+        .select("team_id")
         .eq("tournament_id", tournamentId);
+      
+      const teams = (tournamentTeams || []).map(tt => ({ id: tt.team_id }));
 
       if (teamsError) throw teamsError;
 
