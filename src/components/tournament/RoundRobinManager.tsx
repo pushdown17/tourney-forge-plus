@@ -318,20 +318,39 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   }, [team1Players, team2Players, goalScorerDialogOpen]);
 
   const fetchPlayers = async () => {
-    const { data: players1, error: error1 } = await supabase
-      .from("players")
-      .select("*")
+    // Get tournament_team for team1
+    const { data: tt1 } = await supabase
+      .from("tournament_teams")
+      .select("id")
+      .eq("tournament_id", tournamentId)
       .eq("team_id", match.team1_id)
-      .order("name");
+      .maybeSingle();
 
-    const { data: players2, error: error2 } = await supabase
-      .from("players")
-      .select("*")
+    // Get tournament_team for team2
+    const { data: tt2 } = await supabase
+      .from("tournament_teams")
+      .select("id")
+      .eq("tournament_id", tournamentId)
       .eq("team_id", match.team2_id)
-      .order("name");
+      .maybeSingle();
 
-    if (!error1) setTeam1Players(players1 || []);
-    if (!error2) setTeam2Players(players2 || []);
+    if (tt1?.id) {
+      const { data: players1 } = await supabase
+        .from("tournament_team_players")
+        .select("player_id, players:player_id(id, name)")
+        .eq("tournament_team_id", tt1.id);
+      
+      setTeam1Players((players1 || []).map(p => p.players).filter(Boolean));
+    }
+
+    if (tt2?.id) {
+      const { data: players2 } = await supabase
+        .from("tournament_team_players")
+        .select("player_id, players:player_id(id, name)")
+        .eq("tournament_team_id", tt2.id);
+      
+      setTeam2Players((players2 || []).map(p => p.players).filter(Boolean));
+    }
   };
 
   const fetchPlayerStats = async () => {
