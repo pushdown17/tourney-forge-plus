@@ -81,68 +81,68 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
         return;
       }
 
-      // Check if team already exists in this tournament
-      const { data: existingTournamentTeam } = await supabase
-        .from("tournament_teams")
-        .select("id, team:team_id(name)")
-        .eq("tournament_id", tournamentId)
-        .eq("team.name", validation.data.name)
-        .maybeSingle();
-
-      if (existingTournamentTeam) {
-        toast.error("Cette équipe existe déjà dans ce tournoi");
-        return;
-      }
-
-      // Check if team exists globally (case-insensitive)
+      // Check if team exists globally first
       const { data: existingTeam } = await supabase
         .from("teams")
         .select("id, name")
         .ilike("name", validation.data.name)
         .maybeSingle();
 
-      let teamId: string;
-
+      // If team exists, check if it's already in this tournament
       if (existingTeam) {
-        // Reuse existing team
-        teamId = existingTeam.id;
-      } else {
-        // Create new global team
-        const { data: newTeam, error: teamError } = await supabase
-          .from("teams")
-          .insert({ name: validation.data.name })
+        const { data: existingTournamentTeam } = await supabase
+          .from("tournament_teams")
           .select("id")
-          .single();
+          .eq("tournament_id", tournamentId)
+          .eq("team_id", existingTeam.id)
+          .maybeSingle();
 
-        if (teamError) {
-          if (teamError.code === '23505') {
-            toast.error("Une équipe avec ce nom existe déjà");
-          } else {
-            throw teamError;
-          }
+        if (existingTournamentTeam) {
+          toast.error("Cette équipe existe déjà dans ce tournoi");
           return;
         }
-        teamId = newTeam.id;
+
+        // Team exists globally, link it to tournament
+        const { error: linkError } = await supabase
+          .from("tournament_teams")
+          .insert({
+            tournament_id: tournamentId,
+            team_id: existingTeam.id,
+          });
+
+        if (linkError) throw linkError;
+
+        toast.success("Équipe ajoutée !");
+        setTeamName("");
+        await fetchTeams();
+        return;
       }
 
-      // Link team to tournament
-      const { data: newTournamentTeam, error: linkError } = await supabase
-        .from("tournament_teams")
-        .insert({
-          tournament_id: tournamentId,
-          team_id: teamId,
-        })
+      // Create new global team (team doesn't exist yet)
+      const { data: newTeam, error: teamError } = await supabase
+        .from("teams")
+        .insert({ name: validation.data.name })
         .select("id")
         .single();
 
-      if (linkError) {
-        if (linkError.code === '23505') {
-          toast.error("Cette équipe existe déjà dans ce tournoi");
+      if (teamError) {
+        if (teamError.code === '23505') {
+          toast.error("Une équipe avec ce nom existe déjà");
         } else {
-          throw linkError;
+          throw teamError;
         }
         return;
       }
+
+      // Link new team to tournament
+      const { error: linkError } = await supabase
+        .from("tournament_teams")
+        .insert({
+          tournament_id: tournamentId,
+          team_id: newTeam.id,
+        });
+
+      if (linkError) throw linkError;
 
       toast.success("Équipe ajoutée !");
       setTeamName("");
