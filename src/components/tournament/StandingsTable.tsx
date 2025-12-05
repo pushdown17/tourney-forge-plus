@@ -66,16 +66,31 @@ export const StandingsTable = ({ tournamentId }: StandingsTableProps) => {
         *,
         team:team_id(name)
       `)
-      .eq("tournament_id", tournamentId)
-      .order("points", { ascending: false })
-      .order("goals_for", { ascending: false });
+      .eq("tournament_id", tournamentId);
 
     if (error) {
       toast.error("Erreur lors du chargement du classement");
       return;
     }
 
-    const newStandings = data || [];
+    // Sort by: 1. Points (desc), 2. Goal difference (desc), 3. Goals for (desc)
+    const sortedData = (data || []).sort((a, b) => {
+      // First: points
+      if (b.points !== a.points) return b.points - a.points;
+      // Second: goal difference
+      const diffA = a.goals_for - a.goals_against;
+      const diffB = b.goals_for - b.goals_against;
+      if (diffB !== diffA) return diffB - diffA;
+      // Third: goals for
+      return b.goals_for - a.goals_for;
+    });
+
+    if (error) {
+      toast.error("Erreur lors du chargement du classement");
+      return;
+    }
+
+    const newStandings = sortedData;
     
     // Calculate position changes
     const changes = new Map<string, number>();
