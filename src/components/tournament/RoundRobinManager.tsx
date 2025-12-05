@@ -251,29 +251,62 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
           </div>
         )}
 
-        <div className="space-y-4">
-          {matches.filter(m => m.team1_score === null || m.team2_score === null).map((match) => (
-            <MatchCard
-              key={match.id}
-              match={match}
-              tournamentId={tournamentId}
-              onScoreUpdate={updateScore}
-              editingMatchId={editingMatchId}
-              setEditingMatchId={setEditingMatchId}
-              isClosed={isClosed}
-            />
-          ))}
-          {matches.filter(m => m.team1_score === null || m.team2_score === null).length === 0 && matches.length > 0 && (
-            <p className="text-muted-foreground text-center py-8">
-              Tous les matchs de ce round sont terminés !
-            </p>
-          )}
-          {matches.length === 0 && (
-            <p className="text-muted-foreground text-center py-8">
-              Aucun match pour ce round. Cliquez sur "Générer" pour créer les matchs.
-            </p>
-          )}
-        </div>
+        {/* Matchs en cours */}
+        {matches.filter(m => m.team1_score === null || m.team2_score === null).length > 0 && (
+          <div className="space-y-4 mb-6">
+            <h3 className="text-lg font-semibold text-muted-foreground">Matchs en cours</h3>
+            {matches.filter(m => m.team1_score === null || m.team2_score === null).map((match) => (
+              <MatchCard
+                key={match.id}
+                match={match}
+                tournamentId={tournamentId}
+                onScoreUpdate={updateScore}
+                editingMatchId={editingMatchId}
+                setEditingMatchId={setEditingMatchId}
+                isClosed={isClosed}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Matchs terminés */}
+        {matches.filter(m => m.team1_score !== null && m.team2_score !== null).length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
+              <Trophy className="h-4 w-4" />
+              Matchs terminés
+            </h3>
+            {matches.filter(m => m.team1_score !== null && m.team2_score !== null).map((match) => (
+              <Card key={match.id} className="p-4 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 flex-1">
+                    <span className={`font-medium ${match.winner_id === match.team1_id ? 'text-primary font-bold' : ''}`}>
+                      {match.team1?.name}
+                    </span>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg">
+                      <span className={`text-xl font-bold ${match.winner_id === match.team1_id ? 'text-primary' : ''}`}>
+                        {match.team1_score}
+                      </span>
+                      <span className="text-muted-foreground">-</span>
+                      <span className={`text-xl font-bold ${match.winner_id === match.team2_id ? 'text-primary' : ''}`}>
+                        {match.team2_score}
+                      </span>
+                    </div>
+                    <span className={`font-medium ${match.winner_id === match.team2_id ? 'text-primary font-bold' : ''}`}>
+                      {match.team2?.name}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {matches.length === 0 && (
+          <p className="text-muted-foreground text-center py-8">
+            Aucun match pour ce round. Cliquez sur "Générer" pour créer les matchs.
+          </p>
+        )}
       </Card>
     </div>
   );
