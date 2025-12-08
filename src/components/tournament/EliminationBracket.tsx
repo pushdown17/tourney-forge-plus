@@ -520,21 +520,15 @@ export const EliminationBracket = ({
                 const isLastRound = roundIndex === bracketStructure.length - 1;
                 
                 // Dimensions - calcul pyramidal correct
-                // Le match du round N doit être centré entre les 2 matchs du round N-1
-                const matchHeight = 90;
-                const baseGap = 16;
-                const unit = matchHeight + baseGap; // 106px
+                // Hauteur réelle d'un match: header(20) + card(68) + button(36) ≈ 124px
+                const matchHeight = 124;
+                const baseGap = 12; // Écart entre matchs du round 0
+                const unit = matchHeight + baseGap; // 136px
                 
-                // Gap entre matchs de ce round
-                // Round 0: 16px (baseGap)
-                // Round 1: 106 * 2 - 90 = 122px (pour que M5 soit centré entre M1 et M2)
-                // Round 2: 106 * 4 - 90 = 334px
+                // Gap entre matchs de ce round (double à chaque tour)
                 const verticalGap = unit * Math.pow(2, roundIndex) - matchHeight;
                 
-                // Décalage du premier match pour centrer
-                // Round 0: 0
-                // Round 1: 106 * (2-1) / 2 = 53px
-                // Round 2: 106 * (4-1) / 2 = 159px
+                // Décalage du premier match pour centrer entre les matchs sources
                 const topOffset = unit * (Math.pow(2, roundIndex) - 1) / 2;
                 
                 // Numéro de match
