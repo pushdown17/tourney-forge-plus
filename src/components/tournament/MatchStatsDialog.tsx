@@ -25,6 +25,7 @@ export const MatchStatsDialog = ({
   const [team1Players, setTeam1Players] = useState<any[]>([]);
   const [team2Players, setTeam2Players] = useState<any[]>([]);
   const [playerStats, setPlayerStats] = useState<Record<string, any>>({});
+  const [tournamentTeamPlayerMap, setTournamentTeamPlayerMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (open && match) {
@@ -38,21 +39,48 @@ export const MatchStatsDialog = ({
     }
   }, [team1Players, team2Players]);
 
+  const fetchPlayersForTeam = async (teamId: string) => {
+    // D'abord récupérer le tournament_team
+    const { data: tournamentTeam } = await supabase
+      .from("tournament_teams")
+      .select("id")
+      .eq("tournament_id", tournamentId)
+      .eq("team_id", teamId)
+      .maybeSingle();
+
+    if (!tournamentTeam) return [];
+
+    // Ensuite récupérer les joueurs via tournament_team_players
+    const { data: tournamentPlayers, error } = await supabase
+      .from("tournament_team_players")
+      .select("id, player:players(id, name)")
+      .eq("tournament_team_id", tournamentTeam.id);
+
+    if (error || !tournamentPlayers) return [];
+
+    // Construire le mapping tournament_team_player_id -> player_id
+    const mapping: Record<string, string> = {};
+    tournamentPlayers.forEach(tp => {
+      if (tp.player) {
+        mapping[tp.player.id] = tp.id;
+      }
+    });
+    setTournamentTeamPlayerMap(prev => ({ ...prev, ...mapping }));
+
+    return tournamentPlayers
+      .filter(tp => tp.player)
+      .map(tp => tp.player)
+      .sort((a: any, b: any) => a.name.localeCompare(b.name));
+  };
+
   const fetchPlayers = async () => {
-    const { data: players1, error: error1 } = await supabase
-      .from("players")
-      .select("*")
-      .eq("team_id", match.team1_id)
-      .order("name");
+    const [players1, players2] = await Promise.all([
+      fetchPlayersForTeam(match.team1_id),
+      fetchPlayersForTeam(match.team2_id)
+    ]);
 
-    const { data: players2, error: error2 } = await supabase
-      .from("players")
-      .select("*")
-      .eq("team_id", match.team2_id)
-      .order("name");
-
-    if (!error1) setTeam1Players(players1 || []);
-    if (!error2) setTeam2Players(players2 || []);
+    setTeam1Players(players1);
+    setTeam2Players(players2);
   };
 
   const fetchPlayerStats = async () => {
@@ -75,6 +103,7 @@ export const MatchStatsDialog = ({
 
   const updatePlayerStat = async (playerId: string, field: string, value: number) => {
     const existingStat = playerStats[playerId];
+    const tournamentTeamPlayerId = tournamentTeamPlayerMap[playerId];
 
     if (existingStat) {
       const { error } = await supabase
@@ -95,6 +124,7 @@ export const MatchStatsDialog = ({
           player_id: playerId,
           tournament_id: tournamentId,
           match_id: match.id,
+          tournament_team_player_id: tournamentTeamPlayerId || null,
           [field]: value,
         })
         .select()
