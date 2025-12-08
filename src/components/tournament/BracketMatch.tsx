@@ -62,7 +62,7 @@ export const BracketMatch = ({
   const hasWinner = !!match.winner_id;
   
   return (
-    <div className="animate-fade-in" style={{ minHeight: '124px' }}>
+    <div className="animate-fade-in h-[124px] flex flex-col">
       {/* Match header */}
       <div className="flex items-center justify-center gap-2 mb-1">
         <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
