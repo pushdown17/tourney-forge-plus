@@ -34,6 +34,7 @@ interface BracketMatchProps {
   isRecentlyCompleted?: boolean;
   advancedTeamId?: string;
   isLocked?: boolean;
+  isCompleted?: boolean;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveScore: () => void;
@@ -52,6 +53,7 @@ export const BracketMatch = ({
   isRecentlyCompleted = false,
   advancedTeamId,
   isLocked = false,
+  isCompleted = false,
   onStartEdit,
   onCancelEdit,
   onSaveScore,
@@ -62,6 +64,8 @@ export const BracketMatch = ({
   const isPlaceholder = match.isPlaceholder;
   const hasTeams = match.team1 && match.team2;
   const hasWinner = !!match.winner_id;
+  // Un match est verrouillé si il est complété (a un gagnant) OU si les matchs précédents ne sont pas finis
+  const isMatchLocked = isCompleted || isLocked;
   
   return (
     <div className="animate-fade-in h-[124px] flex flex-col">
@@ -78,8 +82,13 @@ export const BracketMatch = ({
         {isFinal && (
           <Trophy className="h-3 w-3 text-yellow-500" />
         )}
-        {isLocked && (
+        {isMatchLocked && !isCompleted && (
           <Lock className="h-3 w-3 text-muted-foreground" />
+        )}
+        {isCompleted && (
+          <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+            Terminé
+          </span>
         )}
       </div>
 
@@ -88,13 +97,13 @@ export const BracketMatch = ({
         className={cn(
           "overflow-hidden transition-all duration-300",
           "bg-card/80 backdrop-blur-sm border-border/50",
-          !isPlaceholder && !isLocked && "hover:shadow-md hover:border-primary/30 cursor-pointer",
-          isLocked && "opacity-60 cursor-not-allowed",
+          !isPlaceholder && "hover:shadow-md hover:border-primary/30 cursor-pointer",
+          isMatchLocked && !isCompleted && "opacity-60 cursor-not-allowed",
           hasWinner && "ring-1 ring-primary/30",
           isFinal && "ring-2 ring-yellow-500/50",
           isRecentlyCompleted && "animate-pulse ring-2 ring-primary shadow-lg shadow-primary/30"
         )}
-        onClick={() => !isPlaceholder && !isLocked && onMatchClick()}
+        onClick={() => !isPlaceholder && onMatchClick()}
       >
         {/* Team 1 */}
         <div
@@ -159,8 +168,8 @@ export const BracketMatch = ({
         </div>
       </Card>
 
-      {/* Score edit section */}
-      {!isPlaceholder && hasTeams && (
+      {/* Score edit section - Ne pas afficher si le match est terminé */}
+      {!isPlaceholder && hasTeams && !isCompleted && (
         <div className="mt-1.5">
           {isEditing ? (
             <div className="flex gap-1 items-center justify-center bg-muted/30 rounded-md p-1.5">
@@ -169,7 +178,7 @@ export const BracketMatch = ({
                 value={parseInt(scores.team1 || "0")}
                 onChange={(value) => onScoreChange("team1", value.toString())}
                 onIncrement={() => onIncrementScore(match.team1_id, match.team1?.name || "TBD")}
-                disabled={isClosed}
+                disabled={isClosed || isMatchLocked}
               />
               <span className="text-xs text-muted-foreground font-bold">-</span>
               <ScoreInput
@@ -177,13 +186,13 @@ export const BracketMatch = ({
                 value={parseInt(scores.team2 || "0")}
                 onChange={(value) => onScoreChange("team2", value.toString())}
                 onIncrement={() => onIncrementScore(match.team2_id, match.team2?.name || "TBD")}
-                disabled={isClosed}
+                disabled={isClosed || isMatchLocked}
               />
               <Button 
                 onClick={(e) => { e.stopPropagation(); onSaveScore(); }} 
                 size="sm" 
                 className="h-6 px-2 text-xs ml-1"
-                disabled={isClosed}
+                disabled={isClosed || isMatchLocked}
               >
                 ✓
               </Button>
@@ -202,7 +211,7 @@ export const BracketMatch = ({
               variant="outline"
               size="sm"
               className="w-full h-7 text-xs"
-              disabled={isClosed}
+              disabled={isClosed || isMatchLocked}
             >
               {match.team1_score !== null ? "Modifier" : "Entrer score"}
             </Button>
