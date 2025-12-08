@@ -519,24 +519,25 @@ export const EliminationBracket = ({
                 const totalTeams = tournament?.teams_for_elimination || 8;
                 const isLastRound = roundIndex === bracketStructure.length - 1;
                 
-                // Dimensions - calcul pour centrer chaque match entre ses 2 matchs sources
-                const matchHeight = 90; // Hauteur estimée d'un match
+                // Dimensions - calcul pyramidal correct
+                const matchHeight = 90; // Hauteur d'un match
                 const baseGap = 16; // Écart entre les matchs du premier tour
-                const unit = matchHeight + baseGap; // Unité de base (match + gap)
                 
-                // L'écart entre les matchs pour ce round
-                // Round 0: gap = baseGap (16)
-                // Round 1: gap = 2 * unit - matchHeight = 2 * 106 - 90 = 122
-                // Round 2: gap = 4 * unit - matchHeight = 4 * 106 - 90 = 334
-                const verticalGap = unit * Math.pow(2, roundIndex) - matchHeight;
+                // Pour chaque round, l'écart double
+                // Round 0: gap = 16
+                // Round 1: gap = 16 + 90 + 16 = 122 (pour centrer entre 2 matchs)
+                // Round 2: gap = 122 + 90 + 122 = 334
+                const verticalGap = roundIndex === 0 
+                  ? baseGap 
+                  : baseGap + (matchHeight + baseGap) * (Math.pow(2, roundIndex) - 1);
                 
-                // Le décalage vertical pour centrer les matchs
+                // Décalage vertical pour centrer
                 // Round 0: 0
-                // Round 1: (unit * 1) / 2 = 53
-                // Round 2: (unit * 3) / 2 = 159
+                // Round 1: (90 + 16) / 2 = 53 (centré entre les 2 premiers matchs)
+                // Round 2: 53 + (90 + 122) / 2 = 53 + 106 = 159
                 const topOffset = roundIndex === 0 
                   ? 0 
-                  : unit * (Math.pow(2, roundIndex) - 1) / 2;
+                  : (matchHeight + baseGap) * (Math.pow(2, roundIndex) - 1) / 2;
                 
                 // Numéro de match
                 let matchNumberStart = 1;
