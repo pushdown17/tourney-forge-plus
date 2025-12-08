@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { BracketNode } from "@/components/BracketNode";
+import { BracketMatch } from "./BracketMatch";
 import { PhaseTransition } from "./PhaseTransition";
 import { MatchStatsDialog } from "./MatchStatsDialog";
-import { ScoreInput } from "@/components/ui/score-input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trophy } from "lucide-react";
+import { Trophy, Medal } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
+import { cn } from "@/lib/utils";
 
 interface Team {
   id: string;
@@ -482,11 +481,14 @@ export const EliminationBracket = ({
 
   return (
     <Card className="glass-card p-6">
-      <div className="mb-4">
-        <h2 className="text-xl font-bold mb-1">
-          Phase d'élimination {eliminationType === "single" ? "simple" : "double"}
-        </h2>
-        <p className="text-sm text-muted-foreground">
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <Trophy className="h-6 w-6 text-primary" />
+          <h2 className="text-xl font-bold">
+            Phase d'élimination {eliminationType === "single" ? "simple" : "double"}
+          </h2>
+        </div>
+        <p className="text-sm text-muted-foreground ml-9">
           {tournament?.teams_for_elimination} équipes qualifiées
         </p>
       </div>
@@ -497,324 +499,192 @@ export const EliminationBracket = ({
         </div>
       ) : (
         <>
+          {/* Bracket principal */}
           <div className="overflow-x-auto pb-4">
-            <div className="flex gap-6 min-w-max items-start px-2 relative">
-            {bracketStructure.map((roundMatches, roundIndex) => {
-              const roundNumber = roundMatches[0]?.round_number || roundIndex + 1;
-              const totalTeams = tournament?.teams_for_elimination || 8;
-              const matchHeight = 60; // Hauteur d'un match + espacement
-              const matchCardHeight = 38; // Hauteur réelle de la carte de match
-              
-              // Calculer l'espacement et l'offset pour créer l'alignement pyramidal
-              const verticalSpacing = matchHeight * Math.pow(2, roundIndex);
-              const topOffset = (matchHeight * Math.pow(2, roundIndex) - matchHeight) / 2;
-              
-              // Calculer le numéro de match global
-              let matchNumberStart = 1;
-              for (let i = 0; i < roundIndex; i++) {
-                matchNumberStart += Math.pow(2, Math.log2(totalTeams) - i - 1);
-              }
-              
-              return (
-                <div key={roundNumber} className="relative flex flex-col" style={{ minWidth: '160px' }}>
-                  <div className="text-xs font-bold text-primary text-center mb-3 h-5 flex items-center justify-center">
-                    {getRoundName(roundNumber, totalTeams)}
-                  </div>
-                  <div className="flex flex-col relative" style={{ gap: `${verticalSpacing}px`, marginTop: `${topOffset}px` }}>
-                    {/* SVG pour les lignes de connexion */}
-                    {roundIndex < bracketStructure.length - 1 && (
-                      <svg 
-                        className="absolute left-full top-0 pointer-events-none"
-                        style={{ 
-                          width: '24px',
-                          height: '100%',
-                          overflow: 'visible'
-                        }}
-                      >
-                        {roundMatches.map((match, matchIndex) => {
-                          if (matchIndex % 2 === 0 && matchIndex + 1 < roundMatches.length) {
-                            // Hauteur totale d'un élément de match (numéro + carte + bouton + espacement)
-                            const totalMatchElementHeight = 48; // hauteur approximative de tout l'élément
-                            const matchCenterOffset = 19; // centre de la carte de match
-                            
-                            // Position Y du premier match (du haut)
-                            const y1 = matchIndex * (verticalSpacing + totalMatchElementHeight) + matchCenterOffset;
-                            // Position Y du deuxième match (celui en dessous)
-                            const y2 = (matchIndex + 1) * (verticalSpacing + totalMatchElementHeight) + matchCenterOffset;
-                            // Point milieu pour la connexion vers le prochain tour
+            <div className="flex gap-8 min-w-max px-4">
+              {bracketStructure.map((roundMatches, roundIndex) => {
+                const roundNumber = roundMatches[0]?.round_number || roundIndex + 1;
+                const totalTeams = tournament?.teams_for_elimination || 8;
+                const isLastRound = roundIndex === bracketStructure.length - 1;
+                
+                // Dimensions
+                const matchHeight = 90; // Hauteur estimée d'un match
+                const baseGap = 16;
+                const verticalGap = baseGap * Math.pow(2, roundIndex);
+                const topOffset = (verticalGap - baseGap) / 2 + (roundIndex > 0 ? matchHeight / 2 * (Math.pow(2, roundIndex) - 1) : 0);
+                
+                // Numéro de match
+                let matchNumberStart = 1;
+                for (let i = 0; i < roundIndex; i++) {
+                  matchNumberStart += Math.pow(2, Math.log2(totalTeams) - i - 1);
+                }
+                
+                return (
+                  <div key={roundNumber} className="flex flex-col" style={{ minWidth: "180px" }}>
+                    {/* Round header */}
+                    <div className={cn(
+                      "text-center mb-4 py-2 px-4 rounded-lg",
+                      isLastRound ? "bg-primary/20 border border-primary/30" : "bg-muted/50"
+                    )}>
+                      <span className={cn(
+                        "text-sm font-bold",
+                        isLastRound ? "text-primary" : "text-foreground"
+                      )}>
+                        {getRoundName(roundNumber, totalTeams)}
+                      </span>
+                    </div>
+                    
+                    {/* Matches */}
+                    <div 
+                      className="flex flex-col relative"
+                      style={{ 
+                        gap: `${verticalGap}px`,
+                        marginTop: `${topOffset}px`
+                      }}
+                    >
+                      {/* Lignes de connexion */}
+                      {!isLastRound && (
+                        <svg
+                          className="absolute left-full top-0 pointer-events-none"
+                          style={{
+                            width: "32px",
+                            height: "100%",
+                            overflow: "visible",
+                          }}
+                        >
+                          {roundMatches.map((_, matchIndex) => {
+                            if (matchIndex % 2 !== 0) return null;
+                            if (matchIndex + 1 >= roundMatches.length) return null;
+
+                            const totalHeight = matchHeight + verticalGap;
+                            const baseY = matchIndex * totalHeight;
+                            const y1 = baseY + matchHeight / 2;
+                            const y2 = baseY + totalHeight + matchHeight / 2;
                             const yMid = (y1 + y2) / 2;
-                            
+
                             return (
                               <g key={matchIndex} className="animate-fade-in">
-                                {/* Ligne horizontale du match 1 */}
-                                <line
-                                  x1="0"
-                                  y1={y1}
-                                  x2="12"
-                                  y2={y1}
-                                  stroke="hsl(var(--primary))"
-                                  strokeWidth="2"
-                                  opacity="0.3"
-                                />
-                                {/* Ligne horizontale du match 2 */}
-                                <line
-                                  x1="0"
-                                  y1={y2}
-                                  x2="12"
-                                  y2={y2}
-                                  stroke="hsl(var(--primary))"
-                                  strokeWidth="2"
-                                  opacity="0.3"
-                                />
-                                {/* Ligne verticale de connexion */}
-                                <line
-                                  x1="12"
-                                  y1={y1}
-                                  x2="12"
-                                  y2={y2}
-                                  stroke="hsl(var(--primary))"
-                                  strokeWidth="2"
-                                  opacity="0.3"
-                                />
-                                {/* Ligne horizontale vers le match suivant */}
-                                <line
-                                  x1="12"
-                                  y1={yMid}
-                                  x2="24"
-                                  y2={yMid}
-                                  stroke="hsl(var(--primary))"
-                                  strokeWidth="2"
-                                  opacity="0.3"
-                                />
+                                <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                                <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                                <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                                <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
                               </g>
                             );
-                          }
-                          return null;
-                        })}
-                      </svg>
-                    )}
-                     {roundMatches.map((match, matchIndex) => (
-                      <div key={match.id} className="animate-fade-in">
-                        <div className="text-center mb-0.5 space-y-0.5">
-                          <span className="text-[9px] font-semibold text-muted-foreground">
-                            M{matchNumberStart + matchIndex}
-                          </span>
-                          {match.field_number && (
-                            <div>
-                              <span className="text-[8px] text-primary/70 font-medium">
-                                T{match.field_number}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div
-                          className="w-full"
-                          onClick={() => {
+                          })}
+                        </svg>
+                      )}
+                      
+                      {roundMatches.map((match, matchIndex) => (
+                        <BracketMatch
+                          key={match.id}
+                          match={match}
+                          matchNumber={matchNumberStart + matchIndex}
+                          isEditing={editingMatchId === match.id}
+                          scores={scores[match.id] || { team1: "", team2: "" }}
+                          isClosed={isClosed}
+                          isFinal={isLastRound}
+                          onStartEdit={() => {
+                            setEditingMatchId(match.id);
+                            setScores({
+                              ...scores,
+                              [match.id]: {
+                                team1: match.team1_score?.toString() || "0",
+                                team2: match.team2_score?.toString() || "0"
+                              }
+                            });
+                          }}
+                          onCancelEdit={() => setEditingMatchId(null)}
+                          onSaveScore={() => handleScoreUpdate(match.id)}
+                          onScoreChange={(team, value) => setScores({
+                            ...scores,
+                            [match.id]: { ...scores[match.id], [team]: value }
+                          })}
+                          onMatchClick={() => {
                             if (!match.isPlaceholder) {
                               setSelectedMatch(match);
                               setStatsDialogOpen(true);
                             }
                           }}
-                          style={{ 
-                            cursor: match.isPlaceholder ? 'default' : 'pointer',
-                            opacity: match.isPlaceholder ? 0.5 : 1
+                          onIncrementScore={(teamId, teamName) => {
+                            setScoringTeam({ id: teamId, name: teamName, matchId: match.id });
+                            setGoalScorerDialogOpen(true);
                           }}
-                        >
-                          <BracketNode
-                            player1={match.team1?.name || 'TBD'}
-                            player2={match.team2?.name || 'TBD'}
-                            score1={match.team1_score ?? undefined}
-                            score2={match.team2_score ?? undefined}
-                            winner={
-                              match.winner_id === match.team1_id ? 1 :
-                              match.winner_id === match.team2_id ? 2 :
-                              undefined
-                            }
-                          />
-                        </div>
-                        {!match.isPlaceholder && match.team1 && match.team2 && (
-                          <div className="mt-0.5">
-                            {editingMatchId === match.id ? (
-                              <div className="flex gap-0.5 items-center justify-center">
-                                <ScoreInput
-                                  compact
-                                  value={parseInt(scores[match.id]?.team1 || "0")}
-                                  onChange={(value) => setScores({
-                                    ...scores,
-                                    [match.id]: { ...scores[match.id], team1: value.toString() }
-                                  })}
-                                  onIncrement={() => {
-                                    setScoringTeam({ 
-                                      id: match.team1_id, 
-                                      name: match.team1?.name || "TBD",
-                                      matchId: match.id
-                                    });
-                                    setGoalScorerDialogOpen(true);
-                                  }}
-                                  disabled={isClosed}
-                                />
-                                <span className="text-[8px] text-muted-foreground">-</span>
-                                <ScoreInput
-                                  compact
-                                  value={parseInt(scores[match.id]?.team2 || "0")}
-                                  onChange={(value) => setScores({
-                                    ...scores,
-                                    [match.id]: { ...scores[match.id], team2: value.toString() }
-                                  })}
-                                  onIncrement={() => {
-                                    setScoringTeam({ 
-                                      id: match.team2_id, 
-                                      name: match.team2?.name || "TBD",
-                                      matchId: match.id
-                                    });
-                                    setGoalScorerDialogOpen(true);
-                                  }}
-                                  disabled={isClosed}
-                                />
-                                <Button onClick={() => handleScoreUpdate(match.id)} size="sm" className="h-5 px-1.5 text-[10px]" disabled={isClosed}>
-                                  ✓
-                                </Button>
-                                <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm" className="h-5 px-1 text-[10px]">
-                                  ✗
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                onClick={() => {
-                                  setEditingMatchId(match.id);
-                                  setScores({
-                                    ...scores,
-                                    [match.id]: {
-                                      team1: match.team1_score?.toString() || "",
-                                      team2: match.team2_score?.toString() || ""
-                                    }
-                                  });
-                                }}
-                                variant="outline"
-                                size="sm"
-                                className="w-full h-5 text-[10px] py-0"
-                                disabled={isClosed}
-                              >
-                                {match.team1_score !== null ? "Modifier" : "Score"}
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                     ))}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+              
+              {/* Champion section si finale terminée */}
+              {bracketStructure.length > 0 && (() => {
+                const finalRound = bracketStructure[bracketStructure.length - 1];
+                const finalMatch = finalRound?.[0];
+                if (finalMatch?.winner_id) {
+                  const winner = finalMatch.winner_id === finalMatch.team1_id 
+                    ? finalMatch.team1 
+                    : finalMatch.team2;
+                  return (
+                    <div className="flex flex-col items-center justify-center" style={{ minWidth: "160px" }}>
+                      <div className="text-center mb-4 py-2 px-4 rounded-lg bg-yellow-500/20 border border-yellow-500/50">
+                        <span className="text-sm font-bold text-yellow-600 dark:text-yellow-400">
+                          🏆 Champion
+                        </span>
+                      </div>
+                      <Card className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-500/50 p-4 text-center">
+                        <Trophy className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                        <p className="font-bold text-lg">{winner?.name}</p>
+                      </Card>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
 
           {/* Match pour la 3ème place */}
           {thirdPlaceMatch && (
             <div className="mt-8 pt-6 border-t border-border">
-              <h3 className="text-sm font-bold text-primary text-center mb-4">
-                🥉 Match pour la 3ème place
-              </h3>
-              <div className="max-w-[200px] mx-auto">
-                <div className="text-center mb-0.5 space-y-0.5">
-                  <span className="text-[9px] font-semibold text-muted-foreground">
-                    M{matches.filter(m => !m.is_third_place_match).length + 1}
-                  </span>
-                  {thirdPlaceMatch.field_number && (
-                    <div>
-                      <span className="text-[8px] text-primary/70 font-medium">
-                        T{thirdPlaceMatch.field_number}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div
-                  className="cursor-pointer"
-                  onClick={() => {
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Medal className="h-5 w-5 text-amber-600" />
+                <h3 className="text-sm font-bold text-amber-600">
+                  Match pour la 3ème place
+                </h3>
+              </div>
+              <div className="max-w-[220px] mx-auto">
+                <BracketMatch
+                  match={thirdPlaceMatch}
+                  matchNumber={matches.filter(m => !m.is_third_place_match).length + 1}
+                  isEditing={editingMatchId === thirdPlaceMatch.id}
+                  scores={scores[thirdPlaceMatch.id] || { team1: "", team2: "" }}
+                  isClosed={isClosed}
+                  isFinal={false}
+                  onStartEdit={() => {
+                    setEditingMatchId(thirdPlaceMatch.id);
+                    setScores({
+                      ...scores,
+                      [thirdPlaceMatch.id]: {
+                        team1: thirdPlaceMatch.team1_score?.toString() || "0",
+                        team2: thirdPlaceMatch.team2_score?.toString() || "0"
+                      }
+                    });
+                  }}
+                  onCancelEdit={() => setEditingMatchId(null)}
+                  onSaveScore={() => handleScoreUpdate(thirdPlaceMatch.id)}
+                  onScoreChange={(team, value) => setScores({
+                    ...scores,
+                    [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], [team]: value }
+                  })}
+                  onMatchClick={() => {
                     setSelectedMatch(thirdPlaceMatch);
                     setStatsDialogOpen(true);
                   }}
-                >
-                  <BracketNode
-                    player1={thirdPlaceMatch.team1?.name || 'TBD'}
-                    player2={thirdPlaceMatch.team2?.name || 'TBD'}
-                    score1={thirdPlaceMatch.team1_score ?? undefined}
-                    score2={thirdPlaceMatch.team2_score ?? undefined}
-                    winner={
-                      thirdPlaceMatch.winner_id === thirdPlaceMatch.team1_id ? 1 :
-                      thirdPlaceMatch.winner_id === thirdPlaceMatch.team2_id ? 2 :
-                      undefined
-                    }
-                  />
-                </div>
-                {thirdPlaceMatch.team1 && thirdPlaceMatch.team2 && (
-                  <div className="mt-0.5">
-                    {editingMatchId === thirdPlaceMatch.id ? (
-                      <div className="flex gap-0.5 items-center justify-center">
-                        <ScoreInput
-                          compact
-                          value={parseInt(scores[thirdPlaceMatch.id]?.team1 || "0")}
-                          onChange={(value) => setScores({
-                            ...scores,
-                            [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], team1: value.toString() }
-                          })}
-                          onIncrement={() => {
-                            setScoringTeam({ 
-                              id: thirdPlaceMatch.team1_id, 
-                              name: thirdPlaceMatch.team1?.name || "TBD",
-                              matchId: thirdPlaceMatch.id
-                            });
-                            setGoalScorerDialogOpen(true);
-                          }}
-                          disabled={isClosed}
-                        />
-                        <span className="text-[8px] text-muted-foreground">-</span>
-                        <ScoreInput
-                          compact
-                          value={parseInt(scores[thirdPlaceMatch.id]?.team2 || "0")}
-                          onChange={(value) => setScores({
-                            ...scores,
-                            [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], team2: value.toString() }
-                          })}
-                          onIncrement={() => {
-                            setScoringTeam({ 
-                              id: thirdPlaceMatch.team2_id, 
-                              name: thirdPlaceMatch.team2?.name || "TBD",
-                              matchId: thirdPlaceMatch.id
-                            });
-                            setGoalScorerDialogOpen(true);
-                          }}
-                          disabled={isClosed}
-                        />
-                        <Button onClick={() => handleScoreUpdate(thirdPlaceMatch.id)} size="sm" className="h-5 px-1.5 text-[10px]" disabled={isClosed}>
-                          ✓
-                        </Button>
-                        <Button onClick={() => setEditingMatchId(null)} variant="ghost" size="sm" className="h-5 px-1 text-[10px]">
-                          ✗
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={() => {
-                          setEditingMatchId(thirdPlaceMatch.id);
-                          setScores({
-                            ...scores,
-                            [thirdPlaceMatch.id]: {
-                              team1: thirdPlaceMatch.team1_score?.toString() || "",
-                              team2: thirdPlaceMatch.team2_score?.toString() || ""
-                            }
-                          });
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="w-full h-5 text-[10px] py-0"
-                        disabled={isClosed}
-                      >
-                        {thirdPlaceMatch.team1_score !== null ? "Modifier" : "Score"}
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  onIncrementScore={(teamId, teamName) => {
+                    setScoringTeam({ id: teamId, name: teamName, matchId: thirdPlaceMatch.id });
+                    setGoalScorerDialogOpen(true);
+                  }}
+                />
               </div>
             </div>
           )}
