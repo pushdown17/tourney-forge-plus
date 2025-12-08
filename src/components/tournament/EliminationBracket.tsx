@@ -519,22 +519,23 @@ export const EliminationBracket = ({
                 const totalTeams = tournament?.teams_for_elimination || 8;
                 const isLastRound = roundIndex === bracketStructure.length - 1;
                 
-                // Dimensions - calcul pyramidal
-                const matchHeight = 90; // Hauteur d'un match
-                const baseGap = 16; // Écart entre les matchs du premier tour
+                // Dimensions - calcul pyramidal correct
+                // Le match du round N doit être centré entre les 2 matchs du round N-1
+                const matchHeight = 90;
+                const baseGap = 16;
+                const unit = matchHeight + baseGap; // 106px
                 
-                // Formule simple : chaque tour a un multiplicateur de 2^roundIndex
-                // Round 0: espacement = matchHeight + baseGap = 106
-                // Round 1: espacement = 106 * 2 = 212
-                // Round 2: espacement = 106 * 4 = 424
-                const spacing = (matchHeight + baseGap) * Math.pow(2, roundIndex);
-                const verticalGap = spacing - matchHeight; // L'écart entre les matchs
+                // Gap entre matchs de ce round
+                // Round 0: 16px (baseGap)
+                // Round 1: 106 * 2 - 90 = 122px (pour que M5 soit centré entre M1 et M2)
+                // Round 2: 106 * 4 - 90 = 334px
+                const verticalGap = unit * Math.pow(2, roundIndex) - matchHeight;
                 
-                // Décalage vertical pour centrer chaque match entre ses 2 sources
+                // Décalage du premier match pour centrer
                 // Round 0: 0
-                // Round 1: spacing/2 - matchHeight/2 = 106 - 45 = 61... non
-                // Plus simple: le premier match du round N commence à (spacing - matchHeight) / 2 par rapport au round 0
-                const topOffset = (spacing - matchHeight - baseGap) / 2;
+                // Round 1: 106 * (2-1) / 2 = 53px
+                // Round 2: 106 * (4-1) / 2 = 159px
+                const topOffset = unit * (Math.pow(2, roundIndex) - 1) / 2;
                 
                 // Numéro de match
                 let matchNumberStart = 1;
