@@ -77,6 +77,8 @@ export const EliminationBracket = ({
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
   const [goalScorerDialogOpen, setGoalScorerDialogOpen] = useState(false);
   const [scoringTeam, setScoringTeam] = useState<{ id: string; name: string; matchId: string } | null>(null);
+  const [recentlyCompletedMatchId, setRecentlyCompletedMatchId] = useState<string | null>(null);
+  const [recentlyAdvancedTeamIds, setRecentlyAdvancedTeamIds] = useState<string[]>([]);
   const [numberOfFields, setNumberOfFields] = useState(1);
 
   useEffect(() => {
@@ -245,6 +247,16 @@ export const EliminationBracket = ({
         .eq("id", matchId);
 
       if (error) throw error;
+
+      // Animation de célébration
+      setRecentlyCompletedMatchId(matchId);
+      setRecentlyAdvancedTeamIds([winnerId]);
+      
+      // Retirer l'animation après un délai
+      setTimeout(() => {
+        setRecentlyCompletedMatchId(null);
+        setRecentlyAdvancedTeamIds([]);
+      }, 2000);
 
       toast.success("Score mis à jour");
       setEditingMatchId(null);
@@ -592,6 +604,9 @@ export const EliminationBracket = ({
                           scores={scores[match.id] || { team1: "", team2: "" }}
                           isClosed={isClosed}
                           isFinal={isLastRound}
+                          isRecentlyCompleted={recentlyCompletedMatchId === match.id}
+                          advancedTeamId={recentlyAdvancedTeamIds.includes(match.team1_id) ? match.team1_id : 
+                                          recentlyAdvancedTeamIds.includes(match.team2_id) ? match.team2_id : undefined}
                           onStartEdit={() => {
                             setEditingMatchId(match.id);
                             setScores({
