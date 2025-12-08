@@ -322,7 +322,7 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
               {hasAnyStats && (
                 <span className="text-xs text-muted-foreground">
                   {stats.goals || 0}B {stats.assists || 0}P
-                  {hasFouls && <span className="ml-1">{stats.fouls}F</span>}
+                  {hasFouls && <span className="ml-1 text-yellow-600">{stats.fouls}F</span>}
                   {hasPenalties && <span className="ml-1 text-destructive">⚠</span>}
                 </span>
               )}
