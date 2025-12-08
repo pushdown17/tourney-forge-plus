@@ -31,6 +31,8 @@ interface BracketMatchProps {
   scores: { team1: string; team2: string };
   isClosed?: boolean;
   isFinal?: boolean;
+  isRecentlyCompleted?: boolean;
+  advancedTeamId?: string;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveScore: () => void;
@@ -46,6 +48,8 @@ export const BracketMatch = ({
   scores,
   isClosed = false,
   isFinal = false,
+  isRecentlyCompleted = false,
+  advancedTeamId,
   onStartEdit,
   onCancelEdit,
   onSaveScore,
@@ -77,11 +81,12 @@ export const BracketMatch = ({
       {/* Match card */}
       <Card
         className={cn(
-          "overflow-hidden transition-all duration-200",
+          "overflow-hidden transition-all duration-300",
           "bg-card/80 backdrop-blur-sm border-border/50",
           !isPlaceholder && "hover:shadow-md hover:border-primary/30 cursor-pointer",
           hasWinner && "ring-1 ring-primary/30",
-          isFinal && "ring-2 ring-yellow-500/50"
+          isFinal && "ring-2 ring-yellow-500/50",
+          isRecentlyCompleted && "animate-pulse ring-2 ring-primary shadow-lg shadow-primary/30"
         )}
         onClick={() => !isPlaceholder && onMatchClick()}
       >
@@ -89,8 +94,9 @@ export const BracketMatch = ({
         <div
           className={cn(
             "flex items-center justify-between px-3 py-2 border-b border-border/30",
-            "transition-colors",
-            match.winner_id === match.team1_id && "bg-primary/15"
+            "transition-all duration-500",
+            match.winner_id === match.team1_id && "bg-primary/15",
+            advancedTeamId === match.team1_id && "bg-primary/30 animate-[pulse_0.5s_ease-in-out_3]"
           )}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -119,8 +125,9 @@ export const BracketMatch = ({
         <div
           className={cn(
             "flex items-center justify-between px-3 py-2",
-            "transition-colors",
-            match.winner_id === match.team2_id && "bg-primary/15"
+            "transition-all duration-500",
+            match.winner_id === match.team2_id && "bg-primary/15",
+            advancedTeamId === match.team2_id && "bg-primary/30 animate-[pulse_0.5s_ease-in-out_3]"
           )}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
