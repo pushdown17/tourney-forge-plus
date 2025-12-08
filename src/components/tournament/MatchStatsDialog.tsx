@@ -155,14 +155,43 @@ export const MatchStatsDialog = ({
     }
   };
 
+  // Calculer les scores à partir des stats des joueurs
+  const team1Goals = team1Players.reduce((sum, player) => {
+    return sum + (playerStats[player.id]?.goals || 0);
+  }, 0);
+
+  const team2Goals = team2Players.reduce((sum, player) => {
+    return sum + (playerStats[player.id]?.goals || 0);
+  }, 0);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">
-            Statistiques du match : {match?.team1?.name} vs {match?.team2?.name}
+            Statistiques du match
           </DialogTitle>
         </DialogHeader>
+
+        {/* Score actuel du match */}
+        <Card className="p-4 bg-gradient-to-r from-primary/10 via-transparent to-primary/10">
+          <div className="flex items-center justify-center gap-4">
+            <div className="text-center flex-1">
+              <p className="font-semibold text-lg">{match?.team1?.name}</p>
+            </div>
+            <div className="flex items-center gap-3 px-6 py-2 bg-background rounded-lg">
+              <span className="text-3xl font-bold text-primary">{match?.team1_score ?? team1Goals}</span>
+              <span className="text-2xl text-muted-foreground">-</span>
+              <span className="text-3xl font-bold text-primary">{match?.team2_score ?? team2Goals}</span>
+            </div>
+            <div className="text-center flex-1">
+              <p className="font-semibold text-lg">{match?.team2?.name}</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            Le score se met à jour automatiquement selon les buts enregistrés
+          </p>
+        </Card>
 
         <Card className="p-4 bg-muted/30 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -182,7 +211,7 @@ export const MatchStatsDialog = ({
                   />
                 ))}
                 {team1Players.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Aucun joueur</p>
+                  <p className="text-sm text-muted-foreground">Aucun joueur enregistré</p>
                 )}
               </div>
             </div>
@@ -203,7 +232,7 @@ export const MatchStatsDialog = ({
                   />
                 ))}
                 {team2Players.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Aucun joueur</p>
+                  <p className="text-sm text-muted-foreground">Aucun joueur enregistré</p>
                 )}
               </div>
             </div>
