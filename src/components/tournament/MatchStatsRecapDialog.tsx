@@ -164,17 +164,27 @@ export const MatchStatsRecapDialog = ({
                       </Badge>
                     )}
                     {player.fouls > 0 && (
-                      <Badge variant="destructive" className="gap-1 text-xs bg-destructive/20 text-destructive border-destructive/30">
+                      <Badge variant="outline" className="gap-1 text-xs bg-yellow-500/20 text-yellow-600 border-yellow-500/30">
                         <AlertTriangle className="h-3 w-3" />
                         {player.fouls}
                       </Badge>
                     )}
-                    {getTotalPenalties(player) > 0 && (
+                    {player.penalty_30s > 0 && (
                       <Badge variant="destructive" className="gap-1 text-xs">
                         <Timer className="h-3 w-3" />
-                        {player.penalty_30s > 0 && `${player.penalty_30s}×30s`}
-                        {player.penalty_1m > 0 && ` ${player.penalty_1m}×1m`}
-                        {player.penalty_2m > 0 && ` ${player.penalty_2m}×2m`}
+                        {player.penalty_30s}×30sec
+                      </Badge>
+                    )}
+                    {player.penalty_1m > 0 && (
+                      <Badge variant="destructive" className="gap-1 text-xs">
+                        <Timer className="h-3 w-3" />
+                        {player.penalty_1m}×1min
+                      </Badge>
+                    )}
+                    {player.penalty_2m > 0 && (
+                      <Badge variant="destructive" className="gap-1 text-xs">
+                        <Timer className="h-3 w-3" />
+                        {player.penalty_2m}×2min
                       </Badge>
                     )}
                   </div>
