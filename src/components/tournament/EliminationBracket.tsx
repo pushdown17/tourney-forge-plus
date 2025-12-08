@@ -522,17 +522,21 @@ export const EliminationBracket = ({
                 // Dimensions - calcul pour centrer chaque match entre ses 2 matchs sources
                 const matchHeight = 90; // Hauteur estimée d'un match
                 const baseGap = 16; // Écart entre les matchs du premier tour
+                const unit = matchHeight + baseGap; // Unité de base (match + gap)
                 
-                // L'écart entre les matchs double à chaque tour
-                const verticalGap = baseGap * Math.pow(2, roundIndex);
+                // L'écart entre les matchs pour ce round
+                // Round 0: gap = baseGap (16)
+                // Round 1: gap = 2 * unit - matchHeight = 2 * 106 - 90 = 122
+                // Round 2: gap = 4 * unit - matchHeight = 4 * 106 - 90 = 334
+                const verticalGap = unit * Math.pow(2, roundIndex) - matchHeight;
                 
-                // Le décalage vertical pour centrer les matchs par rapport aux matchs du tour précédent
-                // Round 0: pas de décalage
-                // Round 1+: décaler pour que le match soit au milieu des 2 matchs sources
-                // Formule: (hauteur d'un match + gap) * (2^roundIndex - 1) / 2
+                // Le décalage vertical pour centrer les matchs
+                // Round 0: 0
+                // Round 1: (unit * 1) / 2 = 53
+                // Round 2: (unit * 3) / 2 = 159
                 const topOffset = roundIndex === 0 
                   ? 0 
-                  : (matchHeight + baseGap) * (Math.pow(2, roundIndex) - 1) / 2;
+                  : unit * (Math.pow(2, roundIndex) - 1) / 2;
                 
                 // Numéro de match
                 let matchNumberStart = 1;
