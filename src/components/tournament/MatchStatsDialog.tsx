@@ -26,6 +26,17 @@ export const MatchStatsDialog = ({
   const [team2Players, setTeam2Players] = useState<any[]>([]);
   const [playerStats, setPlayerStats] = useState<Record<string, any>>({});
   const [tournamentTeamPlayerMap, setTournamentTeamPlayerMap] = useState<Record<string, string>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+  const [localScores, setLocalScores] = useState({ team1: 0, team2: 0 });
+
+  // Gérer la fermeture du dialog - rafraîchir le parent seulement s'il y a eu des changements
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && hasChanges) {
+      onScoreUpdate();
+      setHasChanges(false);
+    }
+    onOpenChange(newOpen);
+  };
 
   useEffect(() => {
     if (open && match) {
@@ -179,23 +190,27 @@ export const MatchStatsDialog = ({
       .eq("id", match.id);
 
     if (!updateError) {
-      // Notifier le parent pour rafraîchir l'affichage
-      onScoreUpdate();
-      toast.success("Score mis à jour automatiquement");
+      // Marquer qu'il y a eu des changements (le parent sera rafraîchi à la fermeture)
+      setHasChanges(true);
+      setLocalScores({ team1: team1Goals, team2: team2Goals });
     }
   };
 
   // Calculer les scores à partir des stats des joueurs
-  const team1Goals = team1Players.reduce((sum, player) => {
+  const team1GoalsCalc = team1Players.reduce((sum, player) => {
     return sum + (playerStats[player.id]?.goals || 0);
   }, 0);
 
-  const team2Goals = team2Players.reduce((sum, player) => {
+  const team2GoalsCalc = team2Players.reduce((sum, player) => {
     return sum + (playerStats[player.id]?.goals || 0);
   }, 0);
+
+  // Utiliser les scores locaux s'ils ont été mis à jour, sinon les scores du match
+  const displayTeam1Score = hasChanges ? localScores.team1 : (match?.team1_score ?? team1GoalsCalc);
+  const displayTeam2Score = hasChanges ? localScores.team2 : (match?.team2_score ?? team2GoalsCalc);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">
@@ -210,9 +225,9 @@ export const MatchStatsDialog = ({
               <p className="font-semibold text-lg">{match?.team1?.name}</p>
             </div>
             <div className="flex items-center gap-3 px-6 py-2 bg-background rounded-lg">
-              <span className="text-3xl font-bold text-primary">{match?.team1_score ?? team1Goals}</span>
+              <span className="text-3xl font-bold text-primary">{displayTeam1Score}</span>
               <span className="text-2xl text-muted-foreground">-</span>
-              <span className="text-3xl font-bold text-primary">{match?.team2_score ?? team2Goals}</span>
+              <span className="text-3xl font-bold text-primary">{displayTeam2Score}</span>
             </div>
             <div className="text-center flex-1">
               <p className="font-semibold text-lg">{match?.team2?.name}</p>
