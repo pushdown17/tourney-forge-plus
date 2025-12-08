@@ -507,11 +507,20 @@ export const EliminationBracket = ({
                 const totalTeams = tournament?.teams_for_elimination || 8;
                 const isLastRound = roundIndex === bracketStructure.length - 1;
                 
-                // Dimensions
+                // Dimensions - calcul pour centrer chaque match entre ses 2 matchs sources
                 const matchHeight = 90; // Hauteur estimée d'un match
-                const baseGap = 16;
+                const baseGap = 16; // Écart entre les matchs du premier tour
+                
+                // L'écart entre les matchs double à chaque tour
                 const verticalGap = baseGap * Math.pow(2, roundIndex);
-                const topOffset = (verticalGap - baseGap) / 2 + (roundIndex > 0 ? matchHeight / 2 * (Math.pow(2, roundIndex) - 1) : 0);
+                
+                // Le décalage vertical pour centrer les matchs par rapport aux matchs du tour précédent
+                // Round 0: pas de décalage
+                // Round 1+: décaler pour que le match soit au milieu des 2 matchs sources
+                // Formule: (hauteur d'un match + gap) * (2^roundIndex - 1) / 2
+                const topOffset = roundIndex === 0 
+                  ? 0 
+                  : (matchHeight + baseGap) * (Math.pow(2, roundIndex) - 1) / 2;
                 
                 // Numéro de match
                 let matchNumberStart = 1;
