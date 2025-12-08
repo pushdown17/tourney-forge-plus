@@ -460,6 +460,34 @@ export const EliminationBracket = ({
     return structure;
   };
 
+  // Vérifier si un tour précédent est complété (tous les matchs ont un gagnant)
+  const isPreviousRoundCompleted = (roundNumber: number): boolean => {
+    if (roundNumber <= 1) return true; // Premier tour toujours accessible
+    
+    const previousRoundMatches = matches.filter(
+      m => m.round_number === roundNumber - 1 && !m.is_third_place_match
+    );
+    
+    // Si pas de matchs au tour précédent, c'est qu'ils ne sont pas encore générés
+    if (previousRoundMatches.length === 0) return false;
+    
+    // Tous les matchs du tour précédent doivent avoir un gagnant
+    return previousRoundMatches.every(m => m.winner_id !== null);
+  };
+
+  // Vérifier si les demi-finales sont terminées (pour le match de 3ème place)
+  const areSemiFinalsCompleted = (): boolean => {
+    const totalTeams = tournament?.teams_for_elimination || 8;
+    const totalRounds = Math.log2(totalTeams);
+    const semiFinalsRound = totalRounds - 1; // L'avant-dernier tour
+    
+    const semiFinalsMatches = matches.filter(
+      m => m.round_number === semiFinalsRound && !m.is_third_place_match
+    );
+    
+    return semiFinalsMatches.length === 2 && semiFinalsMatches.every(m => m.winner_id !== null);
+  };
+
   const bracketStructure = generateBracketStructure();
   
   // Récupérer le match pour la 3ème place s'il existe
@@ -592,46 +620,64 @@ export const EliminationBracket = ({
                         </svg>
                       )}
                       
-                      {roundMatches.map((match, matchIndex) => (
-                        <BracketMatch
-                          key={match.id}
-                          match={match}
-                          matchNumber={matchNumberStart + matchIndex}
-                          isEditing={editingMatchId === match.id}
-                          scores={scores[match.id] || { team1: "", team2: "" }}
-                          isClosed={isClosed}
-                          isFinal={isLastRound}
-                          isRecentlyCompleted={recentlyCompletedMatchId === match.id}
-                          advancedTeamId={recentlyAdvancedTeamIds.includes(match.team1_id) ? match.team1_id : 
-                                          recentlyAdvancedTeamIds.includes(match.team2_id) ? match.team2_id : undefined}
-                          onStartEdit={() => {
-                            setEditingMatchId(match.id);
-                            setScores({
-                              ...scores,
-                              [match.id]: {
-                                team1: match.team1_score?.toString() || "0",
-                                team2: match.team2_score?.toString() || "0"
+                      {roundMatches.map((match, matchIndex) => {
+                        const canAccessMatch = isPreviousRoundCompleted(roundNumber);
+                        const isLocked = !canAccessMatch && !match.winner_id;
+                        
+                        return (
+                          <BracketMatch
+                            key={match.id}
+                            match={match}
+                            matchNumber={matchNumberStart + matchIndex}
+                            isEditing={editingMatchId === match.id}
+                            scores={scores[match.id] || { team1: "", team2: "" }}
+                            isClosed={isClosed || isLocked}
+                            isFinal={isLastRound}
+                            isRecentlyCompleted={recentlyCompletedMatchId === match.id}
+                            advancedTeamId={recentlyAdvancedTeamIds.includes(match.team1_id) ? match.team1_id : 
+                                            recentlyAdvancedTeamIds.includes(match.team2_id) ? match.team2_id : undefined}
+                            isLocked={isLocked}
+                            onStartEdit={() => {
+                              if (isLocked) {
+                                toast.error("Terminez d'abord les matchs du tour précédent");
+                                return;
                               }
-                            });
-                          }}
-                          onCancelEdit={() => setEditingMatchId(null)}
-                          onSaveScore={() => handleScoreUpdate(match.id)}
-                          onScoreChange={(team, value) => setScores({
-                            ...scores,
-                            [match.id]: { ...scores[match.id], [team]: value }
-                          })}
-                          onMatchClick={() => {
-                            if (!match.isPlaceholder) {
-                              setSelectedMatch(match);
-                              setStatsDialogOpen(true);
-                            }
-                          }}
-                          onIncrementScore={(teamId, teamName) => {
-                            setScoringTeam({ id: teamId, name: teamName, matchId: match.id });
-                            setGoalScorerDialogOpen(true);
-                          }}
-                        />
-                      ))}
+                              setEditingMatchId(match.id);
+                              setScores({
+                                ...scores,
+                                [match.id]: {
+                                  team1: match.team1_score?.toString() || "0",
+                                  team2: match.team2_score?.toString() || "0"
+                                }
+                              });
+                            }}
+                            onCancelEdit={() => setEditingMatchId(null)}
+                            onSaveScore={() => handleScoreUpdate(match.id)}
+                            onScoreChange={(team, value) => setScores({
+                              ...scores,
+                              [match.id]: { ...scores[match.id], [team]: value }
+                            })}
+                            onMatchClick={() => {
+                              if (isLocked) {
+                                toast.error("Terminez d'abord les matchs du tour précédent");
+                                return;
+                              }
+                              if (!match.isPlaceholder) {
+                                setSelectedMatch(match);
+                                setStatsDialogOpen(true);
+                              }
+                            }}
+                            onIncrementScore={(teamId, teamName) => {
+                              if (isLocked) {
+                                toast.error("Terminez d'abord les matchs du tour précédent");
+                                return;
+                              }
+                              setScoringTeam({ id: teamId, name: teamName, matchId: match.id });
+                              setGoalScorerDialogOpen(true);
+                            }}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -674,38 +720,56 @@ export const EliminationBracket = ({
                 </h3>
               </div>
               <div className="max-w-[220px] mx-auto">
-                <BracketMatch
-                  match={thirdPlaceMatch}
-                  matchNumber={matches.filter(m => !m.is_third_place_match).length + 1}
-                  isEditing={editingMatchId === thirdPlaceMatch.id}
-                  scores={scores[thirdPlaceMatch.id] || { team1: "", team2: "" }}
-                  isClosed={isClosed}
-                  isFinal={false}
-                  onStartEdit={() => {
-                    setEditingMatchId(thirdPlaceMatch.id);
-                    setScores({
-                      ...scores,
-                      [thirdPlaceMatch.id]: {
-                        team1: thirdPlaceMatch.team1_score?.toString() || "0",
-                        team2: thirdPlaceMatch.team2_score?.toString() || "0"
-                      }
-                    });
-                  }}
-                  onCancelEdit={() => setEditingMatchId(null)}
-                  onSaveScore={() => handleScoreUpdate(thirdPlaceMatch.id)}
-                  onScoreChange={(team, value) => setScores({
-                    ...scores,
-                    [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], [team]: value }
-                  })}
-                  onMatchClick={() => {
-                    setSelectedMatch(thirdPlaceMatch);
-                    setStatsDialogOpen(true);
-                  }}
-                  onIncrementScore={(teamId, teamName) => {
-                    setScoringTeam({ id: teamId, name: teamName, matchId: thirdPlaceMatch.id });
-                    setGoalScorerDialogOpen(true);
-                  }}
-                />
+                {(() => {
+                  const thirdPlaceLocked = !areSemiFinalsCompleted() && !thirdPlaceMatch.winner_id;
+                  return (
+                    <BracketMatch
+                      match={thirdPlaceMatch}
+                      matchNumber={matches.filter(m => !m.is_third_place_match).length + 1}
+                      isEditing={editingMatchId === thirdPlaceMatch.id}
+                      scores={scores[thirdPlaceMatch.id] || { team1: "", team2: "" }}
+                      isClosed={isClosed || thirdPlaceLocked}
+                      isFinal={false}
+                      isLocked={thirdPlaceLocked}
+                      onStartEdit={() => {
+                        if (thirdPlaceLocked) {
+                          toast.error("Terminez d'abord les demi-finales");
+                          return;
+                        }
+                        setEditingMatchId(thirdPlaceMatch.id);
+                        setScores({
+                          ...scores,
+                          [thirdPlaceMatch.id]: {
+                            team1: thirdPlaceMatch.team1_score?.toString() || "0",
+                            team2: thirdPlaceMatch.team2_score?.toString() || "0"
+                          }
+                        });
+                      }}
+                      onCancelEdit={() => setEditingMatchId(null)}
+                      onSaveScore={() => handleScoreUpdate(thirdPlaceMatch.id)}
+                      onScoreChange={(team, value) => setScores({
+                        ...scores,
+                        [thirdPlaceMatch.id]: { ...scores[thirdPlaceMatch.id], [team]: value }
+                      })}
+                      onMatchClick={() => {
+                        if (thirdPlaceLocked) {
+                          toast.error("Terminez d'abord les demi-finales");
+                          return;
+                        }
+                        setSelectedMatch(thirdPlaceMatch);
+                        setStatsDialogOpen(true);
+                      }}
+                      onIncrementScore={(teamId, teamName) => {
+                        if (thirdPlaceLocked) {
+                          toast.error("Terminez d'abord les demi-finales");
+                          return;
+                        }
+                        setScoringTeam({ id: teamId, name: teamName, matchId: thirdPlaceMatch.id });
+                        setGoalScorerDialogOpen(true);
+                      }}
+                    />
+                  );
+                })()}
               </div>
             </div>
           )}
