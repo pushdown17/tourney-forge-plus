@@ -813,7 +813,13 @@ export const EliminationBracket = ({
           tournamentId={tournamentId}
           open={statsDialogOpen}
           onOpenChange={setStatsDialogOpen}
-          onScoreUpdate={fetchTournamentAndMatches}
+          onScoreUpdate={async () => {
+            await fetchTournamentAndMatches();
+            // Vérifier si le tour suivant doit être généré
+            if (selectedMatch) {
+              await checkAndGenerateNextRound(selectedMatch.round_number);
+            }
+          }}
         />
       )}
 
