@@ -10,6 +10,16 @@ import { toast } from "sonner";
 import { Trophy, Medal } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Team {
   id: string;
@@ -82,6 +92,11 @@ export const EliminationBracket = ({
   const [recentlyAdvancedTeamIds, setRecentlyAdvancedTeamIds] = useState<string[]>([]);
   const [numberOfFields, setNumberOfFields] = useState(1);
   const [recapDialogOpen, setRecapDialogOpen] = useState(false);
+  const [thirdPlaceDialogOpen, setThirdPlaceDialogOpen] = useState(false);
+  const [pendingFinalMatches, setPendingFinalMatches] = useState<{
+    finale: any;
+    thirdPlace: any;
+  } | null>(null);
 
   useEffect(() => {
     fetchTournamentAndMatches();
@@ -348,28 +363,43 @@ export const EliminationBracket = ({
              (m.team1_id === loser2 && m.team2_id === loser1))
           );
 
-          if (!finaleExists) {
-            matchesToCreate.push({
-              tournament_id: tournamentId,
-              phase: currentPhase as any,
-              round_number: completedRound + 1,
-              team1_id: match1.winner_id,
-              team2_id: match2.winner_id,
-              is_third_place_match: false,
-              field_number: 1,
-            });
+          // Si la finale existe déjà, ne rien faire
+          if (finaleExists) {
+            continue;
           }
 
+          // Préparer les matchs finale et 3ème place
+          const finaleMatch = {
+            tournament_id: tournamentId,
+            phase: currentPhase as any,
+            round_number: completedRound + 1,
+            team1_id: match1.winner_id,
+            team2_id: match2.winner_id,
+            is_third_place_match: false,
+            field_number: 1,
+          };
+
+          const thirdPlaceMatch = {
+            tournament_id: tournamentId,
+            phase: currentPhase as any,
+            round_number: completedRound + 1,
+            team1_id: loser1,
+            team2_id: loser2,
+            is_third_place_match: true,
+            field_number: 2,
+          };
+
+          // Si le match de 3ème place n'existe pas encore, demander confirmation
           if (!thirdPlaceExists) {
-            matchesToCreate.push({
-              tournament_id: tournamentId,
-              phase: currentPhase as any,
-              round_number: completedRound + 1,
-              team1_id: loser1,
-              team2_id: loser2,
-              is_third_place_match: true,
-              field_number: 2,
+            setPendingFinalMatches({
+              finale: finaleMatch,
+              thirdPlace: thirdPlaceMatch,
             });
+            setThirdPlaceDialogOpen(true);
+            return; // Arrêter ici, la création sera faite après la réponse de l'utilisateur
+          } else {
+            // Le match de 3ème place existe déjà (peut-être refusé), créer juste la finale
+            matchesToCreate.push(finaleMatch);
           }
         } else {
           // Pour les autres tours : créer le match du tour suivant pour cette paire
@@ -405,6 +435,37 @@ export const EliminationBracket = ({
       }
     } catch (error: any) {
       console.error("Erreur lors de la génération du tour suivant:", error);
+    }
+  };
+
+  const handleThirdPlaceConfirmation = async (includeThirdPlace: boolean) => {
+    if (!pendingFinalMatches) return;
+    
+    try {
+      const matchesToInsert = [pendingFinalMatches.finale];
+      
+      if (includeThirdPlace) {
+        matchesToInsert.push(pendingFinalMatches.thirdPlace);
+      }
+
+      const { error: insertError } = await supabase
+        .from("matches")
+        .insert(matchesToInsert);
+
+      if (insertError) throw insertError;
+
+      const message = includeThirdPlace 
+        ? "Finale et match pour la 3ème place générés !"
+        : "Finale générée !";
+      
+      toast.success(message);
+      await fetchTournamentAndMatches();
+    } catch (error: any) {
+      console.error("Erreur lors de la création des matchs:", error);
+      toast.error("Erreur lors de la création des matchs");
+    } finally {
+      setThirdPlaceDialogOpen(false);
+      setPendingFinalMatches(null);
     }
   };
 
@@ -845,6 +906,28 @@ export const EliminationBracket = ({
           }}
         />
       )}
+
+      <AlertDialog open={thirdPlaceDialogOpen} onOpenChange={setThirdPlaceDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Medal className="h-5 w-5 text-amber-600" />
+              Match pour la 3ème place
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous organiser un match pour la 3ème place entre les perdants des demi-finales ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleThirdPlaceConfirmation(false)}>
+              Non, juste la finale
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleThirdPlaceConfirmation(true)}>
+              Oui, organiser le match
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
