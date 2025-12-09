@@ -358,7 +358,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
       {/* All Matches */}
       <Card className="glass-card p-6">
         <h2 className="text-2xl font-bold mb-4">Tous les matchs</h2>
-        <div className="space-y-4">
+        <div className="space-y-6">
           {Object.entries(
             matches.reduce((acc, match) => {
               const phase = getPhaseLabel(match.phase);
@@ -366,34 +366,58 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
               acc[phase].push(match);
               return acc;
             }, {} as Record<string, Match[]>)
-          ).map(([phase, phaseMatches]) => (
-            <div key={phase}>
-              <h3 className="text-lg font-semibold mb-3 text-primary">{phase}</h3>
-              <div className="grid gap-2">
-                {phaseMatches.map((match) => (
-                  <div
-                    key={match.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
-                  >
-                    <span className="text-sm text-muted-foreground w-24">
-                      {getRoundLabel(match)}
-                    </span>
-                    <div className="flex items-center gap-4 flex-1 justify-center">
-                      <span className={`font-medium text-right flex-1 ${match.team1_score !== null && match.team2_score !== null && match.team1_score > match.team2_score ? "text-primary" : ""}`}>
-                        {match.team1_name}
-                      </span>
-                      <span className="font-bold bg-background px-3 py-1 rounded">
-                        {match.team1_score ?? "-"} - {match.team2_score ?? "-"}
-                      </span>
-                      <span className={`font-medium text-left flex-1 ${match.team1_score !== null && match.team2_score !== null && match.team2_score > match.team1_score ? "text-primary" : ""}`}>
-                        {match.team2_name}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+          ).map(([phase, phaseMatches]) => {
+            // Group matches by round within each phase
+            const matchesByRound = phaseMatches.reduce((acc, match) => {
+              const round = match.round_number;
+              if (!acc[round]) acc[round] = [];
+              acc[round].push(match);
+              return acc;
+            }, {} as Record<number, Match[]>);
+
+            return (
+              <div key={phase}>
+                <h3 className="text-lg font-semibold mb-3 text-primary">{phase}</h3>
+                <div className="space-y-4">
+                  {Object.entries(matchesByRound).map(([roundNum, roundMatches], roundIndex) => {
+                    // Alternate colors: even rounds get lighter bg, odd rounds get darker
+                    const isEvenRound = roundIndex % 2 === 0;
+                    const bgClass = isEvenRound 
+                      ? "bg-primary/10 border-l-4 border-l-primary/40" 
+                      : "bg-muted/40 border-l-4 border-l-muted-foreground/30";
+                    
+                    return (
+                      <div key={roundNum} className={`rounded-lg p-3 ${bgClass}`}>
+                        <div className="text-sm font-semibold mb-2 text-muted-foreground">
+                          {getRoundLabel(roundMatches[0])}
+                        </div>
+                        <div className="grid gap-2">
+                          {roundMatches.map((match) => (
+                            <div
+                              key={match.id}
+                              className="flex items-center justify-between p-3 rounded-lg bg-background/80"
+                            >
+                              <div className="flex items-center gap-4 flex-1 justify-center">
+                                <span className={`font-medium text-right flex-1 ${match.team1_score !== null && match.team2_score !== null && match.team1_score > match.team2_score ? "text-primary font-bold" : ""}`}>
+                                  {match.team1_name}
+                                </span>
+                                <span className="font-bold bg-muted px-3 py-1 rounded">
+                                  {match.team1_score ?? "-"} - {match.team2_score ?? "-"}
+                                </span>
+                                <span className={`font-medium text-left flex-1 ${match.team1_score !== null && match.team2_score !== null && match.team2_score > match.team1_score ? "text-primary font-bold" : ""}`}>
+                                  {match.team2_name}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
     </div>
