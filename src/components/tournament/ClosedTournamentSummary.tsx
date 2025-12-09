@@ -47,6 +47,16 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
   const [playerStats, setPlayerStats] = useState<PlayerStat[]>([]);
   const [champion, setChampion] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+
+  const handleTeamClick = (teamName: string) => {
+    setSelectedTeam(selectedTeam === teamName ? null : teamName);
+  };
+
+  const isMatchHighlighted = (match: Match) => {
+    if (!selectedTeam) return false;
+    return match.team1_name === selectedTeam || match.team2_name === selectedTeam;
+  };
 
   useEffect(() => {
     fetchAllData();
@@ -278,9 +288,15 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
           </TableHeader>
           <TableBody>
             {standings.map((stat, index) => (
-              <TableRow key={stat.team_id}>
+              <TableRow 
+                key={stat.team_id}
+                className={`cursor-pointer transition-colors hover:bg-muted/50 ${selectedTeam === stat.team_name ? "bg-primary/20 hover:bg-primary/30" : ""}`}
+                onClick={() => handleTeamClick(stat.team_name)}
+              >
                 <TableCell className="font-medium">{index + 1}</TableCell>
-                <TableCell className="font-bold">{stat.team_name}</TableCell>
+                <TableCell className={`font-bold ${selectedTeam === stat.team_name ? "text-primary" : ""}`}>
+                  {stat.team_name}
+                </TableCell>
                 <TableCell className="text-center">{stat.wins + stat.draws + stat.losses}</TableCell>
                 <TableCell className="text-center">{stat.wins}</TableCell>
                 <TableCell className="text-center">{stat.draws}</TableCell>
@@ -392,24 +408,37 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
                           {getRoundLabel(roundMatches[0])}
                         </div>
                         <div className="grid gap-2">
-                          {roundMatches.map((match) => (
-                            <div
-                              key={match.id}
-                              className="flex items-center justify-between p-3 rounded-lg bg-background/80"
-                            >
-                              <div className="flex items-center gap-4 flex-1 justify-center">
-                                <span className={`font-medium text-right flex-1 ${match.team1_score !== null && match.team2_score !== null && match.team1_score > match.team2_score ? "text-primary font-bold" : ""}`}>
-                                  {match.team1_name}
-                                </span>
-                                <span className="font-bold bg-muted px-3 py-1 rounded">
-                                  {match.team1_score ?? "-"} - {match.team2_score ?? "-"}
-                                </span>
-                                <span className={`font-medium text-left flex-1 ${match.team1_score !== null && match.team2_score !== null && match.team2_score > match.team1_score ? "text-primary font-bold" : ""}`}>
-                                  {match.team2_name}
-                                </span>
+                          {roundMatches.map((match) => {
+                            const highlighted = isMatchHighlighted(match);
+                            return (
+                              <div
+                                key={match.id}
+                                className={`flex items-center justify-between p-3 rounded-lg transition-all ${
+                                  highlighted 
+                                    ? "bg-primary/30 ring-2 ring-primary shadow-lg" 
+                                    : selectedTeam 
+                                      ? "bg-background/40 opacity-50" 
+                                      : "bg-background/80"
+                                }`}
+                              >
+                                <div className="flex items-center gap-4 flex-1 justify-center">
+                                  <span className={`font-medium text-right flex-1 ${
+                                    highlighted && match.team1_name === selectedTeam ? "text-primary font-bold" : ""
+                                  } ${match.team1_score !== null && match.team2_score !== null && match.team1_score > match.team2_score ? "text-primary font-bold" : ""}`}>
+                                    {match.team1_name}
+                                  </span>
+                                  <span className="font-bold bg-muted px-3 py-1 rounded">
+                                    {match.team1_score ?? "-"} - {match.team2_score ?? "-"}
+                                  </span>
+                                  <span className={`font-medium text-left flex-1 ${
+                                    highlighted && match.team2_name === selectedTeam ? "text-primary font-bold" : ""
+                                  } ${match.team1_score !== null && match.team2_score !== null && match.team2_score > match.team1_score ? "text-primary font-bold" : ""}`}>
+                                    {match.team2_name}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );
