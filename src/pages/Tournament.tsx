@@ -16,6 +16,17 @@ import { EliminationBracket } from "@/components/tournament/EliminationBracket";
 import { StandingsTable } from "@/components/tournament/StandingsTable";
 import { TeamHistory } from "@/components/tournament/TeamHistory";
 import { PlayerRankings } from "@/components/tournament/PlayerRankings";
+import { ClosedTournamentSummary } from "@/components/tournament/ClosedTournamentSummary";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Tournament = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +34,7 @@ const Tournament = () => {
   const [loading, setLoading] = useState(true);
   const [isCreator, setIsCreator] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
   const fetchTournament = async () => {
     try {
@@ -45,10 +57,21 @@ const Tournament = () => {
     }
   };
 
+  const handleCloseClick = () => {
+    if (tournament.is_closed) {
+      // Reopen directly
+      toggleTournamentStatus();
+    } else {
+      // Show confirmation dialog
+      setCloseDialogOpen(true);
+    }
+  };
+
   const toggleTournamentStatus = async () => {
     if (!isCreator) return;
     
     setUpdatingStatus(true);
+    setCloseDialogOpen(false);
     try {
       const { error } = await supabase
         .from("tournaments")
@@ -101,6 +124,24 @@ const Tournament = () => {
     );
   }
 
+  // Show summary view for closed tournaments (for non-creators)
+  if (tournament.is_closed && !isCreator) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
+        <Navigation />
+        <main className="container mx-auto px-4 pt-24 pb-16">
+          <Link to="/">
+            <Button variant="ghost" className="mb-6 hover-scale">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Retour
+            </Button>
+          </Link>
+          <ClosedTournamentSummary tournament={tournament} />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
       <Navigation />
@@ -146,7 +187,7 @@ const Tournament = () => {
               </div>
               {isCreator && (
                 <Button
-                  onClick={toggleTournamentStatus}
+                  onClick={handleCloseClick}
                   disabled={updatingStatus}
                   variant={tournament.is_closed ? "default" : "destructive"}
                   className="whitespace-nowrap"
@@ -264,6 +305,26 @@ const Tournament = () => {
             <TeamHistory tournamentId={id!} />
           </TabsContent>
         </Tabs>
+
+        {/* Close Tournament Confirmation Dialog */}
+        <AlertDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clôturer le tournoi ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Cette action va clôturer définitivement le tournoi. Le tournoi sera alors en lecture seule et affiché sous forme de résumé synthétique pour les visiteurs.
+                <br /><br />
+                Vous pourrez toujours rouvrir le tournoi si nécessaire.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={toggleTournamentStatus} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Clôturer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
