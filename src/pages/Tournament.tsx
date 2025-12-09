@@ -15,6 +15,7 @@ import { SwissManager } from "@/components/tournament/SwissManager";
 import { EliminationBracket } from "@/components/tournament/EliminationBracket";
 import { StandingsTable } from "@/components/tournament/StandingsTable";
 import { TeamHistory } from "@/components/tournament/TeamHistory";
+import { PlayerRankings } from "@/components/tournament/PlayerRankings";
 
 const Tournament = () => {
   const { id } = useParams<{ id: string }>();
@@ -169,7 +170,7 @@ const Tournament = () => {
 
         <Tabs defaultValue="teams" className="space-y-6 animate-scale-in">
           <div className="overflow-x-auto -mx-4 px-4">
-            <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-5 h-auto p-1 bg-muted/50">
+            <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-6 h-auto p-1 bg-muted/50">
               <TabsTrigger 
                 value="teams" 
                 className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
@@ -193,6 +194,12 @@ const Tournament = () => {
                 className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
               >
                 Classement
+              </TabsTrigger>
+              <TabsTrigger 
+                value="stats" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
+              >
+                Stats
               </TabsTrigger>
               <TabsTrigger 
                 value="history" 
@@ -247,6 +254,10 @@ const Tournament = () => {
 
           <TabsContent value="standings" className="animate-fade-in">
             <StandingsTable tournamentId={id!} />
+          </TabsContent>
+
+          <TabsContent value="stats" className="animate-fade-in">
+            <PlayerRankings tournamentId={id!} />
           </TabsContent>
 
           <TabsContent value="history" className="animate-fade-in">
