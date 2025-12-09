@@ -197,7 +197,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
       if (match.round_number === maxRound - 2) return "Quart de finale";
       return `Tour ${match.round_number}`;
     }
-    return `Journée ${match.round_number}`;
+    return `Round ${match.round_number}`;
   };
 
   if (loading) {
