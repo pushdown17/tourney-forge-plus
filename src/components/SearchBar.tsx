@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Trophy, User, Calendar, Target } from "lucide-react";
+import { Search, Trophy, User, Calendar, Target, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 type Tournament = {
@@ -13,6 +13,7 @@ type Tournament = {
   start_date: string;
   end_date: string;
   current_phase: string;
+  is_closed: boolean;
 };
 
 type PlayerResult = {
@@ -47,7 +48,7 @@ export const SearchBar = () => {
       // Search tournaments
       const { data: tournamentsData, error: tournamentsError } = await supabase
         .from("tournaments")
-        .select("id, name, start_date, end_date, current_phase")
+        .select("id, name, start_date, end_date, current_phase, is_closed")
         .ilike("name", `%${searchQuery}%`)
         .limit(5);
 
@@ -145,7 +146,15 @@ export const SearchBar = () => {
                         onClick={() => setShowResults(false)}
                       >
                         <Card className="p-3 hover:bg-primary/10 transition-colors cursor-pointer">
-                          <div className="font-medium">{tournament.name}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{tournament.name}</span>
+                            {tournament.is_closed && (
+                              <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                                <Lock className="h-3 w-3" />
+                                Clôturé
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                             <Calendar className="h-3 w-3" />
                             <span>
