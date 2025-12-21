@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Trophy, Medal, Users, Target, Calendar, Lock } from "lucide-react";
+import { MatchStatsViewDialog } from "./MatchStatsViewDialog";
 
 interface ClosedTournamentSummaryProps {
   tournament: any;
@@ -48,6 +49,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
   const [champion, setChampion] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   const handleTeamClick = (teamName: string) => {
     setSelectedTeam(selectedTeam === teamName ? null : teamName);
@@ -450,9 +452,16 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
                                   >
                                     {match.team1_name}
                                   </button>
-                                  <span className="font-bold bg-muted px-3 py-1 rounded">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedMatch(match);
+                                    }}
+                                    className="font-bold bg-muted px-3 py-1 rounded hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+                                    title="Voir les détails du match"
+                                  >
                                     {match.team1_score ?? "-"} - {match.team2_score ?? "-"}
-                                  </span>
+                                  </button>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -478,6 +487,20 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
           })}
         </div>
       </Card>
+
+      {/* Match Stats Dialog */}
+      {selectedMatch && (
+        <MatchStatsViewDialog
+          matchId={selectedMatch.id}
+          team1Name={selectedMatch.team1_name}
+          team2Name={selectedMatch.team2_name}
+          team1Score={selectedMatch.team1_score}
+          team2Score={selectedMatch.team2_score}
+          tournamentId={tournament.id}
+          open={!!selectedMatch}
+          onOpenChange={(open) => !open && setSelectedMatch(null)}
+        />
+      )}
     </div>
   );
 };
