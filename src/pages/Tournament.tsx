@@ -279,7 +279,7 @@ const Tournament = () => {
 
           <TabsContent value="matches" className="animate-fade-in">
             {(tournament.initial_phase === "swiss" || tournament.current_phase === "swiss") ? (
-              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} />
+              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} />
             ) : (
               <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} />
             )}

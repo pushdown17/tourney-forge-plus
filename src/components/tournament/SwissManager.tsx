@@ -27,9 +27,10 @@ interface SwissManagerProps {
   tournamentId: string;
   isClosed?: boolean;
   currentPhase?: string;
+  isCreator?: boolean;
 }
 
-export const SwissManager = ({ tournamentId, isClosed = false, currentPhase }: SwissManagerProps) => {
+export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false }: SwissManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -339,7 +340,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase }: S
                 Round suivant
               </Button>
             )}
-            {currentRound === maxRound && (
+            {currentRound === maxRound && isCreator && (
               <Button 
                 onClick={generateSwissRound} 
                 disabled={loading || (matches.length > 0 && !canGenerateNextRound()) || isClosed || (currentPhase && currentPhase !== "swiss")}
@@ -399,6 +400,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase }: S
                     onScoreUpdate={updateScore}
                     isClosed={isClosed}
                     isLockedByPreviousMatch={isLockedByPreviousMatch}
+                    isCreator={isCreator}
                   />
                 );
               })}
@@ -433,9 +435,10 @@ interface MatchCardProps {
   onScoreUpdate: (matchId: string, team1Score: number, team2Score: number) => void;
   isClosed?: boolean;
   isLockedByPreviousMatch?: boolean;
+  isCreator?: boolean;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLockedByPreviousMatch = false }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLockedByPreviousMatch = false, isCreator = false }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -705,7 +708,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
                 setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Équipe 1" });
                 setGoalScorerDialogOpen(true);
               }}
-              disabled={isClosed || isLockedByPreviousMatch}
+              disabled={isClosed || isLockedByPreviousMatch || !isCreator}
             />
           </div>
           <span className="text-muted-foreground font-bold">vs</span>
@@ -720,117 +723,123 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
                 setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Équipe 2" });
                 setGoalScorerDialogOpen(true);
               }}
-              disabled={isClosed || isLockedByPreviousMatch}
+              disabled={isClosed || isLockedByPreviousMatch || !isCreator}
             />
             <span className="font-medium flex-1 text-right">{match.team2?.name || "Équipe 2"}</span>
           </div>
         </div>
 
         {/* Onglets stats rapides */}
-        <div className="flex flex-wrap gap-2 justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setQuickStatType("assists");
-              setQuickStatTeam(null);
-              setQuickStatDialogOpen(true);
-            }}
-            disabled={isClosed || isLockedByPreviousMatch}
-            className="text-xs"
-          >
-            Passes
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setQuickStatType("fouls");
-              setQuickStatTeam(null);
-              setQuickStatDialogOpen(true);
-            }}
-            disabled={isClosed || isLockedByPreviousMatch}
-            className="text-xs"
-          >
-            Fautes
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setQuickStatType("penalty_30s");
-              setQuickStatTeam(null);
-              setQuickStatDialogOpen(true);
-            }}
-            disabled={isClosed || isLockedByPreviousMatch}
-            className="text-xs"
-          >
-            30 sec
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setQuickStatType("penalty_1m");
-              setQuickStatTeam(null);
-              setQuickStatDialogOpen(true);
-            }}
-            disabled={isClosed || isLockedByPreviousMatch}
-            className="text-xs"
-          >
-            1 min
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setQuickStatType("penalty_2m");
-              setQuickStatTeam(null);
-              setQuickStatDialogOpen(true);
-            }}
-            disabled={isClosed || isLockedByPreviousMatch}
-            className="text-xs"
-          >
-            2 min
-          </Button>
-        </div>
-
-        <div className="flex gap-2 justify-end">
-            {isEditing && (
-              <Button
-                onClick={() => {
-                  setTeam1Score(match.team1_score ?? 0);
-                  setTeam2Score(match.team2_score ?? 0);
-                  setIsEditing(false);
-                }}
-                size="sm"
-                variant="outline"
-              >
-                Annuler
-              </Button>
-            )}
+        {isCreator && (
+          <div className="flex flex-wrap gap-2 justify-center">
             <Button
-              onClick={handleValidateScore}
+              variant="outline"
               size="sm"
+              onClick={() => {
+                setQuickStatType("assists");
+                setQuickStatTeam(null);
+                setQuickStatDialogOpen(true);
+              }}
               disabled={isClosed || isLockedByPreviousMatch}
+              className="text-xs"
             >
-              Valider
+              Passes
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuickStatType("fouls");
+                setQuickStatTeam(null);
+                setQuickStatDialogOpen(true);
+              }}
+              disabled={isClosed || isLockedByPreviousMatch}
+              className="text-xs"
+            >
+              Fautes
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuickStatType("penalty_30s");
+                setQuickStatTeam(null);
+                setQuickStatDialogOpen(true);
+              }}
+              disabled={isClosed || isLockedByPreviousMatch}
+              className="text-xs"
+            >
+              30 sec
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuickStatType("penalty_1m");
+                setQuickStatTeam(null);
+                setQuickStatDialogOpen(true);
+              }}
+              disabled={isClosed || isLockedByPreviousMatch}
+              className="text-xs"
+            >
+              1 min
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuickStatType("penalty_2m");
+                setQuickStatTeam(null);
+                setQuickStatDialogOpen(true);
+              }}
+              disabled={isClosed || isLockedByPreviousMatch}
+              className="text-xs"
+            >
+              2 min
             </Button>
           </div>
-        </div>
+        )}
 
-      <CollapsibleTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="w-full justify-center gap-2"
-          disabled={isClosed || isLockedByPreviousMatch}
-        >
-          <Users className="h-4 w-4" />
-          Statistiques des joueurs
-          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </Button>
-      </CollapsibleTrigger>
+        {isCreator && (
+          <div className="flex gap-2 justify-end">
+              {isEditing && (
+                <Button
+                  onClick={() => {
+                    setTeam1Score(match.team1_score ?? 0);
+                    setTeam2Score(match.team2_score ?? 0);
+                    setIsEditing(false);
+                  }}
+                  size="sm"
+                  variant="outline"
+                >
+                  Annuler
+                </Button>
+              )}
+              <Button
+                onClick={handleValidateScore}
+                size="sm"
+                disabled={isClosed || isLockedByPreviousMatch}
+              >
+                Valider
+              </Button>
+            </div>
+        )}
+      </div>
+
+      {isCreator && (
+        <CollapsibleTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full justify-center gap-2"
+            disabled={isClosed || isLockedByPreviousMatch}
+          >
+            <Users className="h-4 w-4" />
+            Statistiques des joueurs
+            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+        </CollapsibleTrigger>
+      )}
 
       <CollapsibleContent>
         <Card className="p-4 bg-muted/30 space-y-4">
