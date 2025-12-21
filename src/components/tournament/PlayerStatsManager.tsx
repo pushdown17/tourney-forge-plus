@@ -13,6 +13,7 @@ import { Trophy, Target, AlertTriangle, Clock, Plus, Edit } from "lucide-react";
 interface PlayerStatsManagerProps {
   tournamentId: string;
   isClosed?: boolean;
+  isCreator?: boolean;
 }
 
 interface PlayerWithStats {
@@ -27,7 +28,7 @@ interface PlayerWithStats {
   totalPenalty2m: number;
 }
 
-export const PlayerStatsManager = ({ tournamentId, isClosed = false }: PlayerStatsManagerProps) => {
+export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator = false }: PlayerStatsManagerProps) => {
   const [players, setPlayers] = useState<PlayerWithStats[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -252,13 +253,14 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false }: PlayerSta
             </p>
           </div>
           
-          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setShowAddDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter des stats
-              </Button>
-            </DialogTrigger>
+          {isCreator && (
+            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setShowAddDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter des stats
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Ajouter des statistiques</DialogTitle>
@@ -397,6 +399,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false }: PlayerSta
               </form>
             </DialogContent>
           </Dialog>
+          )}
         </div>
 
         {loading ? (
