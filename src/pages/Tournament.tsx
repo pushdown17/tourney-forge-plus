@@ -270,7 +270,7 @@ const Tournament = () => {
               </TabsContent>
 
               <TabsContent value="player-stats">
-                <PlayerStatsManager tournamentId={id!} isClosed={tournament.is_closed} />
+                <PlayerStatsManager tournamentId={id!} isClosed={tournament.is_closed} isCreator={isCreator} />
               </TabsContent>
             </Tabs>
           </TabsContent>
