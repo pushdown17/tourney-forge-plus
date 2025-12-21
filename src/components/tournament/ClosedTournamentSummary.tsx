@@ -373,7 +373,24 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
 
       {/* All Matches */}
       <Card className="glass-card p-6">
-        <h2 className="text-2xl font-bold mb-4">Tous les matchs</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold">Tous les matchs</h2>
+          {selectedTeam && (
+            <div className="flex items-center gap-2">
+              <Badge variant="default" className="animate-pulse">
+                {selectedTeam}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedTeam(null)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ✕ Effacer
+              </Button>
+            </div>
+          )}
+        </div>
         <div className="space-y-6">
           {Object.entries(
             matches.reduce((acc, match) => {
@@ -422,19 +439,31 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
                                 }`}
                               >
                                 <div className="flex items-center gap-4 flex-1 justify-center">
-                                  <span className={`font-medium text-right flex-1 ${
-                                    highlighted && match.team1_name === selectedTeam ? "text-primary font-bold" : ""
-                                  } ${match.team1_score !== null && match.team2_score !== null && match.team1_score > match.team2_score ? "text-primary font-bold" : ""}`}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleTeamClick(match.team1_name);
+                                    }}
+                                    className={`font-medium text-right flex-1 hover:text-primary hover:underline transition-colors cursor-pointer ${
+                                      match.team1_name === selectedTeam ? "text-primary font-bold underline" : ""
+                                    } ${match.team1_score !== null && match.team2_score !== null && match.team1_score > match.team2_score ? "text-primary font-bold" : ""}`}
+                                  >
                                     {match.team1_name}
-                                  </span>
+                                  </button>
                                   <span className="font-bold bg-muted px-3 py-1 rounded">
                                     {match.team1_score ?? "-"} - {match.team2_score ?? "-"}
                                   </span>
-                                  <span className={`font-medium text-left flex-1 ${
-                                    highlighted && match.team2_name === selectedTeam ? "text-primary font-bold" : ""
-                                  } ${match.team1_score !== null && match.team2_score !== null && match.team2_score > match.team1_score ? "text-primary font-bold" : ""}`}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleTeamClick(match.team2_name);
+                                    }}
+                                    className={`font-medium text-left flex-1 hover:text-primary hover:underline transition-colors cursor-pointer ${
+                                      match.team2_name === selectedTeam ? "text-primary font-bold underline" : ""
+                                    } ${match.team1_score !== null && match.team2_score !== null && match.team2_score > match.team1_score ? "text-primary font-bold" : ""}`}
+                                  >
                                     {match.team2_name}
-                                  </span>
+                                  </button>
                                 </div>
                               </div>
                             );
