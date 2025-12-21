@@ -290,6 +290,7 @@ const Tournament = () => {
               currentPhase={tournament.current_phase}
               onPhaseChanged={fetchTournament}
               isClosed={tournament.is_closed}
+              isCreator={isCreator}
             />
           </TabsContent>
 

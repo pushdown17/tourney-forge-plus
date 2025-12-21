@@ -10,9 +10,10 @@ interface PhaseTransitionProps {
   tournamentId: string;
   currentPhase: string;
   onPhaseChanged: () => void;
+  isCreator?: boolean;
 }
 
-export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged }: PhaseTransitionProps) => {
+export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, isCreator = false }: PhaseTransitionProps) => {
   const [teamsForElimination, setTeamsForElimination] = useState<string>("8");
   const [loading, setLoading] = useState(false);
 
@@ -39,6 +40,33 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged }: 
       setLoading(false);
     }
   };
+
+  // Mode invité - afficher un message informatif
+  if (!isCreator) {
+    return (
+      <Card className="glass-card p-8">
+        <div className="text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="p-4 rounded-full bg-muted">
+              <Trophy className="h-12 w-12 text-muted-foreground" />
+            </div>
+          </div>
+          
+          <div>
+            <h2 className="text-2xl font-bold mb-2">
+              Phase d'élimination
+            </h2>
+            <p className="text-muted-foreground">
+              La phase d'élimination n'a pas encore commencé.
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Le tournoi est actuellement en phase {currentPhase === "round_robin" ? "Round Robin" : "Swiss Round"}.
+            </p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="glass-card p-8">
