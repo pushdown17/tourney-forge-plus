@@ -46,6 +46,7 @@ interface EliminationBracketProps {
   currentPhase: string;
   onPhaseChanged: () => void;
   isClosed?: boolean;
+  isCreator?: boolean;
 }
 
 export const EliminationBracket = ({ 
@@ -53,7 +54,8 @@ export const EliminationBracket = ({
   eliminationType, 
   currentPhase,
   onPhaseChanged,
-  isClosed = false
+  isClosed = false,
+  isCreator = false
 }: EliminationBracketProps) => {
   // Si on n'est pas encore en phase d'élimination, afficher le composant de transition
   if (currentPhase !== "single_elimination" && currentPhase !== "double_elimination") {
@@ -62,6 +64,7 @@ export const EliminationBracket = ({
         tournamentId={tournamentId}
         currentPhase={currentPhase}
         onPhaseChanged={onPhaseChanged}
+        isCreator={isCreator}
       />
     );
   }
