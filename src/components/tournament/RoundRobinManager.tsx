@@ -26,9 +26,10 @@ interface RoundRobinManagerProps {
   tournamentId: string;
   isClosed?: boolean;
   currentPhase?: string;
+  isCreator?: boolean;
 }
 
-export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase }: RoundRobinManagerProps) => {
+export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false }: RoundRobinManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -234,12 +235,14 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       <Card className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Round {currentRound}</h2>
-          <Button 
-            onClick={generateNextRound} 
-            disabled={loading || isClosed || (currentPhase && currentPhase !== "round_robin")}
-          >
-            {matches.length === 0 ? `Générer le Round ${currentRound}` : `Générer le Round ${currentRound + 1}`}
-          </Button>
+          {isCreator && (
+            <Button 
+              onClick={generateNextRound} 
+              disabled={loading || isClosed || (currentPhase && currentPhase !== "round_robin")}
+            >
+              {matches.length === 0 ? `Générer le Round ${currentRound}` : `Générer le Round ${currentRound + 1}`}
+            </Button>
+          )}
         </div>
 
         {currentPhase && currentPhase !== "round_robin" && (

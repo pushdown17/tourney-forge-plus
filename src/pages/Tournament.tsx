@@ -279,7 +279,7 @@ const Tournament = () => {
             {(tournament.initial_phase === "swiss" || tournament.current_phase === "swiss") ? (
               <SwissManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} />
             ) : (
-              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} />
+              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} />
             )}
           </TabsContent>
 
