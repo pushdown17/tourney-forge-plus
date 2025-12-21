@@ -279,6 +279,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                 editingMatchId={editingMatchId}
                 setEditingMatchId={setEditingMatchId}
                 isClosed={isClosed}
+                isCreator={isCreator}
               />
             ))}
           </div>
@@ -374,9 +375,10 @@ interface MatchCardProps {
   editingMatchId: string | null;
   setEditingMatchId: (id: string | null) => void;
   isClosed?: boolean;
+  isCreator?: boolean;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -625,7 +627,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                 setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Équipe 1" });
                 setGoalScorerDialogOpen(true);
               }}
-              disabled={isLocked || isClosed}
+              disabled={isLocked || isClosed || !isCreator}
             />
           </div>
           <span className="text-muted-foreground">vs</span>
@@ -640,116 +642,122 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                 setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Équipe 2" });
                 setGoalScorerDialogOpen(true);
               }}
-              disabled={isLocked || isClosed}
+              disabled={isLocked || isClosed || !isCreator}
             />
             <span className="font-medium">{match.team2?.name || "Équipe 2"}</span>
           </div>
         </div>
 
         {/* Onglets stats rapides */}
-        <div className="flex flex-wrap gap-2 justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setQuickStatType("assists");
-              setQuickStatTeam(null);
-              setQuickStatDialogOpen(true);
-            }}
-            disabled={isLocked || isClosed}
-            className="text-xs"
-          >
-            Passes
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setQuickStatType("fouls");
-              setQuickStatTeam(null);
-              setQuickStatDialogOpen(true);
-            }}
-            disabled={isLocked || isClosed}
-            className="text-xs"
-          >
-            Fautes
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setQuickStatType("penalty_30s");
-              setQuickStatTeam(null);
-              setQuickStatDialogOpen(true);
-            }}
-            disabled={isLocked || isClosed}
-            className="text-xs"
-          >
-            30 sec
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setQuickStatType("penalty_1m");
-              setQuickStatTeam(null);
-              setQuickStatDialogOpen(true);
-            }}
-            disabled={isLocked || isClosed}
-            className="text-xs"
-          >
-            1 min
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setQuickStatType("penalty_2m");
-              setQuickStatTeam(null);
-              setQuickStatDialogOpen(true);
-            }}
-            disabled={isLocked || isClosed}
-            className="text-xs"
-          >
-            2 min
-          </Button>
-        </div>
-
-        <div className="flex gap-2 justify-end">
-          {isEditing && (
+        {isCreator && (
+          <div className="flex flex-wrap gap-2 justify-center">
             <Button
-              onClick={() => {
-                setTeam1Score(match.team1_score ?? 0);
-                setTeam2Score(match.team2_score ?? 0);
-                setEditingMatchId(null);
-              }}
-              size="sm"
               variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuickStatType("assists");
+                setQuickStatTeam(null);
+                setQuickStatDialogOpen(true);
+              }}
+              disabled={isLocked || isClosed}
+              className="text-xs"
             >
-              Annuler
+              Passes
             </Button>
-          )}
-          <Button
-            onClick={handleValidateScore}
-            disabled={isLocked || isClosed}
-          >
-            Valider
-          </Button>
-        </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuickStatType("fouls");
+                setQuickStatTeam(null);
+                setQuickStatDialogOpen(true);
+              }}
+              disabled={isLocked || isClosed}
+              className="text-xs"
+            >
+              Fautes
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuickStatType("penalty_30s");
+                setQuickStatTeam(null);
+                setQuickStatDialogOpen(true);
+              }}
+              disabled={isLocked || isClosed}
+              className="text-xs"
+            >
+              30 sec
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuickStatType("penalty_1m");
+                setQuickStatTeam(null);
+                setQuickStatDialogOpen(true);
+              }}
+              disabled={isLocked || isClosed}
+              className="text-xs"
+            >
+              1 min
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuickStatType("penalty_2m");
+                setQuickStatTeam(null);
+                setQuickStatDialogOpen(true);
+              }}
+              disabled={isLocked || isClosed}
+              className="text-xs"
+            >
+              2 min
+            </Button>
+          </div>
+        )}
+
+        {isCreator && (
+          <div className="flex gap-2 justify-end">
+            {isEditing && (
+              <Button
+                onClick={() => {
+                  setTeam1Score(match.team1_score ?? 0);
+                  setTeam2Score(match.team2_score ?? 0);
+                  setEditingMatchId(null);
+                }}
+                size="sm"
+                variant="outline"
+              >
+                Annuler
+              </Button>
+            )}
+            <Button
+              onClick={handleValidateScore}
+              disabled={isLocked || isClosed}
+            >
+              Valider
+            </Button>
+          </div>
+        )}
       </div>
 
-      <CollapsibleTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="w-full justify-center gap-2"
-          disabled={isLocked || isClosed}
-        >
-          <Users className="h-4 w-4" />
-          Statistiques des joueurs
-          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </Button>
-      </CollapsibleTrigger>
+      {isCreator && (
+        <CollapsibleTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full justify-center gap-2"
+            disabled={isLocked || isClosed}
+          >
+            <Users className="h-4 w-4" />
+            Statistiques des joueurs
+            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+        </CollapsibleTrigger>
+      )}
 
       <CollapsibleContent>
         <Card className="p-4 bg-muted/30 space-y-4">
