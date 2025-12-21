@@ -21,6 +21,7 @@ import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock } f
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
 import { MatchStatsRecap } from "./MatchStatsRecap";
+import { MatchStatsViewDialog } from "./MatchStatsViewDialog";
 
 interface RoundRobinManagerProps {
   tournamentId: string;
@@ -34,6 +35,17 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
+
+  const handleTeamClick = (teamName: string) => {
+    setSelectedTeam(selectedTeam === teamName ? null : teamName);
+  };
+
+  const isMatchHighlighted = (match: any) => {
+    if (!selectedTeam) return false;
+    return match.team1?.name === selectedTeam || match.team2?.name === selectedTeam;
+  };
 
   useEffect(() => {
     fetchMatches();
@@ -279,29 +291,55 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
               <Trophy className="h-4 w-4" />
               Matchs terminés
             </h3>
-            {matches.filter(m => m.team1_score !== null && m.team2_score !== null).map((match) => (
-              <Card key={match.id} className="p-4 bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <span className={`font-medium ${match.winner_id === match.team1_id ? 'text-primary font-bold' : ''}`}>
-                      {match.team1?.name}
-                    </span>
-                    <div className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg">
-                      <span className={`text-xl font-bold ${match.winner_id === match.team1_id ? 'text-primary' : ''}`}>
-                        {match.team1_score}
-                      </span>
-                      <span className="text-muted-foreground">-</span>
-                      <span className={`text-xl font-bold ${match.winner_id === match.team2_id ? 'text-primary' : ''}`}>
-                        {match.team2_score}
-                      </span>
+            {matches.filter(m => m.team1_score !== null && m.team2_score !== null).map((match) => {
+              const highlighted = isMatchHighlighted(match);
+              return (
+                <Card 
+                  key={match.id} 
+                  className={`p-4 transition-all ${
+                    highlighted 
+                      ? "bg-primary/30 ring-2 ring-primary shadow-lg" 
+                      : selectedTeam 
+                        ? "bg-muted/20 opacity-50" 
+                        : "bg-muted/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1">
+                      <button
+                        onClick={() => handleTeamClick(match.team1?.name)}
+                        className={`font-medium hover:text-primary hover:underline transition-colors cursor-pointer ${
+                          match.team1?.name === selectedTeam ? "text-primary font-bold underline" : ""
+                        } ${match.winner_id === match.team1_id ? 'text-primary font-bold' : ''}`}
+                      >
+                        {match.team1?.name}
+                      </button>
+                      <button
+                        onClick={() => setSelectedMatch(match)}
+                        className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+                        title="Voir les détails du match"
+                      >
+                        <span className={`text-xl font-bold ${match.winner_id === match.team1_id ? 'text-primary' : ''}`}>
+                          {match.team1_score}
+                        </span>
+                        <span className="text-muted-foreground">-</span>
+                        <span className={`text-xl font-bold ${match.winner_id === match.team2_id ? 'text-primary' : ''}`}>
+                          {match.team2_score}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => handleTeamClick(match.team2?.name)}
+                        className={`font-medium hover:text-primary hover:underline transition-colors cursor-pointer ${
+                          match.team2?.name === selectedTeam ? "text-primary font-bold underline" : ""
+                        } ${match.winner_id === match.team2_id ? 'text-primary font-bold' : ''}`}
+                      >
+                        {match.team2?.name}
+                      </button>
                     </div>
-                    <span className={`font-medium ${match.winner_id === match.team2_id ? 'text-primary font-bold' : ''}`}>
-                      {match.team2?.name}
-                    </span>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
 
@@ -311,6 +349,20 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
           </p>
         )}
       </Card>
+
+      {/* Match Stats Dialog */}
+      {selectedMatch && (
+        <MatchStatsViewDialog
+          matchId={selectedMatch.id}
+          team1Name={selectedMatch.team1?.name || ""}
+          team2Name={selectedMatch.team2?.name || ""}
+          team1Score={selectedMatch.team1_score}
+          team2Score={selectedMatch.team2_score}
+          tournamentId={tournamentId}
+          open={!!selectedMatch}
+          onOpenChange={(open) => !open && setSelectedMatch(null)}
+        />
+      )}
     </div>
   );
 };
