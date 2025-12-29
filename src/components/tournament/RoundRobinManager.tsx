@@ -318,7 +318,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                       <button
                         onClick={() => setSelectedMatch(match)}
                         className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
-                        title="Voir les détails du match"
+                        title="View match details"
                       >
                         <span className={`text-xl font-bold ${match.winner_id === match.team1_id ? 'text-primary' : ''}`}>
                           {match.team1_score}
@@ -395,7 +395,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   const isLocked = editingMatchId !== null && editingMatchId !== match.id;
   const isEditing = editingMatchId === match.id;
 
-  // Charger les joueurs au montage pour pouvoir calculer les scores
+  // Load players on mount to calculate scores
   useEffect(() => {
     fetchPlayers();
   }, []);
@@ -406,14 +406,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
     }
   }, [isOpen]);
 
-  // Calculer les scores depuis player_stats si match non validé
+  // Calculate scores from player_stats if match not validated
   useEffect(() => {
     if (team1Players.length > 0 || team2Players.length > 0) {
       fetchPlayerStats();
     }
   }, [team1Players, team2Players, goalScorerDialogOpen]);
 
-  // Calculer scores depuis player_stats si match pas encore validé
+  // Calculate scores from player_stats if match not yet validated
   useEffect(() => {
     if (match.team1_score === null && match.team2_score === null) {
       loadScoresFromPlayerStats();
@@ -428,7 +428,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
 
     if (!allStats || allStats.length === 0) return;
 
-    // On doit récupérer les joueurs pour savoir qui appartient à quelle équipe
+    // We need to get the players to know who belongs to which team
     const { data: tt1 } = await supabase
       .from("tournament_teams")
       .select("id")

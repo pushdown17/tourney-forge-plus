@@ -13,7 +13,7 @@ interface PlayerAutocompleteProps {
 export const PlayerAutocomplete = ({
   value,
   onChange,
-  placeholder = "Nom du joueur",
+  placeholder = "Player name",
   disabled = false,
 }: PlayerAutocompleteProps) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
