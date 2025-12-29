@@ -29,7 +29,7 @@ export const MatchStatsDialog = ({
   const [hasChanges, setHasChanges] = useState(false);
   const [localScores, setLocalScores] = useState({ team1: 0, team2: 0 });
 
-  // Gérer la fermeture du dialog - rafraîchir le parent seulement s'il y a eu des changements
+  // Handle dialog close - refresh parent only if there were changes
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen && hasChanges) {
       onScoreUpdate();
@@ -51,7 +51,7 @@ export const MatchStatsDialog = ({
   }, [team1Players, team2Players]);
 
   const fetchPlayersForTeam = async (teamId: string) => {
-    // D'abord récupérer le tournament_team
+    // First get the tournament_team
     const { data: tournamentTeam } = await supabase
       .from("tournament_teams")
       .select("id")
@@ -61,7 +61,7 @@ export const MatchStatsDialog = ({
 
     if (!tournamentTeam) return [];
 
-    // Ensuite récupérer les joueurs via tournament_team_players
+    // Then get players via tournament_team_players
     const { data: tournamentPlayers, error } = await supabase
       .from("tournament_team_players")
       .select("id, player:players(id, name)")
@@ -69,7 +69,7 @@ export const MatchStatsDialog = ({
 
     if (error || !tournamentPlayers) return [];
 
-    // Construire le mapping tournament_team_player_id -> player_id
+    // Build tournament_team_player_id -> player_id mapping
     const mapping: Record<string, string> = {};
     tournamentPlayers.forEach(tp => {
       if (tp.player) {
@@ -149,14 +149,14 @@ export const MatchStatsDialog = ({
       }
     }
 
-    // Si c'est un but, mettre à jour le score du match
+    // If it's a goal, update the match score
     if (field === "goals") {
       await updateMatchScoresFromPlayerStats();
     }
   };
 
   const updateMatchScoresFromPlayerStats = async () => {
-    // Récupérer tous les stats des joueurs pour ce match
+    // Get all player stats for this match
     const { data: allStats, error } = await supabase
       .from("player_stats")
       .select("player_id, goals")
@@ -164,7 +164,7 @@ export const MatchStatsDialog = ({
 
     if (error || !allStats) return;
 
-    // Calculer les scores pour chaque équipe
+    // Calculate scores for each team
     const team1PlayerIds = team1Players.map(p => p.id);
     const team2PlayerIds = team2Players.map(p => p.id);
 
@@ -176,7 +176,7 @@ export const MatchStatsDialog = ({
       .filter(stat => team2PlayerIds.includes(stat.player_id))
       .reduce((sum, stat) => sum + (stat.goals || 0), 0);
 
-    // Mettre à jour dans la base de données
+    // Update in database
     const winnerId = team1Goals > team2Goals ? match.team1_id : 
                     team2Goals > team1Goals ? match.team2_id : null;
     
@@ -190,13 +190,13 @@ export const MatchStatsDialog = ({
       .eq("id", match.id);
 
     if (!updateError) {
-      // Marquer qu'il y a eu des changements (le parent sera rafraîchi à la fermeture)
+      // Mark that there were changes (parent will be refreshed on close)
       setHasChanges(true);
       setLocalScores({ team1: team1Goals, team2: team2Goals });
     }
   };
 
-  // Calculer les scores à partir des stats des joueurs
+  // Calculate scores from player stats
   const team1GoalsCalc = team1Players.reduce((sum, player) => {
     return sum + (playerStats[player.id]?.goals || 0);
   }, 0);
@@ -205,7 +205,7 @@ export const MatchStatsDialog = ({
     return sum + (playerStats[player.id]?.goals || 0);
   }, 0);
 
-  // Utiliser les scores locaux s'ils ont été mis à jour, sinon les scores du match
+  // Use local scores if updated, otherwise match scores
   const displayTeam1Score = hasChanges ? localScores.team1 : (match?.team1_score ?? team1GoalsCalc);
   const displayTeam2Score = hasChanges ? localScores.team2 : (match?.team2_score ?? team2GoalsCalc);
 
@@ -214,11 +214,11 @@ export const MatchStatsDialog = ({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">
-            Statistiques du match
+            Match Statistics
           </DialogTitle>
         </DialogHeader>
 
-        {/* Score actuel du match */}
+        {/* Current match score */}
         <Card className="p-4 bg-gradient-to-r from-primary/10 via-transparent to-primary/10">
           <div className="flex items-center justify-center gap-4">
             <div className="text-center flex-1">
@@ -234,7 +234,7 @@ export const MatchStatsDialog = ({
             </div>
           </div>
           <p className="text-xs text-muted-foreground text-center mt-2">
-            Le score se met à jour automatiquement selon les buts enregistrés
+            The score updates automatically based on recorded goals
           </p>
         </Card>
 
@@ -256,7 +256,7 @@ export const MatchStatsDialog = ({
                   />
                 ))}
                 {team1Players.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Aucun joueur enregistré</p>
+                  <p className="text-sm text-muted-foreground">No players registered</p>
                 )}
               </div>
             </div>
@@ -277,7 +277,7 @@ export const MatchStatsDialog = ({
                   />
                 ))}
                 {team2Players.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Aucun joueur enregistré</p>
+                  <p className="text-sm text-muted-foreground">No players registered</p>
                 )}
               </div>
             </div>
@@ -321,7 +321,7 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             <div className="flex items-center gap-2">
               {hasAnyStats && (
                 <span className="text-xs text-muted-foreground">
-                  {stats.goals || 0}B {stats.assists || 0}P
+                  {stats.goals || 0}G {stats.assists || 0}A
                   {hasFouls && <span className="ml-1 text-yellow-600">{stats.fouls}F</span>}
                   {hasPenalties && <span className="ml-1 text-destructive">⚠</span>}
                 </span>
@@ -334,9 +334,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
       
       <CollapsibleContent>
         <div className="p-3 bg-background/30 rounded-lg mt-1 space-y-2">
-          {/* Buts */}
+          {/* Goals */}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium min-w-[50px]">Buts</span>
+            <span className="text-xs font-medium min-w-[50px]">Goals</span>
             <div className="flex items-center gap-1">
               <Button
                 type="button"
@@ -362,9 +362,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             </div>
           </div>
 
-          {/* Passes */}
+          {/* Assists */}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium min-w-[50px]">Passes</span>
+            <span className="text-xs font-medium min-w-[50px]">Assists</span>
             <div className="flex items-center gap-1">
               <Button
                 type="button"
@@ -390,9 +390,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             </div>
           </div>
 
-          {/* Fautes */}
+          {/* Fouls */}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium min-w-[50px]">Fautes</span>
+            <span className="text-xs font-medium min-w-[50px]">Fouls</span>
             <div className="flex items-center gap-1">
               <Button
                 type="button"
@@ -418,9 +418,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             </div>
           </div>
 
-          {/* Pénalité 30s */}
+          {/* 30s Penalty */}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium min-w-[50px]">Pén. 30s</span>
+            <span className="text-xs font-medium min-w-[50px]">30s Pen.</span>
             <div className="flex items-center gap-1">
               <Button
                 type="button"
@@ -446,9 +446,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             </div>
           </div>
 
-          {/* Pénalité 1min */}
+          {/* 1min Penalty */}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium min-w-[50px]">Pén. 1min</span>
+            <span className="text-xs font-medium min-w-[50px]">1min Pen.</span>
             <div className="flex items-center gap-1">
               <Button
                 type="button"
@@ -474,9 +474,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             </div>
           </div>
 
-          {/* Pénalité 2min */}
+          {/* 2min Penalty */}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium min-w-[50px]">Pén. 2min</span>
+            <span className="text-xs font-medium min-w-[50px]">2min Pen.</span>
             <div className="flex items-center gap-1">
               <Button
                 type="button"

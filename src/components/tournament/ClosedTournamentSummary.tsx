@@ -82,7 +82,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
         })
         .map((s) => ({
           team_id: s.team_id,
-          team_name: s.team?.name || "Équipe inconnue",
+          team_name: s.team?.name || "Unknown team",
           points: s.points,
           wins: s.wins,
           draws: s.draws,
@@ -156,7 +156,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
       // Aggregate player stats
       const playerStatsMap = new Map<string, PlayerStat>();
       (statsData || []).forEach((stat: any) => {
-        const playerName = stat.player?.name || "Joueur inconnu";
+        const playerName = stat.player?.name || "Unknown player";
         const teamName = stat.tournament_team_player?.tournament_team?.team?.name || "";
         const key = `${playerName}-${teamName}`;
         
@@ -192,22 +192,22 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
       case "round_robin": return "Round Robin";
       case "swiss": return "Swiss";
       case "single_elimination":
-      case "double_elimination": return "Élimination";
+      case "double_elimination": return "Elimination";
       default: return phase;
     }
   };
 
   const getRoundLabel = (match: Match) => {
-    if (match.is_third_place_match) return "3ème place";
+    if (match.is_third_place_match) return "3rd Place";
     if (match.phase === "single_elimination" || match.phase === "double_elimination") {
       const eliminationMatches = matches.filter(
         (m) => (m.phase === "single_elimination" || m.phase === "double_elimination") && !m.is_third_place_match
       );
       const maxRound = Math.max(...eliminationMatches.map((m) => m.round_number));
-      if (match.round_number === maxRound) return "Finale";
-      if (match.round_number === maxRound - 1) return "Demi-finale";
-      if (match.round_number === maxRound - 2) return "Quart de finale";
-      return `Tour ${match.round_number}`;
+      if (match.round_number === maxRound) return "Final";
+      if (match.round_number === maxRound - 1) return "Semi-final";
+      if (match.round_number === maxRound - 2) return "Quarter-final";
+      return `Round ${match.round_number}`;
     }
     return `Round ${match.round_number}`;
   };
@@ -215,7 +215,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
-        <p className="text-lg text-muted-foreground animate-pulse">Chargement...</p>
+        <p className="text-lg text-muted-foreground animate-pulse">Loading...</p>
       </div>
     );
   }
@@ -230,13 +230,13 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
               <h1 className="text-3xl md:text-4xl font-bold glow-text-primary">{tournament.name}</h1>
               <Badge variant="secondary" className="flex items-center gap-1">
                 <Lock className="h-3 w-3" />
-                Clôturé
+                Closed
               </Badge>
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
-                {new Date(tournament.start_date).toLocaleDateString("fr-FR")} - {new Date(tournament.end_date).toLocaleDateString("fr-FR")}
+                {new Date(tournament.start_date).toLocaleDateString("en-US")} - {new Date(tournament.end_date).toLocaleDateString("en-US")}
               </span>
             </div>
           </div>
@@ -254,12 +254,12 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
             <div className="flex justify-center gap-8 mt-8">
               <div className="text-center">
                 <Medal className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                <p className="text-sm text-muted-foreground">2ème</p>
+                <p className="text-sm text-muted-foreground">2nd</p>
                 <p className="font-semibold">{standings[1]?.team_name}</p>
               </div>
               <div className="text-center">
                 <Medal className="h-8 w-8 mx-auto text-amber-700 mb-2" />
-                <p className="text-sm text-muted-foreground">3ème</p>
+                <p className="text-sm text-muted-foreground">3rd</p>
                 <p className="font-semibold">{standings[2]?.team_name}</p>
               </div>
             </div>
@@ -271,20 +271,20 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
       <Card className="glass-card p-6">
         <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
           <Users className="h-6 w-6 text-primary" />
-          Classement final
+          Final Standings
         </h2>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">#</TableHead>
-              <TableHead>Équipe</TableHead>
-              <TableHead className="text-center">J</TableHead>
-              <TableHead className="text-center">V</TableHead>
-              <TableHead className="text-center">N</TableHead>
+              <TableHead>Team</TableHead>
+              <TableHead className="text-center">P</TableHead>
+              <TableHead className="text-center">W</TableHead>
               <TableHead className="text-center">D</TableHead>
-              <TableHead className="text-center">BP</TableHead>
-              <TableHead className="text-center">BC</TableHead>
-              <TableHead className="text-center">Diff</TableHead>
+              <TableHead className="text-center">L</TableHead>
+              <TableHead className="text-center">GF</TableHead>
+              <TableHead className="text-center">GA</TableHead>
+              <TableHead className="text-center">GD</TableHead>
               <TableHead className="text-center font-bold">Pts</TableHead>
             </TableRow>
           </TableHeader>
@@ -322,7 +322,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
         <Card className="glass-card p-6">
           <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
-            Meilleurs buteurs
+            Top Scorers
           </h3>
           <div className="space-y-3">
             {topScorers.map((player, index) => (
@@ -336,11 +336,11 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
                     <p className="text-xs text-muted-foreground">{player.team_name}</p>
                   </div>
                 </div>
-                <Badge variant="default">{player.goals} buts</Badge>
+                <Badge variant="default">{player.goals} goal{player.goals > 1 ? "s" : ""}</Badge>
               </div>
             ))}
             {topScorers.length === 0 && (
-              <p className="text-muted-foreground text-center py-4">Aucune donnée</p>
+              <p className="text-muted-foreground text-center py-4">No data</p>
             )}
           </div>
         </Card>
@@ -349,7 +349,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
         <Card className="glass-card p-6">
           <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
-            Meilleurs passeurs
+            Top Assisters
           </h3>
           <div className="space-y-3">
             {topAssisters.map((player, index) => (
@@ -363,11 +363,11 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
                     <p className="text-xs text-muted-foreground">{player.team_name}</p>
                   </div>
                 </div>
-                <Badge variant="secondary">{player.assists} passes</Badge>
+                <Badge variant="secondary">{player.assists} assist{player.assists > 1 ? "s" : ""}</Badge>
               </div>
             ))}
             {topAssisters.length === 0 && (
-              <p className="text-muted-foreground text-center py-4">Aucune donnée</p>
+              <p className="text-muted-foreground text-center py-4">No data</p>
             )}
           </div>
         </Card>
@@ -376,7 +376,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
       {/* All Matches */}
       <Card className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Tous les matchs</h2>
+          <h2 className="text-2xl font-bold">All Matches</h2>
           {selectedTeam && (
             <div className="flex items-center gap-2">
               <Badge variant="default" className="animate-pulse">
@@ -388,7 +388,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
                 onClick={() => setSelectedTeam(null)}
                 className="text-muted-foreground hover:text-foreground"
               >
-                ✕ Effacer
+                ✕ Clear
               </Button>
             </div>
           )}
@@ -458,7 +458,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
                                       setSelectedMatch(match);
                                     }}
                                     className="font-bold bg-muted px-3 py-1 rounded hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
-                                    title="Voir les détails du match"
+                                    title="View match details"
                                   >
                                     {match.team1_score ?? "-"} - {match.team2_score ?? "-"}
                                   </button>
