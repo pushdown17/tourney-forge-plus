@@ -64,7 +64,7 @@ export const BracketMatch = ({
   const isPlaceholder = match.isPlaceholder;
   const hasTeams = match.team1 && match.team2;
   const hasWinner = !!match.winner_id;
-  // Un match est verrouillé si il est complété (a un gagnant) OU si les matchs précédents ne sont pas finis
+  // A match is locked if it is completed (has a winner) OR if the previous matches are not finished
   const isMatchLocked = isCompleted || isLocked;
   
   return (
@@ -87,7 +87,7 @@ export const BracketMatch = ({
         )}
         {isCompleted && (
           <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-            Terminé
+            Completed
           </span>
         )}
       </div>
@@ -168,7 +168,7 @@ export const BracketMatch = ({
         </div>
       </Card>
 
-      {/* Score edit section - Ne pas afficher si le match est terminé */}
+      {/* Score edit section - Do not display if match is completed */}
       {!isPlaceholder && hasTeams && !isCompleted && (
         <div className="mt-1.5">
           {isEditing ? (
@@ -213,7 +213,7 @@ export const BracketMatch = ({
               className="w-full h-7 text-xs"
               disabled={isClosed || isMatchLocked}
             >
-              {match.team1_score !== null ? "Modifier" : "Entrer score"}
+              {match.team1_score !== null ? "Edit" : "Enter score"}
             </Button>
           )}
         </div>
