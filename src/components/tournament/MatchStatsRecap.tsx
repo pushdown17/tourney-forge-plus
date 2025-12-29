@@ -73,7 +73,7 @@ export const MatchStatsRecap = ({
         <div className="flex items-start gap-2 text-sm">
           <Target className="h-4 w-4 text-green-500 mt-0.5" />
           <div>
-            <span className="font-medium">Buts: </span>
+            <span className="font-medium">Goals: </span>
             {stats.scorers.map((s, i) => (
               <span key={s.name}>
                 {s.name} ({s.goals}){i < stats.scorers.length - 1 ? ", " : ""}
@@ -86,7 +86,7 @@ export const MatchStatsRecap = ({
         <div className="flex items-start gap-2 text-sm">
           <Users className="h-4 w-4 text-blue-500 mt-0.5" />
           <div>
-            <span className="font-medium">Passes D: </span>
+            <span className="font-medium">Assists: </span>
             {stats.assisters.map((s, i) => (
               <span key={s.name}>
                 {s.name} ({s.assists}){i < stats.assisters.length - 1 ? ", " : ""}
@@ -99,7 +99,7 @@ export const MatchStatsRecap = ({
         <div className="flex items-start gap-2 text-sm">
           <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5" />
           <div>
-            <span className="font-medium">Fautes: </span>
+            <span className="font-medium">Fouls: </span>
             {stats.fouls.map((s, i) => (
               <span key={s.name}>
                 {s.name} ({s.fouls}){i < stats.fouls.length - 1 ? ", " : ""}
@@ -112,7 +112,7 @@ export const MatchStatsRecap = ({
         <div className="flex items-start gap-2 text-sm">
           <Clock className="h-4 w-4 text-red-500 mt-0.5" />
           <div>
-            <span className="font-medium">Pénalités: </span>
+            <span className="font-medium">Penalties: </span>
             {stats.penalties.map((s, i) => (
               <span key={s.name}>
                 {s.name} ({s.total}){i < stats.penalties.length - 1 ? ", " : ""}
@@ -122,14 +122,14 @@ export const MatchStatsRecap = ({
         </div>
       )}
       {!hasAnyStats(stats) && (
-        <p className="text-sm text-muted-foreground italic">Aucune stat enregistrée</p>
+        <p className="text-sm text-muted-foreground italic">No stats recorded</p>
       )}
     </div>
   );
 
   return (
     <div className="mt-4 space-y-4 max-h-60 overflow-y-auto">
-      <h3 className="font-semibold text-sm text-muted-foreground">Récapitulatif des faits de jeu</h3>
+      <h3 className="font-semibold text-sm text-muted-foreground">Match Events Summary</h3>
       <div className="grid grid-cols-2 gap-4">
         <TeamStatsSection teamName={team1Name} stats={team1Stats} />
         <TeamStatsSection teamName={team2Name} stats={team2Stats} />
