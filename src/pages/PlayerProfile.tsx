@@ -146,9 +146,9 @@ export default function PlayerProfile() {
       <div className="min-h-screen bg-gradient-to-b from-background to-background/80">
         <Navigation />
         <div className="container mx-auto px-4 py-8 mt-16">
-          <h1 className="text-4xl font-bold mb-8">Joueur non trouvé</h1>
+          <h1 className="text-4xl font-bold mb-8">Player not found</h1>
           <Link to="/" className="text-primary hover:underline">
-            Retour à l'accueil
+            Back to home
           </Link>
         </div>
       </div>
@@ -161,13 +161,13 @@ export default function PlayerProfile() {
       <div className="container mx-auto px-4 py-8 mt-16">
         <h1 className="text-4xl font-bold mb-8">{playerData.name}</h1>
 
-        {/* Stats globales */}
+        {/* Global stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card className="p-6 glass-card">
             <div className="flex items-center gap-3">
               <Target className="h-8 w-8 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Buts totaux</p>
+                <p className="text-sm text-muted-foreground">Total Goals</p>
                 <p className="text-3xl font-bold">{playerData.totalGoals}</p>
               </div>
             </div>
@@ -177,7 +177,7 @@ export default function PlayerProfile() {
             <div className="flex items-center gap-3">
               <Users className="h-8 w-8 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Passes décisives</p>
+                <p className="text-sm text-muted-foreground">Assists</p>
                 <p className="text-3xl font-bold">{playerData.totalAssists}</p>
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function PlayerProfile() {
             <div className="flex items-center gap-3">
               <Trophy className="h-8 w-8 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Matchs joués</p>
+                <p className="text-sm text-muted-foreground">Matches Played</p>
                 <p className="text-3xl font-bold">{playerData.totalMatches}</p>
               </div>
             </div>
@@ -199,15 +199,15 @@ export default function PlayerProfile() {
                 <span className="text-destructive font-bold">F</span>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Fautes totales</p>
+                <p className="text-sm text-muted-foreground">Total Fouls</p>
                 <p className="text-3xl font-bold">{playerData.totalFouls}</p>
               </div>
             </div>
           </Card>
         </div>
 
-        {/* Historique par tournoi */}
-        <h2 className="text-2xl font-bold mb-4">Historique des tournois</h2>
+        {/* Tournament history */}
+        <h2 className="text-2xl font-bold mb-4">Tournament History</h2>
         <div className="space-y-4">
           {playerData.tournaments.map((tournament) => (
             <Link key={tournament.id} to={`/tournament/${tournament.id}?tab=standings`}>
@@ -215,23 +215,23 @@ export default function PlayerProfile() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-xl font-semibold">{tournament.name}</h3>
-                    <p className="text-sm text-muted-foreground">Équipe: {tournament.teamName}</p>
+                    <p className="text-sm text-muted-foreground">Team: {tournament.teamName}</p>
                   </div>
-                  <Badge variant="outline">{tournament.matches} match{tournament.matches > 1 ? "s" : ""}</Badge>
+                  <Badge variant="outline">{tournament.matches} match{tournament.matches > 1 ? "es" : ""}</Badge>
                 </div>
                 
                 <div className="flex gap-4">
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Target className="h-3 w-3" />
-                    {tournament.goals} but{tournament.goals > 1 ? "s" : ""}
+                    {tournament.goals} goal{tournament.goals > 1 ? "s" : ""}
                   </Badge>
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Users className="h-3 w-3" />
-                    {tournament.assists} passe{tournament.assists > 1 ? "s" : ""}
+                    {tournament.assists} assist{tournament.assists > 1 ? "s" : ""}
                   </Badge>
                   <Badge variant="outline" className="flex items-center gap-1">
                     <span className="text-destructive">F</span>
-                    {tournament.fouls} faute{tournament.fouls > 1 ? "s" : ""}
+                    {tournament.fouls} foul{tournament.fouls > 1 ? "s" : ""}
                   </Badge>
                 </div>
               </Card>

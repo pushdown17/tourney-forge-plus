@@ -42,7 +42,7 @@ export const MatchStatsRecapDialog = ({
   const fetchMatchStats = async () => {
     setLoading(true);
     try {
-      // Récupérer toutes les stats des joueurs pour ce match
+      // Get all player stats for this match
       const { data: stats, error } = await supabase
         .from("player_stats")
         .select(`
@@ -53,7 +53,7 @@ export const MatchStatsRecapDialog = ({
 
       if (error) throw error;
 
-      // Récupérer les tournament_teams pour savoir qui appartient à quelle équipe
+      // Get tournament_teams to know which player belongs to which team
       const { data: tournamentTeams } = await supabase
         .from("tournament_teams")
         .select("id, team_id")
@@ -65,7 +65,7 @@ export const MatchStatsRecapDialog = ({
         return acc;
       }, {} as Record<string, string>) || {};
 
-      // Récupérer les tournament_team_players pour mapper les joueurs aux équipes
+      // Get tournament_team_players to map players to teams
       const tournamentTeamIds = tournamentTeams?.map(tt => tt.id) || [];
       const { data: tournamentPlayers } = await supabase
         .from("tournament_team_players")
@@ -77,7 +77,7 @@ export const MatchStatsRecapDialog = ({
         return acc;
       }, {} as Record<string, string>) || {};
 
-      // Séparer les stats par équipe
+      // Separate stats by team
       const team1Stats: PlayerWithStats[] = [];
       const team2Stats: PlayerWithStats[] = [];
 
@@ -103,7 +103,7 @@ export const MatchStatsRecapDialog = ({
         }
       });
 
-      // Trier par buts décroissants
+      // Sort by goals descending
       team1Stats.sort((a, b) => b.goals - a.goals || b.assists - a.assists);
       team2Stats.sort((a, b) => b.goals - a.goals || b.assists - a.assists);
 
@@ -134,13 +134,13 @@ export const MatchStatsRecapDialog = ({
           {isWinnerTeam && (
             <Badge variant="default" className="bg-primary/20 text-primary border-primary/30">
               <Trophy className="h-3 w-3 mr-1" />
-              Vainqueur
+              Winner
             </Badge>
           )}
         </div>
         
         {playersWithStats.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">Aucune statistique enregistrée</p>
+          <p className="text-sm text-muted-foreground italic">No statistics recorded</p>
         ) : (
           <div className="space-y-2">
             {playersWithStats.map(player => (
@@ -203,11 +203,11 @@ export const MatchStatsRecapDialog = ({
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
             <Trophy className="h-5 w-5 text-primary" />
-            Récapitulatif du match
+            Match Recap
           </DialogTitle>
         </DialogHeader>
 
-        {/* Score final */}
+        {/* Final score */}
         <Card className="p-4 bg-gradient-to-r from-primary/10 via-transparent to-primary/10">
           <div className="flex items-center justify-center gap-4">
             <div className={`text-center flex-1 ${isWinner(match.team1_id) ? 'text-primary font-bold' : ''}`}>
@@ -227,11 +227,11 @@ export const MatchStatsRecapDialog = ({
             </div>
           </div>
           <p className="text-xs text-muted-foreground text-center mt-2">
-            Match terminé
+            Match finished
           </p>
         </Card>
 
-        {/* Stats des joueurs */}
+        {/* Player stats */}
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -239,31 +239,31 @@ export const MatchStatsRecapDialog = ({
         ) : (
           <Card className="p-4 bg-muted/30 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {renderPlayerStats(team1Players, match?.team1?.name || "Équipe 1", isWinner(match.team1_id))}
-              {renderPlayerStats(team2Players, match?.team2?.name || "Équipe 2", isWinner(match.team2_id))}
+              {renderPlayerStats(team1Players, match?.team1?.name || "Team 1", isWinner(match.team1_id))}
+              {renderPlayerStats(team2Players, match?.team2?.name || "Team 2", isWinner(match.team2_id))}
             </div>
             
             {team1Players.length === 0 && team2Players.length === 0 && (
               <p className="text-center text-muted-foreground py-4">
-                Aucune statistique de joueur n'a été enregistrée pour ce match.
+                No player statistics were recorded for this match.
               </p>
             )}
           </Card>
         )}
 
-        {/* Légende */}
+        {/* Legend */}
         <div className="flex flex-wrap gap-3 justify-center text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-            <Target className="h-3 w-3" /> Buts
+            <Target className="h-3 w-3" /> Goals
           </div>
           <div className="flex items-center gap-1">
-            <Handshake className="h-3 w-3" /> Passes décisives
+            <Handshake className="h-3 w-3" /> Assists
           </div>
           <div className="flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" /> Fautes
+            <AlertTriangle className="h-3 w-3" /> Fouls
           </div>
           <div className="flex items-center gap-1">
-            <Timer className="h-3 w-3" /> Pénalités
+            <Timer className="h-3 w-3" /> Penalties
           </div>
         </div>
       </DialogContent>

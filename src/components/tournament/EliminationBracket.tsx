@@ -57,7 +57,7 @@ export const EliminationBracket = ({
   isClosed = false,
   isCreator = false
 }: EliminationBracketProps) => {
-  // Si on n'est pas encore en phase d'élimination, afficher le composant de transition
+  // If not yet in elimination phase, show transition component
   if (currentPhase !== "single_elimination" && currentPhase !== "double_elimination") {
     return (
       <PhaseTransition 
@@ -69,18 +69,18 @@ export const EliminationBracket = ({
     );
   }
 
-  // Si on est en phase d'élimination mais pas de type défini
+  // If in elimination phase but no type defined
   if (!eliminationType) {
     return (
       <Card className="glass-card p-8 text-center">
         <p className="text-muted-foreground">
-          Erreur de configuration du tournoi.
+          Tournament configuration error.
         </p>
       </Card>
     );
   }
 
-  // Phase d'élimination active
+  // Active elimination phase
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -108,7 +108,7 @@ export const EliminationBracket = ({
   const fetchTournamentAndMatches = async () => {
     setLoading(true);
     try {
-      // Récupérer les infos du tournoi
+      // Get tournament info
       const { data: tournamentData, error: tournamentError } = await supabase
         .from("tournaments")
         .select("*")
@@ -119,7 +119,7 @@ export const EliminationBracket = ({
       setTournament(tournamentData);
       setNumberOfFields(tournamentData.number_of_fields || 1);
 
-      // Récupérer les matchs d'élimination
+      // Get elimination matches
       const { data: matchesData, error: matchesError } = await supabase
         .from("matches")
         .select(`
@@ -134,13 +134,13 @@ export const EliminationBracket = ({
       if (matchesError) throw matchesError;
       setMatches(matchesData || []);
 
-      // Si pas de matchs, proposer de les générer
+      // If no matches, propose to generate them
       if (!matchesData || matchesData.length === 0) {
-        // Auto-générer les matchs
+        // Auto-generate matches
         await generateBracket(tournamentData.teams_for_elimination);
       }
     } catch (error: any) {
-      toast.error("Erreur lors du chargement du bracket");
+      toast.error("Error loading bracket");
       console.error(error);
     } finally {
       setLoading(false);
@@ -150,7 +150,7 @@ export const EliminationBracket = ({
   const generateBracket = async (teamsCount: number) => {
     setGenerating(true);
     try {
-      // Récupérer les équipes qualifiées selon le classement
+      // Get qualified teams according to ranking
       const { data: standings, error: standingsError } = await supabase
         .from("team_stats")
         .select(`
@@ -165,23 +165,23 @@ export const EliminationBracket = ({
       if (standingsError) throw standingsError;
 
       if (!standings || standings.length < teamsCount) {
-        toast.error(`Pas assez d'équipes qualifiées (${standings?.length || 0}/${teamsCount})`);
+        toast.error(`Not enough qualified teams (${standings?.length || 0}/${teamsCount})`);
         return;
       }
 
-      // Calculer le nombre de tours nécessaires
+      // Calculate the number of rounds needed
       const totalRounds = Math.log2(teamsCount);
       
-      // Créer TOUS les tours d'avance
+      // Create ALL rounds in advance
       const allMatches = [];
       
-      // Premier tour : avec les vraies équipes
+      // First round: with real teams
       const halfCount = teamsCount / 2;
       for (let i = 0; i < halfCount; i++) {
         const team1 = standings[i];
         const team2 = standings[teamsCount - 1 - i];
         
-        // Affecter un terrain en round-robin
+        // Assign a field in round-robin
         const fieldNumber = (i % numberOfFields) + 1;
         
         allMatches.push({
@@ -194,22 +194,16 @@ export const EliminationBracket = ({
         });
       }
 
-      // Tours suivants : créer des matchs vides (seront remplis par les gagnants)
-      // On doit créer des équipes "TBD" temporaires pour ces matchs
-      // En fait, on va juste créer les structures, les équipes seront ajoutées plus tard
-      // Pour l'instant, on génère juste le premier tour
-      // Les tours suivants seront créés automatiquement quand les matchs sont terminés
-
       const { error: insertError } = await supabase
         .from("matches")
         .insert(allMatches);
 
       if (insertError) throw insertError;
 
-      toast.success("Bracket généré avec succès !");
+      toast.success("Bracket generated successfully!");
       await fetchTournamentAndMatches();
     } catch (error: any) {
-      toast.error("Erreur lors de la génération du bracket");
+      toast.error("Error generating bracket");
       console.error(error);
     } finally {
       setGenerating(false);
@@ -224,7 +218,7 @@ export const EliminationBracket = ({
     const team2Score = parseInt(matchScores.team2);
 
     if (isNaN(team1Score) || isNaN(team2Score)) {
-      toast.error("Veuillez entrer des scores valides");
+      toast.error("Please enter valid scores");
       return;
     }
 
@@ -241,7 +235,7 @@ export const EliminationBracket = ({
         return;
       }
     } catch (validationError: any) {
-      toast.error("Erreur de validation");
+      toast.error("Validation error");
       return;
     }
 
@@ -252,7 +246,7 @@ export const EliminationBracket = ({
                      team2Score > team1Score ? match.team2_id : null;
 
     if (!winnerId) {
-      toast.error("Un match d'élimination ne peut pas se terminer par un match nul");
+      toast.error("An elimination match cannot end in a draw");
       return;
     }
 
@@ -268,31 +262,31 @@ export const EliminationBracket = ({
 
       if (error) throw error;
 
-      // Animation de célébration
+      // Celebration animation
       setRecentlyCompletedMatchId(matchId);
       setRecentlyAdvancedTeamIds([winnerId]);
       
-      // Retirer l'animation après un délai
+      // Remove animation after delay
       setTimeout(() => {
         setRecentlyCompletedMatchId(null);
         setRecentlyAdvancedTeamIds([]);
       }, 2000);
 
-      toast.success("Score mis à jour");
+      toast.success("Score updated");
       setEditingMatchId(null);
       await fetchTournamentAndMatches();
       
-      // Vérifier si le tour est complété et générer le suivant
+      // Check if round is completed and generate next
       await checkAndGenerateNextRound(match.round_number);
     } catch (error: any) {
-      toast.error("Erreur lors de la mise à jour du score");
+      toast.error("Error updating score");
       console.error(error);
     }
   };
 
   const checkAndGenerateNextRound = async (completedRound: number) => {
     try {
-      // Récupérer tous les matchs du tour complété
+      // Get all matches from completed round
       const { data: roundMatches, error: matchesError } = await supabase
         .from("matches")
         .select("*")
@@ -305,13 +299,13 @@ export const EliminationBracket = ({
       if (matchesError) throw matchesError;
       if (!roundMatches || roundMatches.length === 0) return;
 
-      // Si c'est la finale (1 seul match) et qu'elle est terminée
+      // If it's the final (1 match only) and it's finished
       if (roundMatches.length === 1 && roundMatches[0].winner_id) {
-        toast.success("🏆 Tournoi terminé ! Félicitations au vainqueur !");
+        toast.success("🏆 Tournament finished! Congratulations to the winner!");
         return;
       }
 
-      // Vérifier quels matchs du tour suivant existent déjà
+      // Check which next round matches already exist
       const { data: existingNextRoundMatches, error: existingError } = await supabase
         .from("matches")
         .select("*")
@@ -324,19 +318,19 @@ export const EliminationBracket = ({
 
       const matchesToCreate = [];
 
-      // Traiter les matchs par paires pour générer les matchs du tour suivant progressivement
+      // Process matches in pairs to generate next round matches progressively
       for (let i = 0; i < roundMatches.length; i += 2) {
-        if (i + 1 >= roundMatches.length) break; // Pas de paire complète
+        if (i + 1 >= roundMatches.length) break; // No complete pair
 
         const match1 = roundMatches[i];
         const match2 = roundMatches[i + 1];
 
-        // Vérifier si les deux matchs de la paire sont terminés
+        // Check if both matches in the pair are finished
         if (!match1.winner_id || !match2.winner_id) {
-          continue; // Cette paire n'est pas encore complète
+          continue; // This pair is not yet complete
         }
 
-        // Vérifier si un match avec ces deux équipes existe déjà
+        // Check if a match with these two teams already exists
         const matchAlreadyExists = existingNextRoundMatches?.some(m => 
           !m.is_third_place_match &&
           ((m.team1_id === match1.winner_id && m.team2_id === match2.winner_id) ||
@@ -344,16 +338,16 @@ export const EliminationBracket = ({
         );
 
         if (matchAlreadyExists) {
-          continue; // Ce match existe déjà
+          continue; // This match already exists
         }
 
-        // Si c'est les demi-finales (2 matchs seulement dans le round)
+        // If it's the semi-finals (only 2 matches in the round)
         if (roundMatches.length === 2 && i === 0) {
-          // Récupérer les perdants pour le match de 3ème place
+          // Get the losers for the 3rd place match
           const loser1 = match1.winner_id === match1.team1_id ? match1.team2_id : match1.team1_id;
           const loser2 = match2.winner_id === match2.team1_id ? match2.team2_id : match2.team1_id;
 
-          // Vérifier si ces matchs n'existent pas déjà
+          // Check if these matches don't already exist
           const finaleExists = existingNextRoundMatches?.some(m => 
             !m.is_third_place_match &&
             ((m.team1_id === match1.winner_id && m.team2_id === match2.winner_id) ||
@@ -366,12 +360,12 @@ export const EliminationBracket = ({
              (m.team1_id === loser2 && m.team2_id === loser1))
           );
 
-          // Si la finale existe déjà, ne rien faire
+          // If final already exists, do nothing
           if (finaleExists) {
             continue;
           }
 
-          // Préparer les matchs finale et 3ème place
+          // Prepare final and 3rd place matches
           const finaleMatch = {
             tournament_id: tournamentId,
             phase: currentPhase as any,
@@ -392,21 +386,21 @@ export const EliminationBracket = ({
             field_number: 2,
           };
 
-          // Si le match de 3ème place n'existe pas encore, demander confirmation
+          // If 3rd place match doesn't exist yet, ask for confirmation
           if (!thirdPlaceExists) {
             setPendingFinalMatches({
               finale: finaleMatch,
               thirdPlace: thirdPlaceMatch,
             });
             setThirdPlaceDialogOpen(true);
-            return; // Arrêter ici, la création sera faite après la réponse de l'utilisateur
+            return; // Stop here, creation will be done after user response
           } else {
-            // Le match de 3ème place existe déjà (peut-être refusé), créer juste la finale
+            // 3rd place match already exists (maybe declined), create just the final
             matchesToCreate.push(finaleMatch);
           }
         } else {
-          // Pour les autres tours : créer le match du tour suivant pour cette paire
-          // Affecter un terrain en round-robin
+          // For other rounds: create next round match for this pair
+          // Assign a field in round-robin
           const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
           
           matchesToCreate.push({
@@ -421,7 +415,7 @@ export const EliminationBracket = ({
         }
       }
 
-      // Insérer tous les nouveaux matchs en une seule fois
+      // Insert all new matches at once
       if (matchesToCreate.length > 0) {
         const { error: insertError } = await supabase
           .from("matches")
@@ -430,14 +424,14 @@ export const EliminationBracket = ({
         if (insertError) throw insertError;
 
         const message = roundMatches.length === 2 
-          ? `Finale et match pour la 3ème place générés !`
-          : `Match(s) généré(s) pour le tour ${completedRound + 1} !`;
+          ? `Final and 3rd place match generated!`
+          : `Match(es) generated for round ${completedRound + 1}!`;
         
         toast.success(message);
         await fetchTournamentAndMatches();
       }
     } catch (error: any) {
-      console.error("Erreur lors de la génération du tour suivant:", error);
+      console.error("Error generating next round:", error);
     }
   };
 
@@ -458,14 +452,14 @@ export const EliminationBracket = ({
       if (insertError) throw insertError;
 
       const message = includeThirdPlace 
-        ? "Finale et match pour la 3ème place générés !"
-        : "Finale générée !";
+        ? "Final and 3rd place match generated!"
+        : "Final generated!";
       
       toast.success(message);
       await fetchTournamentAndMatches();
     } catch (error: any) {
-      console.error("Erreur lors de la création des matchs:", error);
-      toast.error("Erreur lors de la création des matchs");
+      console.error("Error creating matches:", error);
+      toast.error("Error creating matches");
     } finally {
       setThirdPlaceDialogOpen(false);
       setPendingFinalMatches(null);
@@ -476,14 +470,14 @@ export const EliminationBracket = ({
     const totalRounds = Math.log2(totalTeams);
     const roundsRemaining = totalRounds - roundNumber + 1;
     
-    if (roundsRemaining === 1) return "Finale";
-    if (roundsRemaining === 2) return "1/2";
-    if (roundsRemaining === 3) return "1/4";
-    if (roundsRemaining === 4) return "1/8";
+    if (roundsRemaining === 1) return "Final";
+    if (roundsRemaining === 2) return "Semi-finals";
+    if (roundsRemaining === 3) return "Quarter-finals";
+    if (roundsRemaining === 4) return "Round of 16";
     return `R${roundNumber}`;
   };
 
-  // Générer la structure complète du bracket (tous les tours)
+  // Generate complete bracket structure (all rounds)
   const generateBracketStructure = () => {
     if (!tournament?.teams_for_elimination) return [];
     
@@ -495,19 +489,19 @@ export const EliminationBracket = ({
       const matchesInRound = totalTeams / Math.pow(2, round);
       const roundMatches = [];
       
-      // Filtrer et trier les matchs de ce round (exclure le match de 3ème place)
+      // Filter and sort matches of this round (exclude 3rd place match)
       const roundMatchesSorted = matches
         .filter(m => m.round_number === round && !m.is_third_place_match)
-        .sort((a, b) => a.id.localeCompare(b.id)); // Tri stable par ID
+        .sort((a, b) => a.id.localeCompare(b.id)); // Stable sort by ID
       
       for (let i = 0; i < matchesInRound; i++) {
-        // Prendre le i-ème match de ce round
+        // Take the i-th match of this round
         const existingMatch = roundMatchesSorted[i];
         
         if (existingMatch) {
           roundMatches.push(existingMatch);
         } else {
-          // Créer un match placeholder
+          // Create a placeholder match
           roundMatches.push({
             id: `placeholder-${round}-${i}`,
             round_number: round,
@@ -526,26 +520,26 @@ export const EliminationBracket = ({
     return structure;
   };
 
-  // Vérifier si un tour précédent est complété (tous les matchs ont un gagnant)
+  // Check if a previous round is completed (all matches have a winner)
   const isPreviousRoundCompleted = (roundNumber: number): boolean => {
-    if (roundNumber <= 1) return true; // Premier tour toujours accessible
+    if (roundNumber <= 1) return true; // First round always accessible
     
     const previousRoundMatches = matches.filter(
       m => m.round_number === roundNumber - 1 && !m.is_third_place_match
     );
     
-    // Si pas de matchs au tour précédent, c'est qu'ils ne sont pas encore générés
+    // If no matches in previous round, they're not yet generated
     if (previousRoundMatches.length === 0) return false;
     
-    // Tous les matchs du tour précédent doivent avoir un gagnant
+    // All previous round matches must have a winner
     return previousRoundMatches.every(m => m.winner_id !== null);
   };
 
-  // Vérifier si les demi-finales sont terminées (pour le match de 3ème place)
+  // Check if semi-finals are completed (for 3rd place match)
   const areSemiFinalsCompleted = (): boolean => {
     const totalTeams = tournament?.teams_for_elimination || 8;
     const totalRounds = Math.log2(totalTeams);
-    const semiFinalsRound = totalRounds - 1; // L'avant-dernier tour
+    const semiFinalsRound = totalRounds - 1; // Second to last round
     
     const semiFinalsMatches = matches.filter(
       m => m.round_number === semiFinalsRound && !m.is_third_place_match
@@ -556,13 +550,13 @@ export const EliminationBracket = ({
 
   const bracketStructure = generateBracketStructure();
   
-  // Récupérer le match pour la 3ème place s'il existe
+  // Get 3rd place match if it exists
   const thirdPlaceMatch = matches.find(m => m.is_third_place_match);
 
   if (loading) {
     return (
       <Card className="glass-card p-8 text-center">
-        <p className="text-muted-foreground animate-pulse">Chargement du bracket...</p>
+        <p className="text-muted-foreground animate-pulse">Loading bracket...</p>
       </Card>
     );
   }
@@ -571,12 +565,12 @@ export const EliminationBracket = ({
     return (
       <Card className="glass-card p-8 text-center">
         <Trophy className="h-12 w-12 text-primary mx-auto mb-4 animate-bounce" />
-        <p className="text-muted-foreground animate-pulse">Génération du bracket...</p>
+        <p className="text-muted-foreground animate-pulse">Generating bracket...</p>
       </Card>
     );
   }
 
-  // Grouper les matchs par round
+  // Group matches by round
   const matchesByRound = matches.reduce((acc, match) => {
     if (!acc[match.round_number]) {
       acc[match.round_number] = [];
@@ -591,21 +585,21 @@ export const EliminationBracket = ({
         <div className="flex items-center gap-3 mb-2">
           <Trophy className="h-6 w-6 text-primary" />
           <h2 className="text-xl font-bold">
-            Phase d'élimination {eliminationType === "single" ? "simple" : "double"}
+            {eliminationType === "single" ? "Single" : "Double"} Elimination Phase
           </h2>
         </div>
         <p className="text-sm text-muted-foreground ml-9">
-          {tournament?.teams_for_elimination} équipes qualifiées
+          {tournament?.teams_for_elimination} qualified teams
         </p>
       </div>
 
       {matches.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Aucun match généré</p>
+          <p className="text-muted-foreground">No matches generated</p>
         </div>
       ) : (
         <>
-          {/* Bracket principal */}
+          {/* Main bracket */}
           <div className="overflow-x-auto pb-4">
             <div className="flex gap-8 min-w-max px-4">
               {bracketStructure.map((roundMatches, roundIndex) => {
@@ -613,19 +607,19 @@ export const EliminationBracket = ({
                 const totalTeams = tournament?.teams_for_elimination || 8;
                 const isLastRound = roundIndex === bracketStructure.length - 1;
                 
-                // Dimensions - calcul pyramidal correct
-                // Hauteur réelle d'un match: header(20) + card(68) + button(36) ≈ 124px
+                // Dimensions - correct pyramid calculation
+                // Real height of a match: header(20) + card(68) + button(36) ≈ 124px
                 const matchHeight = 124;
-                const baseGap = 12; // Écart entre matchs du round 0
+                const baseGap = 12; // Gap between round 0 matches
                 const unit = matchHeight + baseGap; // 136px
                 
-                // Gap entre matchs de ce round (double à chaque tour)
+                // Gap between matches of this round (doubles each round)
                 const verticalGap = unit * Math.pow(2, roundIndex) - matchHeight;
                 
-                // Décalage du premier match pour centrer entre les matchs sources
+                // First match offset to center between source matches
                 const topOffset = unit * (Math.pow(2, roundIndex) - 1) / 2;
                 
-                // Numéro de match
+                // Match number
                 let matchNumberStart = 1;
                 for (let i = 0; i < roundIndex; i++) {
                   matchNumberStart += Math.pow(2, Math.log2(totalTeams) - i - 1);
@@ -654,7 +648,7 @@ export const EliminationBracket = ({
                         marginTop: `${topOffset}px`
                       }}
                     >
-                      {/* Lignes de connexion */}
+                      {/* Connection lines */}
                       {!isLastRound && (
                         <svg
                           className="absolute left-full top-0 pointer-events-none"
@@ -708,9 +702,9 @@ export const EliminationBracket = ({
                             onStartEdit={() => {
                               if (isLocked || isMatchCompleted) {
                                 if (isMatchCompleted) {
-                                  toast.error("Ce match est terminé et ne peut plus être modifié");
+                                  toast.error("This match is finished and can no longer be modified");
                                 } else {
-                                  toast.error("Terminez d'abord les matchs du tour précédent");
+                                  toast.error("Complete the previous round matches first");
                                 }
                                 return;
                               }
@@ -731,12 +725,12 @@ export const EliminationBracket = ({
                             })}
                             onMatchClick={() => {
                               if (isLocked && !isMatchCompleted) {
-                                toast.error("Terminez d'abord les matchs du tour précédent");
+                                toast.error("Complete the previous round matches first");
                                 return;
                               }
                               if (!match.isPlaceholder) {
                                 setSelectedMatch(match);
-                                // Si le match est terminé, afficher le récap, sinon le dialog d'édition
+                                // If match is finished, show recap, otherwise editing dialog
                                 if (isMatchCompleted) {
                                   setRecapDialogOpen(true);
                                 } else {
@@ -747,9 +741,9 @@ export const EliminationBracket = ({
                             onIncrementScore={(teamId, teamName) => {
                               if (isLocked || isMatchCompleted) {
                                 if (isMatchCompleted) {
-                                  toast.error("Ce match est terminé et ne peut plus être modifié");
+                                  toast.error("This match is finished and can no longer be modified");
                                 } else {
-                                  toast.error("Terminez d'abord les matchs du tour précédent");
+                                  toast.error("Complete the previous round matches first");
                                 }
                                 return;
                               }
@@ -764,7 +758,7 @@ export const EliminationBracket = ({
                 );
               })}
               
-              {/* Champion section si finale terminée */}
+              {/* Champion section if final is finished */}
               {bracketStructure.length > 0 && (() => {
                 const finalRound = bracketStructure[bracketStructure.length - 1];
                 const finalMatch = finalRound?.[0];
@@ -791,13 +785,13 @@ export const EliminationBracket = ({
             </div>
           </div>
 
-          {/* Match pour la 3ème place */}
+          {/* 3rd place match */}
           {thirdPlaceMatch && (
             <div className="mt-8 pt-6 border-t border-border">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <Medal className="h-5 w-5 text-amber-600" />
                 <h3 className="text-sm font-bold text-amber-600">
-                  Match pour la 3ème place
+                  3rd Place Match
                 </h3>
               </div>
               <div className="max-w-[220px] mx-auto">
@@ -817,9 +811,9 @@ export const EliminationBracket = ({
                       onStartEdit={() => {
                         if (thirdPlaceLocked || isThirdPlaceCompleted) {
                           if (isThirdPlaceCompleted) {
-                            toast.error("Ce match est terminé et ne peut plus être modifié");
+                            toast.error("This match is finished and can no longer be modified");
                           } else {
-                            toast.error("Terminez d'abord les demi-finales");
+                            toast.error("Complete the semi-finals first");
                           }
                           return;
                         }
@@ -840,7 +834,7 @@ export const EliminationBracket = ({
                       })}
                       onMatchClick={() => {
                         if (thirdPlaceLocked && !isThirdPlaceCompleted) {
-                          toast.error("Terminez d'abord les demi-finales");
+                          toast.error("Complete the semi-finals first");
                           return;
                         }
                         setSelectedMatch(thirdPlaceMatch);
@@ -853,9 +847,9 @@ export const EliminationBracket = ({
                       onIncrementScore={(teamId, teamName) => {
                         if (thirdPlaceLocked || isThirdPlaceCompleted) {
                           if (isThirdPlaceCompleted) {
-                            toast.error("Ce match est terminé et ne peut plus être modifié");
+                            toast.error("This match is finished and can no longer be modified");
                           } else {
-                            toast.error("Terminez d'abord les demi-finales");
+                            toast.error("Complete the semi-finals first");
                           }
                           return;
                         }
@@ -879,7 +873,7 @@ export const EliminationBracket = ({
           onOpenChange={setStatsDialogOpen}
           onScoreUpdate={async () => {
             await fetchTournamentAndMatches();
-            // Vérifier si le tour suivant doit être généré
+            // Check if next round should be generated
             if (selectedMatch) {
               await checkAndGenerateNextRound(selectedMatch.round_number);
             }
@@ -915,18 +909,18 @@ export const EliminationBracket = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Medal className="h-5 w-5 text-amber-600" />
-              Match pour la 3ème place
+              3rd Place Match
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Voulez-vous organiser un match pour la 3ème place entre les perdants des demi-finales ?
+              Do you want to organize a 3rd place match between the semi-final losers?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => handleThirdPlaceConfirmation(false)}>
-              Non, juste la finale
+              No, just the final
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => handleThirdPlaceConfirmation(true)}>
-              Oui, organiser le match
+              Yes, organize the match
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -40,7 +40,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
 
   useEffect(() => {
     const initializeRound = async () => {
-      // Récupérer le nombre de terrains du tournoi
+      // Get the number of fields from the tournament
       const { data: tournament } = await supabase
         .from("tournaments")
         .select("number_of_fields")
@@ -96,7 +96,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
       .order("created_at");
 
     if (error) {
-      toast.error("Erreur lors du chargement des matchs");
+      toast.error("Error loading matches");
       return;
     }
 
@@ -120,7 +120,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
       const teams = tournamentTeams?.map(tt => tt.teams).filter(Boolean) || [];
 
       if (!teams || teams.length < 2) {
-        toast.error("Il faut au moins 2 équipes pour créer des matchs");
+        toast.error("At least 2 teams are required to create matches");
         return;
       }
 
@@ -213,7 +213,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           paired.add(team1.id);
           paired.add(team2.id);
 
-          // Affecter un terrain en round-robin
+          // Assign a field in round-robin
           const fieldNumber = (newMatches.length % numberOfFields) + 1;
 
           newMatches.push({
@@ -228,7 +228,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
       }
 
       if (newMatches.length === 0) {
-        toast.error("Impossible de générer de nouveaux matchs.");
+        toast.error("Unable to generate new matches.");
         return;
       }
 
@@ -238,7 +238,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
 
       if (insertError) throw insertError;
 
-      toast.success(`Round ${roundToGenerate} généré avec ${newMatches.length} match${newMatches.length > 1 ? 's' : ''} !`);
+      toast.success(`Round ${roundToGenerate} generated with ${newMatches.length} match${newMatches.length > 1 ? 'es' : ''}!`);
       if (roundToGenerate > currentRound) {
         setCurrentRound(roundToGenerate);
         setMaxRound(roundToGenerate);
@@ -281,9 +281,9 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
 
       if (error) throw error;
 
-      toast.success("Score enregistré !");
+      toast.success("Score saved!");
       
-      // Rafraîchir les matchs et le maxRound
+      // Refresh matches and maxRound
       await Promise.all([fetchMatches(), fetchMaxRound()]);
     } catch (error: any) {
       toast.error(error.message);
@@ -305,21 +305,21 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Trophy className="h-6 w-6 text-primary" />
-              Round Swiss {currentRound}
+              Swiss Round {currentRound}
               {currentRound === maxRound && (
                 <Badge variant="default" className="gap-1 animate-pulse">
                   <Zap className="h-3 w-3" />
-                  Actuel
+                  Current
                 </Badge>
               )}
               {currentRound < maxRound && (
                 <Badge variant="secondary" className="gap-1">
-                  Terminé
+                  Completed
                 </Badge>
               )}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Les équipes sont appariées selon leur classement actuel
+              Teams are paired according to their current ranking
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -329,7 +329,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
                 onClick={() => setCurrentRound(currentRound - 1)}
                 disabled={currentRound === 1}
               >
-                Round précédent
+                Previous Round
               </Button>
             )}
             {currentRound < maxRound && (
@@ -337,7 +337,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
                 variant="outline"
                 onClick={() => setCurrentRound(currentRound + 1)}
               >
-                Round suivant
+                Next Round
               </Button>
             )}
             {currentRound === maxRound && isCreator && (
@@ -347,7 +347,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
                 className="gap-2"
               >
                 <TrendingUp className="h-4 w-4" />
-                {matches.length === 0 ? `Générer Round ${currentRound}` : `Générer Round ${currentRound + 1}`}
+                {matches.length === 0 ? `Generate Round ${currentRound}` : `Generate Round ${currentRound + 1}`}
               </Button>
             )}
           </div>
@@ -358,11 +358,11 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
               <p className="text-foreground">
-                Progression: {matches.filter(m => m.team1_score !== null && m.team2_score !== null).length} / {matches.length} matchs complétés
+                Progress: {matches.filter(m => m.team1_score !== null && m.team2_score !== null).length} / {matches.length} matches completed
               </p>
             </div>
             {canGenerateNextRound() && currentPhase === "swiss" && (
-              <span className="text-sm font-semibold text-primary">✓ Prêt pour le prochain round</span>
+              <span className="text-sm font-semibold text-primary">✓ Ready for next round</span>
             )}
           </div>
         )}
@@ -371,7 +371,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-destructive" />
             <p className="text-foreground">
-              Le tournoi est en phase {currentPhase === "elimination" ? "éliminatoire" : currentPhase}. Vous ne pouvez plus générer de nouveaux rounds Swiss.
+              The tournament is in {currentPhase === "elimination" ? "elimination" : currentPhase} phase. You can no longer generate new Swiss rounds.
             </p>
           </div>
         )}
@@ -379,9 +379,9 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
         <div className="space-y-4">
           {matches.filter(m => m.team1_score === null || m.team2_score === null).length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold mb-3">Matchs en cours</h3>
+              <h3 className="text-lg font-semibold mb-3">Ongoing Matches</h3>
               {matches.filter(m => m.team1_score === null || m.team2_score === null).map((match) => {
-                // Vérifier si ce match est le prochain à jouer sur son terrain
+                // Check if this match is the next to play on its field
                 const matchesOnSameField = matches
                   .filter(m => m.field_number === match.field_number)
                   .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -409,7 +409,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           
           {matches.filter(m => m.team1_score !== null && m.team2_score !== null).length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold mb-3 text-muted-foreground">Matchs terminés</h3>
+              <h3 className="text-lg font-semibold mb-3 text-muted-foreground">Completed Matches</h3>
               <div className="space-y-2 opacity-60">
                 {matches.filter(m => m.team1_score !== null && m.team2_score !== null).map((match) => (
                   <CompletedMatchCard key={match.id} match={match} />
@@ -420,7 +420,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           
           {matches.length === 0 && (
             <p className="text-muted-foreground text-center py-8">
-              Aucun match pour ce round. Cliquez sur "Générer" pour créer les matchs selon le système Swiss.
+              No matches for this round. Click "Generate" to create matches according to the Swiss system.
             </p>
           )}
         </div>
@@ -453,7 +453,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
   const [quickStatTeam, setQuickStatTeam] = useState<{ id: string; name: string } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Charger les joueurs au montage pour pouvoir calculer les scores
+  // Load players on mount to calculate scores
   useEffect(() => {
     fetchPlayers();
   }, []);
@@ -464,14 +464,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
     }
   }, [isOpen]);
 
-  // Calculer les scores depuis player_stats si match non validé
+  // Calculate scores from player_stats if match not validated
   useEffect(() => {
     if (team1Players.length > 0 || team2Players.length > 0) {
       fetchPlayerStats();
     }
   }, [team1Players, team2Players, goalScorerDialogOpen]);
 
-  // Calculer scores depuis player_stats si match pas encore validé
+  // Calculate scores from player_stats if match not yet validated
   useEffect(() => {
     if (match.team1_score === null && match.team2_score === null) {
       loadScoresFromPlayerStats();
@@ -622,14 +622,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
       }
     }
 
-    // Si c'est un but, mettre à jour le score du match
+    // If it's a goal, update the match score
     if (field === "goals") {
       await updateMatchScoresFromPlayerStats();
     }
   };
 
   const updateMatchScoresFromPlayerStats = async () => {
-    // Récupérer tous les stats des joueurs pour ce match
+    // Get all player stats for this match
     const { data: allStats, error } = await supabase
       .from("player_stats")
       .select("player_id, goals")
@@ -637,7 +637,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
 
     if (error || !allStats) return;
 
-    // Calculer les scores pour chaque équipe
+    // Calculate scores for each team
     const team1PlayerIds = team1Players.map(p => p.id);
     const team2PlayerIds = team2Players.map(p => p.id);
 
@@ -649,11 +649,11 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
       .filter(stat => team2PlayerIds.includes(stat.player_id))
       .reduce((sum, stat) => sum + (stat.goals || 0), 0);
 
-    // Mettre à jour les scores locaux ET dans la DB
+    // Update local scores AND in the DB
     setTeam1Score(team1Goals);
     setTeam2Score(team2Goals);
     
-    // Mettre à jour dans la base de données si les scores ont changé
+    // Update in the database if scores have changed
     if (team1Goals !== match.team1_score || team2Goals !== match.team2_score) {
       const winnerId = team1Goals > team2Goals ? match.team1_id : 
                       team2Goals > team1Goals ? match.team2_id : null;
@@ -685,19 +685,19 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
         {match.field_number && (
           <div className="flex items-center justify-center mb-1">
             <Badge variant="outline" className="text-xs">
-              Terrain {match.field_number}
+              Field {match.field_number}
             </Badge>
           </div>
         )}
         {isLockedByPreviousMatch && (
           <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
-            🔒 Un match précédent doit être terminé sur le terrain {match.field_number} avant de modifier celui-ci
+            🔒 A previous match must be completed on field {match.field_number} before modifying this one
           </div>
         )}
         <div className="flex items-center gap-4">
           <div className="flex-1 flex items-center justify-between gap-3">
-            <span className="font-medium flex-1">{match.team1?.name || "Équipe 1"}</span>
+            <span className="font-medium flex-1">{match.team1?.name || "Team 1"}</span>
             <ScoreInput
               value={team1Score}
               onChange={(value) => {
@@ -705,7 +705,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
                 if (!isEditing) setIsEditing(true);
               }}
               onIncrement={() => {
-                setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Équipe 1" });
+                setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
                 setGoalScorerDialogOpen(true);
               }}
               disabled={isClosed || isLockedByPreviousMatch || !isCreator}
@@ -720,16 +720,16 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
                 if (!isEditing) setIsEditing(true);
               }}
               onIncrement={() => {
-                setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Équipe 2" });
+                setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
                 setGoalScorerDialogOpen(true);
               }}
               disabled={isClosed || isLockedByPreviousMatch || !isCreator}
             />
-            <span className="font-medium flex-1 text-right">{match.team2?.name || "Équipe 2"}</span>
+            <span className="font-medium flex-1 text-right">{match.team2?.name || "Team 2"}</span>
           </div>
         </div>
 
-        {/* Onglets stats rapides */}
+        {/* Quick stats tabs */}
         {isCreator && (
           <div className="flex flex-wrap gap-2 justify-center">
             <Button
@@ -743,7 +743,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
               disabled={isClosed || isLockedByPreviousMatch}
               className="text-xs"
             >
-              Passes
+              Assists
             </Button>
             <Button
               variant="outline"
@@ -756,7 +756,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
               disabled={isClosed || isLockedByPreviousMatch}
               className="text-xs"
             >
-              Fautes
+              Fouls
             </Button>
             <Button
               variant="outline"
@@ -812,7 +812,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
                   size="sm"
                   variant="outline"
                 >
-                  Annuler
+                  Cancel
                 </Button>
               )}
               <Button
@@ -820,7 +820,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
                 size="sm"
                 disabled={isClosed || isLockedByPreviousMatch}
               >
-                Valider
+                Validate
               </Button>
             </div>
         )}
@@ -835,7 +835,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
             disabled={isClosed || isLockedByPreviousMatch}
           >
             <Users className="h-4 w-4" />
-            Statistiques des joueurs
+            Player Statistics
             {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </CollapsibleTrigger>
@@ -862,7 +862,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
                   />
                 ))}
                 {team1Players.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Aucun joueur</p>
+                  <p className="text-sm text-muted-foreground">No players</p>
                 )}
               </div>
             </div>
@@ -885,7 +885,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
                   />
                 ))}
                 {team2Players.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Aucun joueur</p>
+                  <p className="text-sm text-muted-foreground">No players</p>
                 )}
               </div>
             </div>
@@ -896,16 +896,16 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer le score final</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Final Score</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div>
                 <p>
-                  Confirmez-vous le score final de ce match ?<br />
-                  <strong>{match.team1?.name}</strong> : {team1Score} - {team2Score} : <strong>{match.team2?.name}</strong>
+                  Do you confirm the final score of this match?<br />
+                  <strong>{match.team1?.name}</strong>: {team1Score} - {team2Score}: <strong>{match.team2?.name}</strong>
                 </p>
                 <MatchStatsRecap
-                  team1Name={match.team1?.name || "Équipe 1"}
-                  team2Name={match.team2?.name || "Équipe 2"}
+                  team1Name={match.team1?.name || "Team 1"}
+                  team2Name={match.team2?.name || "Team 2"}
                   team1Players={team1Players}
                   team2Players={team2Players}
                   playerStats={playerStats}
@@ -914,8 +914,8 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmValidateScore}>Confirmer</AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmValidateScore}>Confirm</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -926,7 +926,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
           onOpenChange={(open) => {
             setGoalScorerDialogOpen(open);
             if (!open) {
-              // Recharger les stats quand le dialog se ferme
+              // Reload stats when dialog closes
               fetchPlayerStats();
             }
           }}
@@ -935,7 +935,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
           matchId={match.id}
           tournamentId={tournamentId}
           onGoalRecorded={() => {
-            // Recharger immédiatement après l'enregistrement
+            // Reload immediately after recording
             fetchPlayerStats();
           }}
         />
@@ -950,17 +950,17 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
               fetchPlayerStats();
             }
           }}
-          team1={{ id: match.team1_id, name: match.team1?.name || "Équipe 1" }}
-          team2={{ id: match.team2_id, name: match.team2?.name || "Équipe 2" }}
+          team1={{ id: match.team1_id, name: match.team1?.name || "Team 1" }}
+          team2={{ id: match.team2_id, name: match.team2?.name || "Team 2" }}
           matchId={match.id}
           tournamentId={tournamentId}
           statType={quickStatType}
           statLabel={
-            quickStatType === "assists" ? "Passe décisive" :
-            quickStatType === "fouls" ? "Faute" :
-            quickStatType === "penalty_30s" ? "Pénalité 30 sec" :
-            quickStatType === "penalty_1m" ? "Pénalité 1 min" :
-            "Pénalité 2 min"
+            quickStatType === "assists" ? "Assist" :
+            quickStatType === "fouls" ? "Foul" :
+            quickStatType === "penalty_30s" ? "30 sec Penalty" :
+            quickStatType === "penalty_1m" ? "1 min Penalty" :
+            "2 min Penalty"
           }
           onStatRecorded={() => {
             fetchPlayerStats();
@@ -1015,7 +1015,7 @@ const PlayerStatsInput = ({ player, stats, onUpdate, onEditStart, onEditEnd }: P
             <div className="flex items-center gap-2">
               {hasAnyStats && (
                 <span className="text-xs text-muted-foreground">
-                  {stats.goals || 0}B {stats.assists || 0}P
+                  {stats.goals || 0}G {stats.assists || 0}A
                   {hasFouls && <span className="ml-1">{stats.fouls}F</span>}
                   {hasPenalties && <span className="ml-1 text-destructive">⚠</span>}
                 </span>
@@ -1028,9 +1028,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate, onEditStart, onEditEnd }: P
       
       <CollapsibleContent>
         <div className="p-3 bg-background/30 rounded-lg mt-1 space-y-2">
-        {/* Buts */}
+        {/* Goals */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium min-w-[50px]">Buts</span>
+          <span className="text-xs font-medium min-w-[50px]">Goals</span>
           <div className="flex items-center gap-1">
             <Button
               type="button"
@@ -1056,9 +1056,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate, onEditStart, onEditEnd }: P
           </div>
         </div>
 
-        {/* Passes */}
+        {/* Assists */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium min-w-[50px]">Passes</span>
+          <span className="text-xs font-medium min-w-[50px]">Assists</span>
           <div className="flex items-center gap-1">
             <Button
               type="button"
@@ -1084,9 +1084,9 @@ const PlayerStatsInput = ({ player, stats, onUpdate, onEditStart, onEditEnd }: P
           </div>
         </div>
 
-        {/* Fautes */}
+        {/* Fouls */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium min-w-[50px]">Fautes</span>
+          <span className="text-xs font-medium min-w-[50px]">Fouls</span>
           <div className="flex items-center gap-1">
             <Button
               type="button"
@@ -1112,7 +1112,7 @@ const PlayerStatsInput = ({ player, stats, onUpdate, onEditStart, onEditEnd }: P
           </div>
         </div>
 
-        {/* 30 secondes */}
+        {/* 30 seconds */}
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium min-w-[50px]">30sec</span>
           <div className="flex items-center gap-1">
@@ -1209,7 +1209,7 @@ const CompletedMatchCard = ({ match }: { match: any }) => {
     <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">
       <div className="flex-1 flex items-center justify-between gap-3">
         <span className={`font-medium ${isTeam1Winner ? 'text-primary' : ''}`}>
-          {match.team1?.name || "Équipe 1"}
+          {match.team1?.name || "Team 1"}
         </span>
         <span className={`text-lg font-bold ${isTeam1Winner ? 'text-primary' : ''}`}>
           {match.team1_score}
@@ -1221,7 +1221,7 @@ const CompletedMatchCard = ({ match }: { match: any }) => {
           {match.team2_score}
         </span>
         <span className={`font-medium text-right ${isTeam2Winner ? 'text-primary' : ''}`}>
-          {match.team2?.name || "Équipe 2"}
+          {match.team2?.name || "Team 2"}
         </span>
       </div>
     </div>

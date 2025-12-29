@@ -66,7 +66,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
       .eq("tournament_teams.tournament_id", tournamentId);
 
     if (error) {
-      toast.error("Erreur lors du chargement des joueurs");
+      toast.error("Error loading players");
       return;
     }
 
@@ -95,7 +95,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
       .order("round_number");
 
     if (error) {
-      toast.error("Erreur lors du chargement des matchs");
+      toast.error("Error loading matches");
       return;
     }
 
@@ -165,7 +165,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
       
       setPlayers(playersWithStats);
     } catch (error: any) {
-      toast.error("Erreur lors du chargement des statistiques");
+      toast.error("Error loading statistics");
     } finally {
       setLoading(false);
     }
@@ -175,7 +175,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
     e.preventDefault();
     
     if (!selectedPlayerId) {
-      toast.error("Veuillez sélectionner un joueur");
+      toast.error("Please select a player");
       return;
     }
 
@@ -215,7 +215,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
 
       if (error) throw error;
 
-      toast.success("Statistiques ajoutées !");
+      toast.success("Statistics added!");
       setShowAddDialog(false);
       resetForm();
       fetchPlayerStats();
@@ -246,10 +246,10 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Trophy className="h-6 w-6 text-primary" />
-              Statistiques individuelles
+              Individual Statistics
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Performances détaillées de chaque joueur
+              Detailed performance of each player
             </p>
           </div>
           
@@ -258,28 +258,28 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
               <DialogTrigger asChild>
                 <Button onClick={() => setShowAddDialog(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Ajouter des stats
+                  Add Stats
                 </Button>
               </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>Ajouter des statistiques</DialogTitle>
+                <DialogTitle>Add Statistics</DialogTitle>
                 <DialogDescription>
-                  Enregistrer les performances d'un joueur
+                  Record a player's performance
                 </DialogDescription>
               </DialogHeader>
 
               <form onSubmit={handleAddStats} className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label>Joueur *</Label>
+                  <Label>Player *</Label>
                   <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un joueur" />
+                      <SelectValue placeholder="Select a player" />
                     </SelectTrigger>
                     <SelectContent>
                       {allPlayers.map((player) => (
                         <SelectItem key={player.id} value={player.id}>
-                          {player.name} - {player.team?.name || "Sans équipe"}
+                          {player.name} - {player.team?.name || "No team"}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -287,10 +287,10 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Match (optionnel)</Label>
+                  <Label>Match (optional)</Label>
                   <Select value={selectedMatchId} onValueChange={setSelectedMatchId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Match général (non spécifié)" />
+                      <SelectValue placeholder="General match (unspecified)" />
                     </SelectTrigger>
                     <SelectContent>
                       {matches.map((match) => (
@@ -306,7 +306,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
                   <div className="space-y-2">
                     <Label htmlFor="goals">
                       <Target className="inline h-4 w-4 mr-1" />
-                      Buts
+                      Goals
                     </Label>
                     <Input
                       id="goals"
@@ -320,7 +320,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
                   <div className="space-y-2">
                     <Label htmlFor="assists">
                       <Trophy className="inline h-4 w-4 mr-1" />
-                      Passes
+                      Assists
                     </Label>
                     <Input
                       id="assists"
@@ -334,7 +334,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
                   <div className="space-y-2">
                     <Label htmlFor="fouls">
                       <AlertTriangle className="inline h-4 w-4 mr-1" />
-                      Fautes
+                      Fouls
                     </Label>
                     <Input
                       id="fouls"
@@ -348,7 +348,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
                   <div className="space-y-2">
                     <Label htmlFor="penalty30s">
                       <Clock className="inline h-4 w-4 mr-1" />
-                      Pénalités 30s
+                      30s Penalties
                     </Label>
                     <Input
                       id="penalty30s"
@@ -362,7 +362,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
                   <div className="space-y-2">
                     <Label htmlFor="penalty1m">
                       <Clock className="inline h-4 w-4 mr-1" />
-                      Pénalités 1 min
+                      1 min Penalties
                     </Label>
                     <Input
                       id="penalty1m"
@@ -376,7 +376,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
                   <div className="space-y-2">
                     <Label htmlFor="penalty2m">
                       <Clock className="inline h-4 w-4 mr-1" />
-                      Pénalités 2 min
+                      2 min Penalties
                     </Label>
                     <Input
                       id="penalty2m"
@@ -390,10 +390,10 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
 
                 <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
-                    Annuler
+                    Cancel
                   </Button>
                   <Button type="submit">
-                    Enregistrer
+                    Save
                   </Button>
                 </div>
               </form>
@@ -404,7 +404,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
 
         {loading ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground animate-pulse">Chargement...</p>
+            <p className="text-muted-foreground animate-pulse">Loading...</p>
           </div>
         ) : players.length > 0 ? (
           <div className="overflow-x-auto">
@@ -412,19 +412,19 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
-                  <TableHead>Joueur</TableHead>
-                  <TableHead>Équipe</TableHead>
+                  <TableHead>Player</TableHead>
+                  <TableHead>Team</TableHead>
                   <TableHead className="text-center">
                     <Target className="inline h-4 w-4 mr-1" />
-                    Buts
+                    Goals
                   </TableHead>
                   <TableHead className="text-center">
                     <Trophy className="inline h-4 w-4 mr-1" />
-                    Passes
+                    Assists
                   </TableHead>
                   <TableHead className="text-center">
                     <AlertTriangle className="inline h-4 w-4 mr-1" />
-                    Fautes
+                    Fouls
                   </TableHead>
                   <TableHead className="text-center">30s</TableHead>
                   <TableHead className="text-center">1min</TableHead>
@@ -463,7 +463,7 @@ export const PlayerStatsManager = ({ tournamentId, isClosed = false, isCreator =
           <div className="text-center py-12">
             <Trophy className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
             <p className="text-muted-foreground">
-              Aucune statistique enregistrée pour le moment
+              No statistics recorded yet
             </p>
           </div>
         )}
