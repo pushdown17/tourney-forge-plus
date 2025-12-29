@@ -213,7 +213,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           paired.add(team1.id);
           paired.add(team2.id);
 
-          // Assign a field in round-robin
+          // Assign a court in round-robin
           const fieldNumber = (newMatches.length % numberOfFields) + 1;
 
           newMatches.push({
@@ -685,14 +685,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
         {match.field_number && (
           <div className="flex items-center justify-center mb-1">
             <Badge variant="outline" className="text-xs">
-              Field {match.field_number}
+              Court {match.field_number}
             </Badge>
           </div>
         )}
         {isLockedByPreviousMatch && (
           <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
-            🔒 A previous match must be completed on field {match.field_number} before modifying this one
+            🔒 A previous match must be completed on court {match.field_number} before modifying this one
           </div>
         )}
         <div className="flex items-center gap-4">

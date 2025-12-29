@@ -121,7 +121,7 @@ export const TournamentsList = () => {
               {tournament.number_of_fields && (
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
-                  <span>{tournament.number_of_fields} field{tournament.number_of_fields > 1 ? 's' : ''}</span>
+                  <span>{tournament.number_of_fields} court{tournament.number_of_fields > 1 ? 's' : ''}</span>
                 </div>
               )}
             </div>

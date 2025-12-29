@@ -76,7 +76,7 @@ export const BracketMatch = ({
         </span>
         {match.field_number && (
           <span className="text-[10px] text-primary font-medium bg-primary/10 px-1.5 py-0.5 rounded">
-            T{match.field_number}
+            C{match.field_number}
           </span>
         )}
         {isFinal && (
