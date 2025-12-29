@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Trophy, Users, Zap } from "lucide-react";
 import heroBackground from "@/assets/hero-background.jpg";
+import { SearchBar } from "@/components/SearchBar";
 
 export const Hero = () => {
   return (
@@ -31,6 +32,10 @@ export const Hero = () => {
           Create, manage, and track bike polo tournaments with ease. 
           The modern platform for bike polo organizers and communities.
         </p>
+        
+        <div className="mb-8">
+          <SearchBar />
+        </div>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
           <Link to="/create-tournament">
