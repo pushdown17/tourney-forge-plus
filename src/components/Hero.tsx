@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Trophy, Users, Zap } from "lucide-react";
 import heroBackground from "@/assets/hero-background.jpg";
@@ -55,30 +56,42 @@ export const Hero = () => {
         </div>
         
         {/* Features */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <div className="glass-card p-6 rounded-lg hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 group">
-            <div className="flex items-center gap-3 mb-4">
-              <Trophy className="h-5 w-5 text-primary/70" />
-              <h3 className="text-xl font-bold group-hover:text-primary transition-colors">Multiple Formats</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <Card className="glass-card p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-default h-full group">
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-xl font-bold group-hover:text-primary transition-colors">
+                Multiple Formats
+              </h3>
+              <Trophy className="h-5 w-5 shrink-0 text-primary/70" />
             </div>
-            <p className="text-sm text-muted-foreground">Single/double elimination, round-robin, and more</p>
-          </div>
+            <p className="text-sm text-muted-foreground">
+              Single/double elimination, round-robin, and more
+            </p>
+          </Card>
           
-          <div className="glass-card p-6 rounded-lg hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 group">
-            <div className="flex items-center gap-3 mb-4">
-              <Users className="h-5 w-5 text-primary/70" />
-              <h3 className="text-xl font-bold group-hover:text-primary transition-colors">Easy Management</h3>
+          <Card className="glass-card p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-default h-full group">
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-xl font-bold group-hover:text-primary transition-colors">
+                Easy Management
+              </h3>
+              <Users className="h-5 w-5 shrink-0 text-primary/70" />
             </div>
-            <p className="text-sm text-muted-foreground">Intuitive interface for participants and organizers</p>
-          </div>
+            <p className="text-sm text-muted-foreground">
+              Intuitive interface for participants and organizers
+            </p>
+          </Card>
           
-          <div className="glass-card p-6 rounded-lg hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 group">
-            <div className="flex items-center gap-3 mb-4">
-              <Zap className="h-5 w-5 text-primary/70" />
-              <h3 className="text-xl font-bold group-hover:text-primary transition-colors">Real-time Updates</h3>
+          <Card className="glass-card p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-default h-full group">
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-xl font-bold group-hover:text-primary transition-colors">
+                Real-time Updates
+              </h3>
+              <Zap className="h-5 w-5 shrink-0 text-primary/70" />
             </div>
-            <p className="text-sm text-muted-foreground">Live bracket updates and instant notifications</p>
-          </div>
+            <p className="text-sm text-muted-foreground">
+              Live bracket updates and instant notifications
+            </p>
+          </Card>
         </div>
       </div>
     </section>
