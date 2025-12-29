@@ -55,23 +55,29 @@ export const Hero = () => {
         </div>
         
         {/* Features */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          <div className="glass-card p-6 rounded-lg hover:scale-105 transition-transform duration-300">
-            <Trophy className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Multiple Formats</h3>
-            <p className="text-muted-foreground">Single/double elimination, round-robin, and more</p>
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="glass-card p-6 rounded-lg hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 group">
+            <div className="flex items-center gap-3 mb-4">
+              <Trophy className="h-5 w-5 text-primary/70" />
+              <h3 className="text-xl font-bold group-hover:text-primary transition-colors">Multiple Formats</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">Single/double elimination, round-robin, and more</p>
           </div>
           
-          <div className="glass-card p-6 rounded-lg hover:scale-105 transition-transform duration-300">
-            <Users className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Easy Management</h3>
-            <p className="text-muted-foreground">Intuitive interface for participants and organizers</p>
+          <div className="glass-card p-6 rounded-lg hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 group">
+            <div className="flex items-center gap-3 mb-4">
+              <Users className="h-5 w-5 text-primary/70" />
+              <h3 className="text-xl font-bold group-hover:text-primary transition-colors">Easy Management</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">Intuitive interface for participants and organizers</p>
           </div>
           
-          <div className="glass-card p-6 rounded-lg hover:scale-105 transition-transform duration-300">
-            <Zap className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Real-time Updates</h3>
-            <p className="text-muted-foreground">Live bracket updates and instant notifications</p>
+          <div className="glass-card p-6 rounded-lg hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 group">
+            <div className="flex items-center gap-3 mb-4">
+              <Zap className="h-5 w-5 text-primary/70" />
+              <h3 className="text-xl font-bold group-hover:text-primary transition-colors">Real-time Updates</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">Live bracket updates and instant notifications</p>
           </div>
         </div>
       </div>
