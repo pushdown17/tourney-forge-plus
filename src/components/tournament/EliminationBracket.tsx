@@ -181,7 +181,7 @@ export const EliminationBracket = ({
         const team1 = standings[i];
         const team2 = standings[teamsCount - 1 - i];
         
-        // Assign a field in round-robin
+        // Assign a court in round-robin
         const fieldNumber = (i % numberOfFields) + 1;
         
         allMatches.push({
@@ -400,7 +400,7 @@ export const EliminationBracket = ({
           }
         } else {
           // For other rounds: create next round match for this pair
-          // Assign a field in round-robin
+          // Assign a court in round-robin
           const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
           
           matchesToCreate.push({

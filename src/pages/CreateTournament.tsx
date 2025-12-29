@@ -151,16 +151,16 @@ const CreateTournament = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="numberOfFields">Number of Fields</Label>
+                <Label htmlFor="numberOfFields">Number of Courts</Label>
                 <Select value={numberOfFields} onValueChange={setNumberOfFields}>
                   <SelectTrigger id="numberOfFields" className="bg-secondary/50">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1 field</SelectItem>
-                    <SelectItem value="2">2 fields</SelectItem>
-                    <SelectItem value="3">3 fields</SelectItem>
-                    <SelectItem value="4">4 fields</SelectItem>
+                    <SelectItem value="1">1 court</SelectItem>
+                    <SelectItem value="2">2 courts</SelectItem>
+                    <SelectItem value="3">3 courts</SelectItem>
+                    <SelectItem value="4">4 courts</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
