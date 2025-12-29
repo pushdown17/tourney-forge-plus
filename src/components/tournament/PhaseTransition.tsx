@@ -31,17 +31,17 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
 
       if (error) throw error;
 
-      toast.success("Phase d'élimination simple activée !");
+      toast.success("Single elimination phase activated!");
       onPhaseChanged();
     } catch (error: any) {
-      toast.error("Erreur lors de l'activation de la phase d'élimination");
+      toast.error("Error activating elimination phase");
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Mode invité - afficher un message informatif
+  // Guest mode - show informative message
   if (!isCreator) {
     return (
       <Card className="glass-card p-8">
@@ -54,13 +54,13 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
           
           <div>
             <h2 className="text-2xl font-bold mb-2">
-              Phase d'élimination
+              Elimination Phase
             </h2>
             <p className="text-muted-foreground">
-              La phase d'élimination n'a pas encore commencé.
+              The elimination phase has not started yet.
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              Le tournoi est actuellement en phase {currentPhase === "round_robin" ? "Round Robin" : "Swiss Round"}.
+              The tournament is currently in {currentPhase === "round_robin" ? "Round Robin" : "Swiss Round"} phase.
             </p>
           </div>
         </div>
@@ -79,28 +79,28 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
         
         <div>
           <h2 className="text-2xl font-bold mb-2">
-            Phase d'élimination simple
+            Single Elimination Phase
           </h2>
           <p className="text-muted-foreground">
-            La phase {currentPhase === "round_robin" ? "Round Robin" : "Swiss Round"} est en cours. 
-            Vous pouvez démarrer la phase d'élimination simple en choisissant le nombre d'équipes qualifiées.
+            The {currentPhase === "round_robin" ? "Round Robin" : "Swiss Round"} phase is in progress. 
+            You can start the single elimination phase by choosing the number of qualifying teams.
           </p>
         </div>
 
         <div className="max-w-md mx-auto space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">
-              Nombre d'équipes qualifiées
+              Number of qualifying teams
             </label>
             <Select value={teamsForElimination} onValueChange={setTeamsForElimination}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="4">4 équipes</SelectItem>
-                <SelectItem value="8">8 équipes</SelectItem>
-                <SelectItem value="16">16 équipes</SelectItem>
-                <SelectItem value="32">32 équipes</SelectItem>
+                <SelectItem value="4">4 teams</SelectItem>
+                <SelectItem value="8">8 teams</SelectItem>
+                <SelectItem value="16">16 teams</SelectItem>
+                <SelectItem value="32">32 teams</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -112,10 +112,10 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
             size="lg"
           >
             {loading ? (
-              "Activation en cours..."
+              "Activating..."
             ) : (
               <>
-                Démarrer la phase d'élimination
+                Start Elimination Phase
                 <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}
@@ -123,7 +123,7 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
         </div>
 
         <div className="text-sm text-muted-foreground">
-          <p>💡 Les équipes seront sélectionnées selon le classement actuel</p>
+          <p>💡 Teams will be selected based on current standings</p>
         </div>
       </div>
     </Card>

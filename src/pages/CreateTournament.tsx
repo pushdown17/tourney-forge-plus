@@ -23,7 +23,7 @@ const CreateTournament = () => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error("Vous devez être connecté pour créer un tournoi");
+        toast.error("You must be logged in to create a tournament");
         navigate("/auth");
       }
     };
@@ -37,12 +37,12 @@ const CreateTournament = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error("Vous devez être connecté");
+        toast.error("You must be logged in");
         navigate("/auth");
         return;
       }
 
-      // Déterminer la phase initiale et le type d'élimination
+      // Determine initial phase and elimination type
       const currentPhase = format === "round-robin" || format === "round-robin-single" || format === "round-robin-double" 
         ? "round_robin" 
         : "swiss";
@@ -71,7 +71,7 @@ const CreateTournament = () => {
 
       if (error) throw error;
 
-      toast.success("Tournoi créé avec succès !");
+      toast.success("Tournament created successfully!");
       navigate(`/tournament/${data.id}`);
     } catch (error: any) {
       toast.error(error.message);
@@ -87,19 +87,19 @@ const CreateTournament = () => {
       <main className="container mx-auto px-4 pt-32 pb-16">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 text-center glow-text-primary">
-            Créer un tournoi
+            Create Tournament
           </h1>
           <p className="text-muted-foreground text-center mb-12">
-            Configurez votre tournoi avec le format de votre choix
+            Configure your tournament with the format of your choice
           </p>
 
           <Card className="glass-card p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Nom du tournoi</Label>
+                <Label htmlFor="name">Tournament Name</Label>
                 <Input
                   id="name"
-                  placeholder="ex: Championnat d'été 2024"
+                  placeholder="e.g., Summer Championship 2024"
                   value={tournamentName}
                   onChange={(e) => setTournamentName(e.target.value)}
                   className="bg-secondary/50"
@@ -109,7 +109,7 @@ const CreateTournament = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startDate">Date de début</Label>
+                  <Label htmlFor="startDate">Start Date</Label>
                   <Input
                     id="startDate"
                     type="date"
@@ -121,7 +121,7 @@ const CreateTournament = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="endDate">Date de fin</Label>
+                  <Label htmlFor="endDate">End Date</Label>
                   <Input
                     id="endDate"
                     type="date"
@@ -134,56 +134,56 @@ const CreateTournament = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="format">Format de la phase finale</Label>
+                <Label htmlFor="format">Final Phase Format</Label>
                 <Select value={format} onValueChange={(val: any) => setFormat(val)}>
                   <SelectTrigger id="format" className="bg-secondary/50">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="round-robin">Round Robin uniquement</SelectItem>
-                    <SelectItem value="round-robin-single">Round Robin + Simple Élimination</SelectItem>
-                    <SelectItem value="round-robin-double">Round Robin + Double Élimination</SelectItem>
-                    <SelectItem value="swiss">Swiss Round uniquement</SelectItem>
-                    <SelectItem value="swiss-single">Swiss Round + Simple Élimination</SelectItem>
-                    <SelectItem value="swiss-double">Swiss Round + Double Élimination</SelectItem>
+                    <SelectItem value="round-robin">Round Robin Only</SelectItem>
+                    <SelectItem value="round-robin-single">Round Robin + Single Elimination</SelectItem>
+                    <SelectItem value="round-robin-double">Round Robin + Double Elimination</SelectItem>
+                    <SelectItem value="swiss">Swiss Round Only</SelectItem>
+                    <SelectItem value="swiss-single">Swiss Round + Single Elimination</SelectItem>
+                    <SelectItem value="swiss-double">Swiss Round + Double Elimination</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="numberOfFields">Nombre de terrains</Label>
+                <Label htmlFor="numberOfFields">Number of Fields</Label>
                 <Select value={numberOfFields} onValueChange={setNumberOfFields}>
                   <SelectTrigger id="numberOfFields" className="bg-secondary/50">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1 terrain</SelectItem>
-                    <SelectItem value="2">2 terrains</SelectItem>
-                    <SelectItem value="3">3 terrains</SelectItem>
-                    <SelectItem value="4">4 terrains</SelectItem>
+                    <SelectItem value="1">1 field</SelectItem>
+                    <SelectItem value="2">2 fields</SelectItem>
+                    <SelectItem value="3">3 fields</SelectItem>
+                    <SelectItem value="4">4 fields</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {format !== "round-robin" && format !== "swiss" && (
                 <div className="space-y-2">
-                  <Label htmlFor="teamsForElimination">Nombre d'équipes qualifiées pour la phase finale</Label>
+                  <Label htmlFor="teamsForElimination">Number of Teams Qualifying for Finals</Label>
                   <Select value={teamsForElimination} onValueChange={setTeamsForElimination}>
                     <SelectTrigger id="teamsForElimination" className="bg-secondary/50">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="4">4 équipes</SelectItem>
-                      <SelectItem value="8">8 équipes</SelectItem>
-                      <SelectItem value="16">16 équipes</SelectItem>
-                      <SelectItem value="32">32 équipes</SelectItem>
+                      <SelectItem value="4">4 teams</SelectItem>
+                      <SelectItem value="8">8 teams</SelectItem>
+                      <SelectItem value="16">16 teams</SelectItem>
+                      <SelectItem value="32">32 teams</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               )}
 
               <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
-                {loading ? "Création..." : "Créer le tournoi"}
+                {loading ? "Creating..." : "Create Tournament"}
               </Button>
             </form>
           </Card>

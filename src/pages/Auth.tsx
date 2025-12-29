@@ -26,7 +26,7 @@ const Auth = () => {
           password,
         });
         if (error) throw error;
-        toast.success("Connexion réussie !");
+        toast.success("Login successful!");
         navigate("/");
       } else {
         const { error } = await supabase.auth.signUp({
@@ -34,7 +34,7 @@ const Auth = () => {
           password,
         });
         if (error) throw error;
-        toast.success("Compte créé ! Vous pouvez maintenant vous connecter.");
+        toast.success("Account created! You can now log in.");
         navigate("/");
       }
     } catch (error: any) {
@@ -52,7 +52,7 @@ const Auth = () => {
         <div className="max-w-md mx-auto">
           <Card className="glass-card p-8">
             <h1 className="text-3xl font-bold mb-6 text-center glow-text-primary">
-              {isLogin ? "Connexion" : "Créer un compte"}
+              {isLogin ? "Login" : "Create Account"}
             </h1>
             
             <form onSubmit={handleAuth} className="space-y-4">
@@ -64,12 +64,12 @@ const Auth = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="votre@email.com"
+                  placeholder="your@email.com"
                 />
               </div>
               
               <div>
-                <Label htmlFor="password">Mot de passe</Label>
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -82,7 +82,7 @@ const Auth = () => {
               </div>
               
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Chargement..." : isLogin ? "Se connecter" : "S'inscrire"}
+                {loading ? "Loading..." : isLogin ? "Login" : "Sign Up"}
               </Button>
             </form>
             
@@ -92,7 +92,7 @@ const Auth = () => {
                 onClick={() => setIsLogin(!isLogin)}
                 className="text-sm text-primary hover:underline"
               >
-                {isLogin ? "Pas encore de compte ? S'inscrire" : "Déjà un compte ? Se connecter"}
+                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Login"}
               </button>
             </div>
           </Card>

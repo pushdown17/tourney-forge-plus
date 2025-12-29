@@ -69,7 +69,7 @@ export const StandingsTable = ({ tournamentId }: StandingsTableProps) => {
       .eq("tournament_id", tournamentId);
 
     if (error) {
-      toast.error("Erreur lors du chargement du classement");
+      toast.error("Error loading standings");
       return;
     }
 
@@ -86,7 +86,7 @@ export const StandingsTable = ({ tournamentId }: StandingsTableProps) => {
     });
 
     if (error) {
-      toast.error("Erreur lors du chargement du classement");
+      toast.error("Error loading standings");
       return;
     }
 
@@ -123,24 +123,24 @@ export const StandingsTable = ({ tournamentId }: StandingsTableProps) => {
   return (
     <Card className="glass-card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Classement général</h2>
+        <h2 className="text-2xl font-bold">Overall Standings</h2>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          <span>Mise à jour en temps réel</span>
+          <span>Real-time updates</span>
         </div>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead className="w-12">#</TableHead>
-            <TableHead>Équipe</TableHead>
-            <TableHead className="text-center">J</TableHead>
-            <TableHead className="text-center">V</TableHead>
-            <TableHead className="text-center">N</TableHead>
+            <TableHead>Team</TableHead>
+            <TableHead className="text-center">P</TableHead>
+            <TableHead className="text-center">W</TableHead>
             <TableHead className="text-center">D</TableHead>
-            <TableHead className="text-center">BP</TableHead>
-            <TableHead className="text-center">BC</TableHead>
-            <TableHead className="text-center">Diff</TableHead>
+            <TableHead className="text-center">L</TableHead>
+            <TableHead className="text-center">GF</TableHead>
+            <TableHead className="text-center">GA</TableHead>
+            <TableHead className="text-center">GD</TableHead>
             <TableHead className="text-center font-bold">Pts</TableHead>
           </TableRow>
         </TableHeader>
@@ -186,7 +186,7 @@ export const StandingsTable = ({ tournamentId }: StandingsTableProps) => {
       </Table>
       {standings.length === 0 && (
         <p className="text-muted-foreground text-center py-8">
-          Aucune statistique disponible pour le moment
+          No statistics available yet
         </p>
       )}
     </Card>

@@ -35,15 +35,15 @@ export const TournamentsList = () => {
     switch (phase) {
       case "swiss": return "Swiss Round";
       case "round_robin": return "Round Robin";
-      case "elimination": return "Élimination";
-      case "single_elimination": return "Simple Élim.";
-      case "double_elimination": return "Double Élim.";
+      case "elimination": return "Elimination";
+      case "single_elimination": return "Single Elim.";
+      case "double_elimination": return "Double Elim.";
       default: return phase;
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("fr-FR", {
+    return new Date(dateString).toLocaleDateString("en-US", {
       day: "numeric",
       month: "short",
       year: "numeric"
@@ -55,7 +55,7 @@ export const TournamentsList = () => {
       <div className="text-center py-12">
         <div className="animate-pulse flex flex-col items-center gap-4">
           <div className="h-8 w-8 rounded-full bg-primary/20" />
-          <p className="text-muted-foreground">Chargement des tournois...</p>
+          <p className="text-muted-foreground">Loading tournaments...</p>
         </div>
       </div>
     );
@@ -66,10 +66,10 @@ export const TournamentsList = () => {
       <div className="text-center py-12 glass-card rounded-lg">
         <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
         <p className="text-muted-foreground mb-4">
-          Aucun tournoi créé pour le moment
+          No tournaments created yet
         </p>
         <Link to="/create-tournament">
-          <Button variant="hero">Créer le premier tournoi</Button>
+          <Button variant="hero">Create the first tournament</Button>
         </Link>
       </div>
     );
@@ -91,7 +91,7 @@ export const TournamentsList = () => {
                 variant={tournament.is_closed ? "secondary" : "default"}
                 className="ml-2 shrink-0"
               >
-                {tournament.is_closed ? "Terminé" : "En cours"}
+                {tournament.is_closed ? "Completed" : "In Progress"}
               </Badge>
             </div>
             
@@ -112,7 +112,7 @@ export const TournamentsList = () => {
                   </Badge>
                   {tournament.elimination_type && (
                     <Badge variant="outline" className="text-xs">
-                      {tournament.elimination_type === "single" ? "Simple" : "Double"} Élim.
+                      {tournament.elimination_type === "single" ? "Single" : "Double"} Elim.
                     </Badge>
                   )}
                 </div>
@@ -121,7 +121,7 @@ export const TournamentsList = () => {
               {tournament.number_of_fields && (
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
-                  <span>{tournament.number_of_fields} terrain{tournament.number_of_fields > 1 ? 's' : ''}</span>
+                  <span>{tournament.number_of_fields} field{tournament.number_of_fields > 1 ? 's' : ''}</span>
                 </div>
               )}
             </div>
