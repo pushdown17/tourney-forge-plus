@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Users } from "lucide-react";
+import { Calendar, Trophy, MapPin } from "lucide-react";
 
 export const TournamentsList = () => {
   const [tournaments, setTournaments] = useState<any[]>([]);
@@ -30,17 +31,40 @@ export const TournamentsList = () => {
     }
   };
 
+  const getPhaseLabel = (phase: string) => {
+    switch (phase) {
+      case "swiss": return "Swiss Round";
+      case "round_robin": return "Round Robin";
+      case "elimination": return "Élimination";
+      case "single_elimination": return "Simple Élim.";
+      case "double_elimination": return "Double Élim.";
+      default: return phase;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    });
+  };
+
   if (loading) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">Chargement des tournois...</p>
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="h-8 w-8 rounded-full bg-primary/20" />
+          <p className="text-muted-foreground">Chargement des tournois...</p>
+        </div>
       </div>
     );
   }
 
   if (tournaments.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 glass-card rounded-lg">
+        <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
         <p className="text-muted-foreground mb-4">
           Aucun tournoi créé pour le moment
         </p>
@@ -55,27 +79,58 @@ export const TournamentsList = () => {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {tournaments.map((tournament) => (
         <Link key={tournament.id} to={`/tournament/${tournament.id}`}>
-          <Card className="glass-card p-6 hover:border-primary/50 transition-all duration-300 cursor-pointer h-full">
-            <h3 className="text-xl font-bold mb-3 glow-text-primary">
-              {tournament.name}
-            </h3>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+          <Card className="glass-card p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-pointer h-full group">
+            {/* Header with status */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xl font-bold truncate group-hover:text-primary transition-colors">
+                  {tournament.name}
+                </h3>
+              </div>
+              <Badge 
+                variant={tournament.is_closed ? "secondary" : "default"}
+                className="ml-2 shrink-0"
+              >
+                {tournament.is_closed ? "Terminé" : "En cours"}
+              </Badge>
+            </div>
+            
+            {/* Tournament info */}
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Calendar className="h-4 w-4 shrink-0 text-primary/70" />
                 <span>
-                  {new Date(tournament.start_date).toLocaleDateString("fr-FR")} -{" "}
-                  {new Date(tournament.end_date).toLocaleDateString("fr-FR")}
+                  {formatDate(tournament.start_date)} — {formatDate(tournament.end_date)}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span>
-                  Format: {tournament.initial_phase === "swiss" ? "Swiss Round" : "Round Robin"}
+              
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Trophy className="h-4 w-4 shrink-0 text-primary/70" />
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="text-xs">
+                    {getPhaseLabel(tournament.initial_phase)}
+                  </Badge>
                   {tournament.elimination_type && (
-                    <> + {tournament.elimination_type === "single" ? "Simple" : "Double"} Élimination</>
+                    <Badge variant="outline" className="text-xs">
+                      {tournament.elimination_type === "single" ? "Simple" : "Double"} Élim.
+                    </Badge>
                   )}
-                </span>
+                </div>
               </div>
+              
+              {tournament.number_of_fields && (
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
+                  <span>{tournament.number_of_fields} terrain{tournament.number_of_fields > 1 ? 's' : ''}</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <span className="text-xs text-muted-foreground">
+                Créé le {formatDate(tournament.created_at)}
+              </span>
             </div>
           </Card>
         </Link>
