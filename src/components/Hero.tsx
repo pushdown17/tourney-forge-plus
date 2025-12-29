@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Trophy, Users, Zap } from "lucide-react";
 import heroBackground from "@/assets/hero-background.jpg";
 import { SearchBar } from "@/components/SearchBar";
+import { TournamentsList } from "@/components/TournamentsList";
 
 export const Hero = () => {
   return (
@@ -37,12 +38,20 @@ export const Hero = () => {
           <SearchBar />
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
           <Link to="/create-tournament">
             <Button size="lg" variant="hero" className="text-lg px-8 py-6">
               Create Tournament
             </Button>
           </Link>
+        </div>
+        
+        {/* Tournaments List */}
+        <div className="mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center glow-text-primary">
+            Tournois récents
+          </h2>
+          <TournamentsList />
         </div>
         
         {/* Features */}
