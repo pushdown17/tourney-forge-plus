@@ -38,11 +38,6 @@ export const Hero = () => {
               Create Tournament
             </Button>
           </Link>
-          <Link to="/bracket-demo">
-            <Button size="lg" variant="outline" className="text-lg px-8 py-6">
-              View Demo
-            </Button>
-          </Link>
         </div>
         
         {/* Features */}
