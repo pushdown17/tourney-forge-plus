@@ -58,7 +58,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
       .order("team(name)");
 
     if (error) {
-      toast.error("Erreur lors du chargement des équipes");
+      toast.error("Error loading teams");
       return;
     }
 
@@ -97,7 +97,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
       .order("player(name)");
 
     if (error) {
-      toast.error("Erreur lors du chargement des joueurs");
+      toast.error("Error loading players");
       return;
     }
 
@@ -165,7 +165,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
         console.log("Existing link in team:", existingLink);
 
         if (existingLink) {
-          toast.error("Ce joueur existe déjà dans cette équipe");
+          toast.error("This player already exists in this team");
           return;
         }
       } else {
@@ -178,7 +178,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
 
         if (playerError) {
           if (playerError.code === '23505') {
-            toast.error("Un joueur avec ce nom existe déjà");
+            toast.error("A player with this name already exists");
           } else {
             throw playerError;
           }
@@ -199,14 +199,14 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
 
       if (linkError) {
         if (linkError.code === '23505') {
-          toast.error("Ce joueur existe déjà dans cette équipe");
+          toast.error("This player already exists in this team");
         } else {
           throw linkError;
         }
         return;
       }
 
-      toast.success("Joueur ajouté !");
+      toast.success("Player added!");
       setPlayerName("");
       fetchPlayers();
     } catch (error: any) {
@@ -226,7 +226,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
 
       if (error) throw error;
 
-      toast.success("Joueur retiré de l'équipe");
+      toast.success("Player removed from team");
       fetchPlayers();
     } catch (error: any) {
       toast.error(error.message);
@@ -266,7 +266,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
         .maybeSingle();
 
       if (existingLink) {
-        toast.error("Ce joueur existe déjà dans l'équipe cible");
+        toast.error("This player already exists in the target team");
         return;
       }
 
@@ -288,7 +288,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
 
       if (insertError) {
         if (insertError.code === '23505') {
-          toast.error("Un joueur avec ce nom existe déjà dans l'équipe cible");
+          toast.error("A player with this name already exists in the target team");
         } else {
           throw insertError;
         }
@@ -298,10 +298,10 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
       const oldTeam = teams.find(t => t.id === player.team_id);
       const newTeam = teams.find(t => t.id === newTournamentTeamId);
 
-      toast.success(`${player.name} transféré de ${oldTeam?.name} vers ${newTeam?.name}`);
+      toast.success(`${player.name} transferred from ${oldTeam?.name} to ${newTeam?.name}`);
       fetchPlayers();
     } catch (error: any) {
-      toast.error("Erreur lors du transfert du joueur");
+      toast.error("Error transferring player");
     }
   };
 
@@ -310,7 +310,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
       <Card className="glass-card p-8 text-center">
         <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
         <p className="text-muted-foreground">
-          Vous devez d'abord créer des équipes avant d'ajouter des joueurs.
+          You must create teams first before adding players.
         </p>
       </Card>
     );
@@ -327,14 +327,14 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
         {isCreator && (
           <>
             <Card className="glass-card p-6">
-              <h2 className="text-2xl font-bold mb-4">Ajouter un joueur</h2>
+              <h2 className="text-2xl font-bold mb-4">Add a player</h2>
               <form onSubmit={handleAddPlayer} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="teamSelect">Équipe</Label>
+                    <Label htmlFor="teamSelect">Team</Label>
                     <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                       <SelectTrigger id="teamSelect">
-                        <SelectValue placeholder="Sélectionner une équipe" />
+                        <SelectValue placeholder="Select a team" />
                       </SelectTrigger>
                       <SelectContent className="bg-background/95 backdrop-blur-sm border-border/50">
                         {teams.map((team) => (
@@ -346,17 +346,17 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="playerName">Nom du joueur</Label>
+                    <Label htmlFor="playerName">Player name</Label>
                     <div className="flex gap-2">
                       <PlayerAutocomplete
                         value={playerName}
                         onChange={setPlayerName}
-                        placeholder="Nom Prénom"
+                        placeholder="First Last"
                         disabled={loading || isClosed}
                       />
                       <Button type="submit" disabled={loading || isClosed}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Ajouter
+                        Add
                       </Button>
                     </div>
                   </div>
@@ -367,7 +367,7 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
             <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
               <p className="text-sm text-foreground flex items-center gap-2">
                 <GripVertical className="h-4 w-4" />
-                Astuce : Glissez-déposez un joueur sur une autre équipe pour le transférer
+                Tip: Drag and drop a player to another team to transfer them
               </p>
             </div>
           </>
@@ -425,7 +425,7 @@ const TeamCard = ({ team, players, onDeletePlayer, isClosed = false, isCreator =
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold">{team.name}</h3>
         <span className="text-sm text-muted-foreground">
-          {players.length} joueur{players.length > 1 ? "s" : ""}
+          {players.length} player{players.length > 1 ? "s" : ""}
         </span>
       </div>
       <div className="space-y-2">
@@ -441,7 +441,7 @@ const TeamCard = ({ team, players, onDeletePlayer, isClosed = false, isCreator =
         ))}
         {players.length === 0 && (
           <p className="text-muted-foreground text-center py-4 text-sm">
-            Aucun joueur dans cette équipe
+            No players in this team
           </p>
         )}
       </div>

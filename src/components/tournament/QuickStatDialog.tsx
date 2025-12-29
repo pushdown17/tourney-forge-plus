@@ -40,7 +40,7 @@ export const QuickStatDialog = ({
     }
   }, [open]);
 
-  // Charger les joueurs quand une équipe est sélectionnée
+  // Load players when a team is selected
   useEffect(() => {
     if (selectedTeam && open) {
       loadPlayers(selectedTeam.id);
@@ -50,7 +50,7 @@ export const QuickStatDialog = ({
   const loadPlayers = async (teamId: string) => {
     setLoading(true);
     
-    // Récupérer le tournament_team_id
+    // Get the tournament_team_id
     const { data: tournamentTeam } = await supabase
       .from("tournament_teams")
       .select("id")
@@ -63,7 +63,7 @@ export const QuickStatDialog = ({
       return;
     }
 
-    // Récupérer les joueurs de l'équipe via tournament_team_players
+    // Get players from the team via tournament_team_players
     const { data: teamPlayers } = await supabase
       .from("tournament_team_players")
       .select(`
@@ -88,7 +88,7 @@ export const QuickStatDialog = ({
   const handlePlayerSelect = async (playerId: string) => {
     setSaving(true);
 
-    // Vérifier si une stat existe déjà pour ce joueur dans ce match
+    // Check if a stat already exists for this player in this match
     const { data: existingStat } = await supabase
       .from("player_stats")
       .select("*")
@@ -97,7 +97,7 @@ export const QuickStatDialog = ({
       .maybeSingle();
 
     if (existingStat) {
-      // Mettre à jour la stat existante
+      // Update the existing stat
       await supabase
         .from("player_stats")
         .update({
@@ -105,7 +105,7 @@ export const QuickStatDialog = ({
         })
         .eq("id", existingStat.id);
     } else {
-      // Créer une nouvelle stat
+      // Create a new stat
       await supabase
         .from("player_stats")
         .insert({
@@ -135,10 +135,10 @@ export const QuickStatDialog = ({
         </DialogHeader>
 
         {!selectedTeam ? (
-          // Étape 1: Sélection d'équipe
+          // Step 1: Team selection
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground mb-4">
-              Quelle équipe ?
+              Which team?
             </p>
             <Button
               variant="outline"
@@ -159,19 +159,19 @@ export const QuickStatDialog = ({
               className="w-full mt-4"
               onClick={handleSkip}
             >
-              Annuler
+              Cancel
             </Button>
           </div>
         ) : loading ? (
-          // Chargement des joueurs
+          // Loading players
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          // Étape 2: Sélection de joueur
+          // Step 2: Player selection
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground mb-4">
-              Quel joueur de {selectedTeam.name} ?
+              Which player from {selectedTeam.name}?
             </p>
             {players.map((player) => (
               <Button
@@ -186,7 +186,7 @@ export const QuickStatDialog = ({
             ))}
             {players.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-4">
-                Aucun joueur dans cette équipe
+                No players in this team
               </p>
             )}
             <Button
@@ -195,7 +195,7 @@ export const QuickStatDialog = ({
               onClick={() => setSelectedTeam(null)}
               disabled={saving}
             >
-              Retour
+              Back
             </Button>
           </div>
         )}

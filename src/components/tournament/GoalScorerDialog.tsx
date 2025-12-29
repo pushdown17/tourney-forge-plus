@@ -52,7 +52,7 @@ export const GoalScorerDialog = ({
 
       if (ttError) throw ttError;
       if (!tournamentTeam) {
-        toast.error("Équipe introuvable dans ce tournoi");
+        toast.error("Team not found in this tournament");
         return;
       }
 
@@ -67,15 +67,15 @@ export const GoalScorerDialog = ({
       if (error) throw error;
       setPlayers(data || []);
     } catch (error) {
-      console.error("Erreur lors du chargement des joueurs:", error);
-      toast.error("Erreur lors du chargement des joueurs");
+      console.error("Error loading players:", error);
+      toast.error("Error loading players");
     }
   };
 
   const handlePlayerSelect = async (playerId: string, tournamentTeamPlayerId: string) => {
     setLoading(true);
     try {
-      // Chercher si une stat existe déjà pour ce joueur dans ce match
+      // Check if a stat already exists for this player in this match
       const { data: existingStat, error: fetchError } = await supabase
         .from("player_stats")
         .select("*")
@@ -87,7 +87,7 @@ export const GoalScorerDialog = ({
       if (fetchError) throw fetchError;
 
       if (existingStat) {
-        // Incrémenter les buts
+        // Increment goals
         const { error: updateError } = await supabase
           .from("player_stats")
           .update({ goals: existingStat.goals + 1 })
@@ -95,7 +95,7 @@ export const GoalScorerDialog = ({
 
         if (updateError) throw updateError;
       } else {
-        // Créer une nouvelle stat
+        // Create a new stat
         const { error: insertError } = await supabase
           .from("player_stats")
           .insert({
@@ -114,12 +114,12 @@ export const GoalScorerDialog = ({
         if (insertError) throw insertError;
       }
 
-      toast.success("But enregistré");
+      toast.success("Goal recorded");
       onGoalRecorded();
       onOpenChange(false);
     } catch (error) {
-      console.error("Erreur lors de l'enregistrement du but:", error);
-      toast.error("Erreur lors de l'enregistrement du but");
+      console.error("Error recording goal:", error);
+      toast.error("Error recording goal");
     } finally {
       setLoading(false);
     }
@@ -134,15 +134,15 @@ export const GoalScorerDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Qui a marqué le but ?</DialogTitle>
+          <DialogTitle>Who scored the goal?</DialogTitle>
           <DialogDescription>
-            Sélectionnez le joueur de {teamName} qui a marqué le but, ou passez cette étape.
+            Select the player from {teamName} who scored, or skip this step.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-4">
           {players.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Aucun joueur dans cette équipe
+              No players in this team
             </p>
           ) : (
             players.map((player) => (
@@ -161,7 +161,7 @@ export const GoalScorerDialog = ({
         </div>
         <DialogFooter>
           <Button variant="secondary" onClick={handleSkip} disabled={loading}>
-            Passer
+            Skip
           </Button>
         </DialogFooter>
       </DialogContent>
