@@ -25,7 +25,7 @@ export const Navigation = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast.success("Déconnexion réussie");
+    toast.success("Logged out successfully");
     setIsOpen(false);
     navigate("/");
   };
@@ -42,21 +42,21 @@ export const Navigation = () => {
         {/* Desktop Menu */}
         <div className="hidden md:flex items-center gap-4">
           <Link to="/">
-            <Button variant="ghost">Accueil</Button>
+            <Button variant="ghost">Home</Button>
           </Link>
           {user ? (
             <>
               <Link to="/create-tournament">
-                <Button variant="hero">Créer un tournoi</Button>
+                <Button variant="hero">Create Tournament</Button>
               </Link>
               <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
-                Déconnexion
+                Logout
               </Button>
             </>
           ) : (
             <Link to="/auth">
-              <Button variant="hero">Connexion</Button>
+              <Button variant="hero">Login</Button>
             </Link>
           )}
         </div>
@@ -72,14 +72,14 @@ export const Navigation = () => {
             <div className="flex flex-col gap-4 mt-8">
               <Link to="/" onClick={() => setIsOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start text-lg">
-                  Accueil
+                  Home
                 </Button>
               </Link>
               {user ? (
                 <>
                   <Link to="/create-tournament" onClick={() => setIsOpen(false)}>
                     <Button variant="hero" className="w-full justify-start text-lg">
-                      Créer un tournoi
+                      Create Tournament
                     </Button>
                   </Link>
                   <Button 
@@ -88,13 +88,13 @@ export const Navigation = () => {
                     className="w-full justify-start text-lg"
                   >
                     <LogOut className="h-5 w-5 mr-2" />
-                    Déconnexion
+                    Logout
                   </Button>
                 </>
               ) : (
                 <Link to="/auth" onClick={() => setIsOpen(false)}>
                   <Button variant="hero" className="w-full justify-start text-lg">
-                    Connexion
+                    Login
                   </Button>
                 </Link>
               )}

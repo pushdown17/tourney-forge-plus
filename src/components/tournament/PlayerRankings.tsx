@@ -94,8 +94,8 @@ export const PlayerRankings = ({ tournamentId }: PlayerRankingsProps) => {
 
         const playerId = ttpInfo.player_id;
         const teamId = ttMap.get(ttpInfo.tournament_team_id);
-        const playerName = playersMap.get(playerId) || "Inconnu";
-        const teamName = teamsMap.get(teamId || "") || "Inconnu";
+        const playerName = playersMap.get(playerId) || "Unknown";
+        const teamName = teamsMap.get(teamId || "") || "Unknown";
 
         const penaltyMinutes = (stat.penalty_30s * 0.5) + stat.penalty_1m + (stat.penalty_2m * 2);
 
@@ -137,7 +137,7 @@ export const PlayerRankings = ({ tournamentId }: PlayerRankingsProps) => {
     return (
       <Card className="glass-card">
         <CardContent className="p-8 text-center">
-          <p className="text-muted-foreground animate-pulse">Chargement des statistiques...</p>
+          <p className="text-muted-foreground animate-pulse">Loading statistics...</p>
         </CardContent>
       </Card>
     );
@@ -158,14 +158,14 @@ export const PlayerRankings = ({ tournamentId }: PlayerRankingsProps) => {
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">Aucune donnée</p>
+          <p className="text-sm text-muted-foreground text-center py-4">No data</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">#</TableHead>
-                <TableHead>Joueur</TableHead>
-                <TableHead>Équipe</TableHead>
+                <TableHead>Player</TableHead>
+                <TableHead>Team</TableHead>
                 <TableHead className="text-right">{statLabel}</TableHead>
               </TableRow>
             </TableHeader>
@@ -201,37 +201,37 @@ export const PlayerRankings = ({ tournamentId }: PlayerRankingsProps) => {
           <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-4 bg-muted/30">
             <TabsTrigger value="goals" className="whitespace-nowrap px-3 py-2 text-sm gap-2">
               <Target className="h-4 w-4" />
-              Buteurs
+              Scorers
             </TabsTrigger>
             <TabsTrigger value="assists" className="whitespace-nowrap px-3 py-2 text-sm gap-2">
               <HandHelping className="h-4 w-4" />
-              Passeurs
+              Assisters
             </TabsTrigger>
             <TabsTrigger value="fouls" className="whitespace-nowrap px-3 py-2 text-sm gap-2">
               <AlertTriangle className="h-4 w-4" />
-              Fautes
+              Fouls
             </TabsTrigger>
             <TabsTrigger value="penalties" className="whitespace-nowrap px-3 py-2 text-sm gap-2">
               <Clock className="h-4 w-4" />
-              Pénalités
+              Penalties
             </TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="goals">
-          <RankingTable data={sortedByGoals} statKey="goals" statLabel="Buts" icon={Target} />
+          <RankingTable data={sortedByGoals} statKey="goals" statLabel="Goals" icon={Target} />
         </TabsContent>
 
         <TabsContent value="assists">
-          <RankingTable data={sortedByAssists} statKey="assists" statLabel="Passes" icon={HandHelping} />
+          <RankingTable data={sortedByAssists} statKey="assists" statLabel="Assists" icon={HandHelping} />
         </TabsContent>
 
         <TabsContent value="fouls">
-          <RankingTable data={sortedByFouls} statKey="fouls" statLabel="Fautes" icon={AlertTriangle} />
+          <RankingTable data={sortedByFouls} statKey="fouls" statLabel="Fouls" icon={AlertTriangle} />
         </TabsContent>
 
         <TabsContent value="penalties">
-          <RankingTable data={sortedByPenalties} statKey="penalty_minutes" statLabel="Pénalités" icon={Clock} />
+          <RankingTable data={sortedByPenalties} statKey="penalty_minutes" statLabel="Penalties" icon={Clock} />
         </TabsContent>
       </Tabs>
     </div>

@@ -4,9 +4,9 @@ import { z } from "zod";
 export const teamSchema = z.object({
   name: z.string()
     .trim()
-    .min(1, "Le nom de l'équipe est requis")
-    .max(100, "Le nom de l'équipe doit faire moins de 100 caractères"),
-  tournament_id: z.string().uuid("ID de tournoi invalide"),
+    .min(1, "Team name is required")
+    .max(100, "Team name must be less than 100 characters"),
+  tournament_id: z.string().uuid("Invalid tournament ID"),
   group_name: z.string().optional(),
 });
 
@@ -14,52 +14,52 @@ export const teamSchema = z.object({
 export const playerSchema = z.object({
   name: z.string()
     .trim()
-    .min(1, "Le nom du joueur est requis")
-    .max(100, "Le nom du joueur doit faire moins de 100 caractères"),
-  team_id: z.string().uuid("ID d'équipe invalide"),
+    .min(1, "Player name is required")
+    .max(100, "Player name must be less than 100 characters"),
+  team_id: z.string().uuid("Invalid team ID"),
 });
 
 // Match score validation schema
 export const matchScoreSchema = z.object({
   team1_score: z.number()
-    .int("Le score doit être un nombre entier")
-    .min(0, "Le score ne peut pas être négatif")
-    .max(999, "Le score ne peut pas dépasser 999"),
+    .int("Score must be an integer")
+    .min(0, "Score cannot be negative")
+    .max(999, "Score cannot exceed 999"),
   team2_score: z.number()
-    .int("Le score doit être un nombre entier")
-    .min(0, "Le score ne peut pas être négatif")
-    .max(999, "Le score ne peut pas dépasser 999"),
+    .int("Score must be an integer")
+    .min(0, "Score cannot be negative")
+    .max(999, "Score cannot exceed 999"),
 });
 
 // Player stats validation schema
 export const playerStatsSchema = z.object({
-  player_id: z.string().uuid("ID de joueur invalide"),
-  tournament_id: z.string().uuid("ID de tournoi invalide"),
-  match_id: z.string().uuid("ID de match invalide").optional().nullable(),
+  player_id: z.string().uuid("Invalid player ID"),
+  tournament_id: z.string().uuid("Invalid tournament ID"),
+  match_id: z.string().uuid("Invalid match ID").optional().nullable(),
   goals: z.number()
-    .int("Les buts doivent être un nombre entier")
-    .min(0, "Les buts ne peuvent pas être négatifs")
-    .max(999, "Les buts ne peuvent pas dépasser 999"),
+    .int("Goals must be an integer")
+    .min(0, "Goals cannot be negative")
+    .max(999, "Goals cannot exceed 999"),
   assists: z.number()
-    .int("Les passes doivent être un nombre entier")
-    .min(0, "Les passes ne peuvent pas être négatives")
-    .max(999, "Les passes ne peuvent pas dépasser 999"),
+    .int("Assists must be an integer")
+    .min(0, "Assists cannot be negative")
+    .max(999, "Assists cannot exceed 999"),
   fouls: z.number()
-    .int("Les fautes doivent être un nombre entier")
-    .min(0, "Les fautes ne peuvent pas être négatives")
-    .max(99, "Les fautes ne peuvent pas dépasser 99"),
+    .int("Fouls must be an integer")
+    .min(0, "Fouls cannot be negative")
+    .max(99, "Fouls cannot exceed 99"),
   penalty_30s: z.number()
-    .int("Les pénalités doivent être un nombre entier")
-    .min(0, "Les pénalités ne peuvent pas être négatives")
-    .max(99, "Les pénalités ne peuvent pas dépasser 99"),
+    .int("Penalties must be an integer")
+    .min(0, "Penalties cannot be negative")
+    .max(99, "Penalties cannot exceed 99"),
   penalty_1m: z.number()
-    .int("Les pénalités doivent être un nombre entier")
-    .min(0, "Les pénalités ne peuvent pas être négatives")
-    .max(99, "Les pénalités ne peuvent pas dépasser 99"),
+    .int("Penalties must be an integer")
+    .min(0, "Penalties cannot be negative")
+    .max(99, "Penalties cannot exceed 99"),
   penalty_2m: z.number()
-    .int("Les pénalités doivent être un nombre entier")
-    .min(0, "Les pénalités ne peuvent pas être négatives")
-    .max(99, "Les pénalités ne peuvent pas dépasser 99"),
+    .int("Penalties must be an integer")
+    .min(0, "Penalties cannot be negative")
+    .max(99, "Penalties cannot exceed 99"),
 });
 
 export type TeamInput = z.infer<typeof teamSchema>;

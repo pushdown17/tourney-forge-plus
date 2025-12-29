@@ -67,7 +67,7 @@ export const MatchStatsViewDialog = ({
       const formattedStats: PlayerMatchStat[] = (data || [])
         .filter((s: any) => s.goals > 0 || s.assists > 0 || s.fouls > 0 || s.penalty_30s > 0 || s.penalty_1m > 0 || s.penalty_2m > 0)
         .map((s: any) => ({
-          player_name: s.player?.name || "Joueur inconnu",
+          player_name: s.player?.name || "Unknown player",
           team_name: s.tournament_team_player?.tournament_team?.team?.name || "",
           goals: s.goals || 0,
           assists: s.assists || 0,
@@ -101,7 +101,7 @@ export const MatchStatsViewDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">Détails du match</DialogTitle>
+          <DialogTitle className="text-xl">Match Details</DialogTitle>
         </DialogHeader>
 
         {/* Score */}
@@ -127,19 +127,19 @@ export const MatchStatsViewDialog = ({
 
         {loading ? (
           <div className="py-8 text-center text-muted-foreground animate-pulse">
-            Chargement des statistiques...
+            Loading statistics...
           </div>
         ) : !hasAnyStats ? (
           <div className="py-8 text-center text-muted-foreground">
-            Aucune statistique enregistrée pour ce match
+            No statistics recorded for this match
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Buteurs */}
+            {/* Scorers */}
             <Card className="p-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <Target className="h-4 w-4 text-primary" />
-                Buteurs
+                Scorers
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -148,7 +148,7 @@ export const MatchStatsViewDialog = ({
                       <div key={i} className="flex items-center justify-between text-sm">
                         <span>{s.player_name}</span>
                         <Badge variant="default" className="text-xs">
-                          {s.goals} {s.goals > 1 ? "buts" : "but"}
+                          {s.goals} {s.goals > 1 ? "goals" : "goal"}
                         </Badge>
                       </div>
                     ))
@@ -162,7 +162,7 @@ export const MatchStatsViewDialog = ({
                       <div key={i} className="flex items-center justify-between text-sm">
                         <span>{s.player_name}</span>
                         <Badge variant="default" className="text-xs">
-                          {s.goals} {s.goals > 1 ? "buts" : "but"}
+                          {s.goals} {s.goals > 1 ? "goals" : "goal"}
                         </Badge>
                       </div>
                     ))
@@ -173,12 +173,12 @@ export const MatchStatsViewDialog = ({
               </div>
             </Card>
 
-            {/* Passeurs */}
+            {/* Assisters */}
             {(assisters1.length > 0 || assisters2.length > 0) && (
               <Card className="p-4">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <Users className="h-4 w-4 text-primary" />
-                  Passeurs décisifs
+                  Assist Providers
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -187,7 +187,7 @@ export const MatchStatsViewDialog = ({
                         <div key={i} className="flex items-center justify-between text-sm">
                           <span>{s.player_name}</span>
                           <Badge variant="secondary" className="text-xs">
-                            {s.assists} {s.assists > 1 ? "passes" : "passe"}
+                            {s.assists} {s.assists > 1 ? "assists" : "assist"}
                           </Badge>
                         </div>
                       ))
@@ -201,7 +201,7 @@ export const MatchStatsViewDialog = ({
                         <div key={i} className="flex items-center justify-between text-sm">
                           <span>{s.player_name}</span>
                           <Badge variant="secondary" className="text-xs">
-                            {s.assists} {s.assists > 1 ? "passes" : "passe"}
+                            {s.assists} {s.assists > 1 ? "assists" : "assist"}
                           </Badge>
                         </div>
                       ))
@@ -213,12 +213,12 @@ export const MatchStatsViewDialog = ({
               </Card>
             )}
 
-            {/* Fautes et pénalités */}
+            {/* Fouls and penalties */}
             {(foulers1.length > 0 || foulers2.length > 0) && (
               <Card className="p-4">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                  Fautes & Pénalités
+                  Fouls & Penalties
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">

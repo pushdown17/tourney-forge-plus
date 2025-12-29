@@ -51,7 +51,7 @@ const Tournament = () => {
       const { data: { user } } = await supabase.auth.getUser();
       setIsCreator(user?.id === data.created_by);
     } catch (error: any) {
-      toast.error("Erreur lors du chargement du tournoi");
+      toast.error("Error loading tournament");
     } finally {
       setLoading(false);
     }
@@ -82,13 +82,13 @@ const Tournament = () => {
       
       toast.success(
         tournament.is_closed 
-          ? "Tournoi rouvert avec succès" 
-          : "Tournoi clôturé avec succès"
+          ? "Tournament reopened successfully" 
+          : "Tournament closed successfully"
       );
       
       await fetchTournament();
     } catch (error: any) {
-      toast.error("Erreur lors de la modification du statut");
+      toast.error("Error updating status");
     } finally {
       setUpdatingStatus(false);
     }
@@ -104,7 +104,7 @@ const Tournament = () => {
         <Navigation />
         <main className="container mx-auto px-4 pt-32 pb-16">
           <div className="flex justify-center items-center min-h-[400px]">
-            <p className="text-lg text-muted-foreground animate-pulse">Chargement...</p>
+            <p className="text-lg text-muted-foreground animate-pulse">Loading...</p>
           </div>
         </main>
       </div>
@@ -117,7 +117,7 @@ const Tournament = () => {
         <Navigation />
         <main className="container mx-auto px-4 pt-32 pb-16">
           <Card className="glass-card p-8 text-center">
-            <p className="text-lg text-muted-foreground">Tournoi introuvable</p>
+            <p className="text-lg text-muted-foreground">Tournament not found</p>
           </Card>
         </main>
       </div>
@@ -133,7 +133,7 @@ const Tournament = () => {
           <Link to="/">
             <Button variant="ghost" className="mb-6 hover-scale">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Retour
+              Back
             </Button>
           </Link>
           <ClosedTournamentSummary tournament={tournament} />
@@ -151,7 +151,7 @@ const Tournament = () => {
           <Link to="/">
             <Button variant="ghost" className="mb-6 hover-scale">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Retour
+              Back
             </Button>
           </Link>
           
@@ -165,7 +165,7 @@ const Tournament = () => {
                   {tournament.is_closed && (
                     <div className="flex items-center gap-1 px-3 py-1 bg-muted rounded-full text-sm">
                       <Lock className="h-3 w-3" />
-                      <span>Clôturé</span>
+                      <span>Closed</span>
                     </div>
                   )}
                 </div>
@@ -173,14 +173,14 @@ const Tournament = () => {
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-primary" />
                     <span>
-                      {new Date(tournament.start_date).toLocaleDateString("fr-FR")} - {new Date(tournament.end_date).toLocaleDateString("fr-FR")}
+                      {new Date(tournament.start_date).toLocaleDateString("en-US")} - {new Date(tournament.end_date).toLocaleDateString("en-US")}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-primary" />
                     <span className="font-medium">
                       Phase: {tournament.current_phase === "round_robin" ? "Round Robin" : 
-                              tournament.current_phase === "swiss" ? "Swiss Round" : "Élimination"}
+                              tournament.current_phase === "swiss" ? "Swiss Round" : "Elimination"}
                     </span>
                   </div>
                 </div>
@@ -195,12 +195,12 @@ const Tournament = () => {
                   {tournament.is_closed ? (
                     <>
                       <Unlock className="mr-2 h-4 w-4" />
-                      Rouvrir
+                      Reopen
                     </>
                   ) : (
                     <>
                       <Lock className="mr-2 h-4 w-4" />
-                      Clôturer
+                      Close
                     </>
                   )}
                 </Button>
@@ -216,7 +216,7 @@ const Tournament = () => {
                 value="teams" 
                 className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
               >
-                Équipes
+                Teams
               </TabsTrigger>
               <TabsTrigger 
                 value="matches" 
@@ -229,14 +229,14 @@ const Tournament = () => {
                   value="elimination" 
                   className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
                 >
-                  Élimination
+                  Elimination
                 </TabsTrigger>
               )}
               <TabsTrigger 
                 value="standings" 
                 className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
               >
-                Classement
+                Standings
               </TabsTrigger>
               <TabsTrigger 
                 value="stats" 
@@ -248,7 +248,7 @@ const Tournament = () => {
                 value="history" 
                 className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
               >
-                Historique
+                History
               </TabsTrigger>
             </TabsList>
           </div>
@@ -257,9 +257,9 @@ const Tournament = () => {
             <Tabs defaultValue="manage-teams" className="space-y-4">
               <div className="overflow-x-auto -mx-4 px-4">
                 <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-3 bg-muted/30">
-                  <TabsTrigger value="manage-teams" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Équipes</TabsTrigger>
-                  <TabsTrigger value="manage-players" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Joueurs</TabsTrigger>
-                  <TabsTrigger value="player-stats" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Stats joueurs</TabsTrigger>
+                  <TabsTrigger value="manage-teams" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Teams</TabsTrigger>
+                  <TabsTrigger value="manage-players" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Players</TabsTrigger>
+                  <TabsTrigger value="player-stats" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Player Stats</TabsTrigger>
                 </TabsList>
               </div>
               
@@ -315,17 +315,17 @@ const Tournament = () => {
         <AlertDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Clôturer le tournoi ?</AlertDialogTitle>
+              <AlertDialogTitle>Close tournament?</AlertDialogTitle>
               <AlertDialogDescription>
-                Cette action va clôturer définitivement le tournoi. Le tournoi sera alors en lecture seule et affiché sous forme de résumé synthétique pour les visiteurs.
+                This action will permanently close the tournament. The tournament will then be read-only and displayed as a summary for visitors.
                 <br /><br />
-                Vous pourrez toujours rouvrir le tournoi si nécessaire.
+                You can still reopen the tournament if needed.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={toggleTournamentStatus} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Clôturer
+                Close
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
