@@ -126,12 +126,6 @@ export const TournamentsList = () => {
               )}
             </div>
             
-            {/* Footer */}
-            <div className="mt-4 pt-4 border-t border-border/50">
-              <span className="text-xs text-muted-foreground">
-                Créé le {formatDate(tournament.created_at)}
-              </span>
-            </div>
           </Card>
         </Link>
       ))}
