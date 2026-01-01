@@ -172,6 +172,44 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     }
   };
 
+  // Check if any match has a score entered
+  const hasAnyScore = matches.some(m => m.team1_score !== null || m.team2_score !== null);
+
+  const regenerateMatches = async () => {
+    if (hasAnyScore) {
+      toast.error("Cannot regenerate: scores have already been entered");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Delete all existing round robin matches
+      const { error: deleteError } = await supabase
+        .from("matches")
+        .delete()
+        .eq("tournament_id", tournamentId)
+        .eq("phase", "round_robin");
+
+      if (deleteError) throw deleteError;
+
+      // Also delete associated player_stats
+      const { error: statsError } = await supabase
+        .from("player_stats")
+        .delete()
+        .eq("tournament_id", tournamentId);
+
+      if (statsError) throw statsError;
+
+      setMatches([]);
+      toast.success("Matches deleted. Click 'Generate All Matches' to regenerate.");
+      fetchMatches();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateScore = async (matchId: string, team1Score: number, team2Score: number) => {
     try {
       // Validate input
@@ -214,14 +252,26 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       <Card className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Round Robin</h2>
-          {isCreator && matches.length === 0 && (
-            <Button 
-              onClick={generateAllMatches} 
-              disabled={loading || isClosed || (currentPhase && currentPhase !== "round_robin")}
-            >
-              Generate All Matches
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {isCreator && matches.length === 0 && (
+              <Button 
+                onClick={generateAllMatches} 
+                disabled={loading || isClosed || (currentPhase && currentPhase !== "round_robin")}
+              >
+                Generate All Matches
+              </Button>
+            )}
+            {isCreator && matches.length > 0 && (
+              <Button 
+                onClick={regenerateMatches} 
+                variant="outline"
+                disabled={loading || isClosed || hasAnyScore || (currentPhase && currentPhase !== "round_robin")}
+                title={hasAnyScore ? "Cannot regenerate: scores have been entered" : "Regenerate all matches"}
+              >
+                Regenerate
+              </Button>
+            )}
+          </div>
         </div>
 
         {currentPhase && currentPhase !== "round_robin" && (
