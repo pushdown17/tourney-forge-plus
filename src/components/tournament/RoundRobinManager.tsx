@@ -103,18 +103,52 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         return;
       }
 
-      // Generate all possible matchups (true Round Robin)
-      const allMatches = [];
-      for (let i = 0; i < teams.length; i++) {
-        for (let j = i + 1; j < teams.length; j++) {
-          allMatches.push({
-            tournament_id: tournamentId,
-            phase: "round_robin" as const,
-            round_number: 1, // All matches in round 1
-            team1_id: teams[i].id,
-            team2_id: teams[j].id,
-          });
+      // Use circle method algorithm for balanced scheduling
+      // This ensures teams don't wait too long between matches
+      const teamIds = teams.map(t => t.id);
+      const n = teamIds.length;
+      
+      // If odd number of teams, add a "bye" placeholder
+      const hasBye = n % 2 === 1;
+      if (hasBye) {
+        teamIds.push("BYE");
+      }
+      
+      const totalTeams = teamIds.length;
+      const rounds = totalTeams - 1;
+      const matchesPerRound = totalTeams / 2;
+      
+      const allMatches: { 
+        tournament_id: string; 
+        phase: "round_robin"; 
+        round_number: number; 
+        team1_id: string; 
+        team2_id: string; 
+      }[] = [];
+      
+      // Create a copy of teams for rotation (excluding first team which stays fixed)
+      const rotatingTeams = [...teamIds];
+      
+      for (let round = 0; round < rounds; round++) {
+        for (let match = 0; match < matchesPerRound; match++) {
+          const home = match === 0 ? rotatingTeams[0] : rotatingTeams[match];
+          const away = rotatingTeams[totalTeams - 1 - match];
+          
+          // Skip matches with the "BYE" placeholder
+          if (home !== "BYE" && away !== "BYE") {
+            allMatches.push({
+              tournament_id: tournamentId,
+              phase: "round_robin" as const,
+              round_number: 1,
+              team1_id: home,
+              team2_id: away,
+            });
+          }
         }
+        
+        // Rotate teams: keep first team fixed, rotate the rest
+        const lastTeam = rotatingTeams.pop()!;
+        rotatingTeams.splice(1, 0, lastTeam);
       }
 
       if (allMatches.length === 0) {
