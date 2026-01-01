@@ -699,6 +699,7 @@ export const EliminationBracket = ({
                                             recentlyAdvancedTeamIds.includes(match.team2_id) ? match.team2_id : undefined}
                             isLocked={isLocked}
                             isCompleted={isMatchCompleted}
+                            isCreator={isCreator}
                             onStartEdit={() => {
                               if (isLocked || isMatchCompleted) {
                                 if (isMatchCompleted) {

@@ -35,6 +35,7 @@ interface BracketMatchProps {
   advancedTeamId?: string;
   isLocked?: boolean;
   isCompleted?: boolean;
+  isCreator?: boolean;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveScore: () => void;
@@ -54,6 +55,7 @@ export const BracketMatch = ({
   advancedTeamId,
   isLocked = false,
   isCompleted = false,
+  isCreator = false,
   onStartEdit,
   onCancelEdit,
   onSaveScore,
@@ -66,6 +68,8 @@ export const BracketMatch = ({
   const hasWinner = !!match.winner_id;
   // A match is locked if it is completed (has a winner) OR if the previous matches are not finished
   const isMatchLocked = isCompleted || isLocked;
+  // Only show edit controls if user is the creator
+  const canEdit = isCreator && !isClosed && !isMatchLocked;
   
   return (
     <div className="animate-fade-in h-[124px] flex flex-col">
@@ -168,8 +172,8 @@ export const BracketMatch = ({
         </div>
       </Card>
 
-      {/* Score edit section - Do not display if match is completed */}
-      {!isPlaceholder && hasTeams && !isCompleted && (
+      {/* Score edit section - Only display if user is creator and match is not completed */}
+      {!isPlaceholder && hasTeams && !isCompleted && canEdit && (
         <div className="mt-1.5">
           {isEditing ? (
             <div className="flex gap-1 items-center justify-center bg-muted/30 rounded-md p-1.5">
@@ -178,7 +182,7 @@ export const BracketMatch = ({
                 value={parseInt(scores.team1 || "0")}
                 onChange={(value) => onScoreChange("team1", value.toString())}
                 onIncrement={() => onIncrementScore(match.team1_id, match.team1?.name || "TBD")}
-                disabled={isClosed || isMatchLocked}
+                disabled={!canEdit}
               />
               <span className="text-xs text-muted-foreground font-bold">-</span>
               <ScoreInput
@@ -186,13 +190,13 @@ export const BracketMatch = ({
                 value={parseInt(scores.team2 || "0")}
                 onChange={(value) => onScoreChange("team2", value.toString())}
                 onIncrement={() => onIncrementScore(match.team2_id, match.team2?.name || "TBD")}
-                disabled={isClosed || isMatchLocked}
+                disabled={!canEdit}
               />
               <Button 
                 onClick={(e) => { e.stopPropagation(); onSaveScore(); }} 
                 size="sm" 
                 className="h-6 px-2 text-xs ml-1"
-                disabled={isClosed || isMatchLocked}
+                disabled={!canEdit}
               >
                 ✓
               </Button>
@@ -211,7 +215,7 @@ export const BracketMatch = ({
               variant="outline"
               size="sm"
               className="w-full h-7 text-xs"
-              disabled={isClosed || isMatchLocked}
+              disabled={!canEdit}
             >
               {match.team1_score !== null ? "Edit" : "Enter score"}
             </Button>
