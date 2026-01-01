@@ -32,7 +32,6 @@ interface RoundRobinManagerProps {
 
 export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false }: RoundRobinManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
-  const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
@@ -49,7 +48,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
 
   useEffect(() => {
     fetchMatches();
-  }, [tournamentId, currentRound]);
+  }, [tournamentId]);
 
   const fetchMatches = async () => {
     const { data, error } = await supabase
@@ -61,7 +60,6 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       `)
       .eq("tournament_id", tournamentId)
       .eq("phase", "round_robin")
-      .eq("round_number", currentRound)
       .order("created_at");
 
     if (error) {
@@ -72,7 +70,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     setMatches(data || []);
   };
 
-  const generateNextRound = async () => {
+  const generateAllMatches = async () => {
     setLoading(true);
     try {
       // Fetch all teams via tournament_teams
@@ -90,114 +88,49 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         return;
       }
 
-      // Determine which round to generate
-      const roundToGenerate = matches.length === 0 ? currentRound : currentRound + 1;
-
-      // Fetch all previous matches to avoid duplicates
-      const { data: previousMatches, error: prevMatchesError } = await supabase
+      // Check if matches already exist
+      const { data: existingMatches, error: existingError } = await supabase
         .from("matches")
-        .select("team1_id, team2_id")
+        .select("id")
         .eq("tournament_id", tournamentId)
-        .eq("phase", "round_robin");
+        .eq("phase", "round_robin")
+        .limit(1);
 
-      if (prevMatchesError) throw prevMatchesError;
+      if (existingError) throw existingError;
 
-      // Create a set of already played matchups
-      const playedMatchups = new Set(
-        (previousMatches || []).map(m => 
-          [m.team1_id, m.team2_id].sort().join("-")
-        )
-      );
+      if (existingMatches && existingMatches.length > 0) {
+        toast.error("Matches have already been generated for this tournament");
+        return;
+      }
 
-      // Fetch team stats for Swiss pairing
-      const { data: stats, error: statsError } = await supabase
-        .from("team_stats")
-        .select("team_id, points, wins, losses, draws, goals_for, goals_against")
-        .eq("tournament_id", tournamentId)
-        .order("points", { ascending: false })
-        .order("goals_for", { ascending: false });
-
-      if (statsError) throw statsError;
-
-      // Create a map of team stats
-      const statsMap = new Map(
-        (stats || []).map(s => [s.team_id, s])
-      );
-
-      // Sort teams by their stats (Swiss system)
-      const sortedTeams = teams.sort((a, b) => {
-        const statsA = statsMap.get(a.id) || { points: 0, goals_for: 0 };
-        const statsB = statsMap.get(b.id) || { points: 0, goals_for: 0 };
-        
-        if (statsA.points !== statsB.points) {
-          return statsB.points - statsA.points;
-        }
-        return statsB.goals_for - statsA.goals_for;
-      });
-
-      // Swiss pairing algorithm
-      const newMatches = [];
-      const paired = new Set();
-
-      for (let i = 0; i < sortedTeams.length; i++) {
-        if (paired.has(sortedTeams[i].id)) continue;
-
-        const team1 = sortedTeams[i];
-        let team2 = null;
-
-        // Try to find the best opponent (closest in ranking that hasn't played against)
-        for (let j = i + 1; j < sortedTeams.length; j++) {
-          if (paired.has(sortedTeams[j].id)) continue;
-
-          const matchupKey = [team1.id, sortedTeams[j].id].sort().join("-");
-          
-          if (!playedMatchups.has(matchupKey)) {
-            team2 = sortedTeams[j];
-            break;
-          }
-        }
-
-        // If no suitable opponent found, pair with the closest available team
-        if (!team2) {
-          for (let j = i + 1; j < sortedTeams.length; j++) {
-            if (!paired.has(sortedTeams[j].id)) {
-              team2 = sortedTeams[j];
-              break;
-            }
-          }
-        }
-
-        if (team2) {
-          paired.add(team1.id);
-          paired.add(team2.id);
-
-          newMatches.push({
+      // Generate all possible matchups (true Round Robin)
+      const allMatches = [];
+      for (let i = 0; i < teams.length; i++) {
+        for (let j = i + 1; j < teams.length; j++) {
+          allMatches.push({
             tournament_id: tournamentId,
-            phase: "round_robin",
-            round_number: roundToGenerate,
-            team1_id: team1.id,
-            team2_id: team2.id,
+            phase: "round_robin" as const,
+            round_number: 1, // All matches in round 1
+            team1_id: teams[i].id,
+            team2_id: teams[j].id,
           });
         }
       }
 
-      if (newMatches.length === 0) {
-        toast.error("Unable to generate new matches. All teams have already played each other.");
+      if (allMatches.length === 0) {
+        toast.error("Unable to generate matches");
         return;
       }
 
       const { error: insertError } = await supabase
         .from("matches")
-        .insert(newMatches);
+        .insert(allMatches);
 
       if (insertError) throw insertError;
 
-      toast.success(`Round ${roundToGenerate} generated with ${newMatches.length} match${newMatches.length > 1 ? 'es' : ''}!`);
-      if (roundToGenerate > currentRound) {
-        setCurrentRound(roundToGenerate);
-      } else {
-        fetchMatches();
-      }
+      const totalMatches = allMatches.length;
+      toast.success(`${totalMatches} match${totalMatches > 1 ? 'es' : ''} generated!`);
+      fetchMatches();
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -246,13 +179,13 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     <div className="space-y-6">
       <Card className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Round {currentRound}</h2>
-          {isCreator && (
+          <h2 className="text-2xl font-bold">Round Robin</h2>
+          {isCreator && matches.length === 0 && (
             <Button 
-              onClick={generateNextRound} 
+              onClick={generateAllMatches} 
               disabled={loading || isClosed || (currentPhase && currentPhase !== "round_robin")}
             >
-              {matches.length === 0 ? `Generate Round ${currentRound}` : `Generate Round ${currentRound + 1}`}
+              Generate All Matches
             </Button>
           )}
         </div>
