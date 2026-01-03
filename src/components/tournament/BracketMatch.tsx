@@ -7,6 +7,7 @@ import { Trophy, Lock } from "lucide-react";
 interface Team {
   id: string;
   name: string;
+  seed?: number;
 }
 
 interface Match {
@@ -122,6 +123,11 @@ export const BracketMatch = ({
             {match.winner_id === match.team1_id && (
               <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
             )}
+            {match.team1?.seed && (
+              <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
+                #{match.team1.seed}
+              </span>
+            )}
             <span className={cn(
               "text-sm truncate",
               match.winner_id === match.team1_id && "font-semibold text-primary",
@@ -152,6 +158,11 @@ export const BracketMatch = ({
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {match.winner_id === match.team2_id && (
               <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+            )}
+            {match.team2?.seed && (
+              <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
+                #{match.team2.seed}
+              </span>
             )}
             <span className={cn(
               "text-sm truncate",
