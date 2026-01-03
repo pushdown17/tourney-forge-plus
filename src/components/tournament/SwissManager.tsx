@@ -39,6 +39,21 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
   const [maxRound, setMaxRound] = useState(1);
   const [initialized, setInitialized] = useState(false);
   const [numberOfFields, setNumberOfFields] = useState(1);
+  const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
+
+  // Fetch matches currently on referee stations
+  const fetchActiveStationMatches = async () => {
+    const { data, error } = await supabase
+      .from("referee_stations")
+      .select("current_match_id")
+      .eq("tournament_id", tournamentId)
+      .eq("is_active", true)
+      .not("current_match_id", "is", null);
+
+    if (!error && data) {
+      setActiveStationMatches(new Set(data.map(s => s.current_match_id).filter(Boolean)));
+    }
+  };
 
   useEffect(() => {
     const initializeRound = async () => {
@@ -65,12 +80,13 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
   useEffect(() => {
     if (initialized) {
       fetchMatches();
+      fetchActiveStationMatches();
     }
   }, [tournamentId, currentRound, initialized]);
 
   // Real-time subscription for match updates
   useEffect(() => {
-    const channel = supabase
+    const matchChannel = supabase
       .channel(`swiss-matches-${tournamentId}`)
       .on(
         'postgres_changes',
@@ -87,8 +103,27 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
       )
       .subscribe();
 
+    // Real-time subscription for referee station updates
+    const stationChannel = supabase
+      .channel(`swiss-stations-${tournamentId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'referee_stations',
+          filter: `tournament_id=eq.${tournamentId}`
+        },
+        (payload) => {
+          console.log('Station update received:', payload);
+          fetchActiveStationMatches();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(matchChannel);
+      supabase.removeChannel(stationChannel);
     };
   }, [tournamentId, currentRound]);
 
@@ -427,6 +462,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
                     isClosed={isClosed}
                     isLockedByPreviousMatch={isLockedByPreviousMatch}
                     isCreator={isCreator}
+                    isOnRefereeStation={activeStationMatches.has(match.id)}
                   />
                 );
               })}
@@ -462,9 +498,10 @@ interface MatchCardProps {
   isClosed?: boolean;
   isLockedByPreviousMatch?: boolean;
   isCreator?: boolean;
+  isOnRefereeStation?: boolean;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLockedByPreviousMatch = false, isCreator = false }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLockedByPreviousMatch = false, isCreator = false, isOnRefereeStation = false }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -710,14 +747,20 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
-      <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border border-border/50 hover:border-primary/50 transition-colors ${isLockedByPreviousMatch ? 'opacity-50' : ''}`}>
-        {match.field_number && (
-          <div className="flex items-center justify-center mb-1">
+      <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border transition-colors ${isOnRefereeStation ? 'border-primary ring-2 ring-primary/30' : 'border-border/50 hover:border-primary/50'} ${isLockedByPreviousMatch ? 'opacity-50' : ''}`}>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          {match.field_number && (
             <Badge variant="outline" className="text-xs">
               Court {match.field_number}
             </Badge>
-          </div>
-        )}
+          )}
+          {isOnRefereeStation && (
+            <Badge className="text-xs animate-pulse bg-primary">
+              <Monitor className="h-3 w-3 mr-1" />
+              En arbitrage
+            </Badge>
+          )}
+        </div>
         {isLockedByPreviousMatch && (
           <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
