@@ -289,10 +289,33 @@ export const DoubleEliminationBracket = ({
 
       if (matchesError) throw matchesError;
 
-      const winnersMatches = allMatches?.filter(m => !m.is_third_place_match) || [];
-      const losersMatches = allMatches?.filter(m => m.is_third_place_match) || [];
+       const winnersMatches = allMatches?.filter(m => !m.is_third_place_match) || [];
+       const losersMatches = allMatches?.filter(m => m.is_third_place_match) || [];
 
-      const matchesToCreate: any[] = [];
+       // ===== Grand Final reset logic (Challonge-style) =====
+       const grandFinalRound1 = winnersRounds + 1;
+       const grandFinalRound2 = winnersRounds + 2;
+       const losersRoundsCount = getLosersRoundsCount(totalTeams);
+
+       // If we just completed a Grand Final match, decide whether we need a reset.
+       if (!isLosersBracket && roundNumber >= grandFinalRound1) {
+         const winnersFinalWinner = winnersMatches.find(m => m.round_number === winnersRounds)?.winner_id || null;
+         const losersFinalWinner = losersMatches.find(m => m.round_number === losersRoundsCount)?.winner_id || null;
+
+         // Only Grand Final #1 can trigger a reset.
+         if (roundNumber === grandFinalRound1) {
+           if (winnersFinalWinner && losersFinalWinner && winnerId === losersFinalWinner && winnerId !== winnersFinalWinner) {
+             // Losers bracket champ won GF1 → create reset GF2
+             await createGrandFinalReset(winnersFinalWinner, losersFinalWinner, winnersMatches);
+           }
+         }
+
+         // Refresh and stop progression: no further bracket matches should be generated from GF.
+         await fetchTournamentAndMatches();
+         return;
+       }
+
+       const matchesToCreate: any[] = [];
 
       if (!isLosersBracket) {
         // WINNERS BRACKET LOGIC
@@ -565,6 +588,35 @@ export const DoubleEliminationBracket = ({
     }
   };
 
+  // If the Losers Bracket champion beats the Winners Bracket champion in Grand Final,
+  // a reset match is required (Challonge-style).
+  const createGrandFinalReset = async (winnersChampion: string, losersChampion: string, winnersMatches: any[]) => {
+    const totalTeams = tournament?.teams_for_elimination || 8;
+    const winnersRounds = Math.log2(totalTeams);
+    const resetRound = winnersRounds + 2;
+
+    const exists = winnersMatches.some(m =>
+      m.round_number === resetRound &&
+      ((m.team1_id === winnersChampion && m.team2_id === losersChampion) ||
+       (m.team1_id === losersChampion && m.team2_id === winnersChampion))
+    );
+
+    if (!exists) {
+      const { error } = await supabase.from("matches").insert({
+        tournament_id: tournamentId,
+        phase: "double_elimination",
+        round_number: resetRound,
+        team1_id: winnersChampion,
+        team2_id: losersChampion,
+        is_third_place_match: false,
+        field_number: 1,
+      });
+
+      if (error) throw error;
+      toast.success("🔁 Grand Final reset created!");
+    }
+  };
+
   const getLosersRoundsCount = (totalTeams: number): number => {
     // For 8 teams: L-R1 (minor), L-R2 (major), L-R3 (minor), L-R4 (major/final) = 4 rounds
     // For 16 teams: 6 rounds, etc.
@@ -573,18 +625,22 @@ export const DoubleEliminationBracket = ({
 
   const getRoundName = (roundNumber: number, totalTeams: number, isLosers: boolean) => {
     const winnersRounds = Math.log2(totalTeams);
-    
+
     if (isLosers) {
       const losersRoundsCount = getLosersRoundsCount(totalTeams);
-      
+
       if (roundNumber === losersRoundsCount) return "Losers Final";
       if (roundNumber === losersRoundsCount - 1) return "Losers Semi";
-      
+
       const isMinor = roundNumber % 2 === 1;
       return `L-R${roundNumber} ${isMinor ? "(Minor)" : "(Major)"}`;
     }
-    
+
+    // Winners bracket rounds + Grand Final (+ optional reset)
+    if (roundNumber === winnersRounds + 2) return "Grand Final Reset";
+    if (roundNumber === winnersRounds + 1) return "Grand Final";
     if (roundNumber > winnersRounds) return "Grand Final";
+
     if (roundNumber === winnersRounds) return "Winners Final";
     if (roundNumber === winnersRounds - 1) return "Winners Semi";
     if (roundNumber === winnersRounds - 2) return "Winners Quarter";
@@ -594,17 +650,19 @@ export const DoubleEliminationBracket = ({
   // Separate matches by bracket type
   const totalTeams = tournament?.teams_for_elimination || 8;
   const winnersRoundsCount = Math.log2(totalTeams); // For 8 teams = 3 (R1, R2, R3)
-  
-  // Grand Final is round > winnersRoundsCount and not a third_place_match
-  const grandFinalMatch = matches.find(m => 
-    !m.is_third_place_match && m.round_number > winnersRoundsCount
-  );
-  
+
+  // Grand Final(s): round > winnersRoundsCount and not a third_place_match
+  const grandFinalMatches = matches
+    .filter(m => !m.is_third_place_match && m.round_number > winnersRoundsCount)
+    .sort((a, b) => a.round_number - b.round_number);
+
   // Winners bracket excludes grand final
-  const winnersMatches = matches.filter(m => 
+  const winnersMatches = matches.filter(m =>
     !m.is_third_place_match && m.round_number <= winnersRoundsCount
   );
   const losersMatches = matches.filter(m => m.is_third_place_match);
+
+  const decidingFinal = [...grandFinalMatches].reverse().find(m => m.winner_id) || null;
 
   const generateBracketStructure = (bracketMatches: Match[], isLosers: boolean) => {
     if (!tournament?.teams_for_elimination) return [];
@@ -810,29 +868,24 @@ export const DoubleEliminationBracket = ({
           })}
           
           {/* Champion display */}
-          {!isLosers && (() => {
-            const totalRounds = Math.log2(tournament?.teams_for_elimination || 8);
-            const grandFinal = winnersMatches.find(m => m.round_number > totalRounds && m.winner_id);
-            
-            if (grandFinal?.winner_id) {
-              const winner = grandFinal.winner_id === grandFinal.team1_id 
-                ? grandFinal.team1 
-                : grandFinal.team2;
-              return (
-                <div className="flex flex-col items-center justify-center" style={{ minWidth: "160px" }}>
-                  <div className="text-center mb-4 py-2 px-4 rounded-lg bg-yellow-500/20 border border-yellow-500/50">
-                    <span className="text-sm font-bold text-yellow-600 dark:text-yellow-400">
-                      🏆 Champion
-                    </span>
-                  </div>
-                  <Card className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-500/50 p-4 text-center">
-                    <Trophy className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-                    <p className="font-bold text-lg">{winner?.name}</p>
-                  </Card>
+          {!isLosers && decidingFinal?.winner_id && (() => {
+            const winner = decidingFinal.winner_id === decidingFinal.team1_id
+              ? decidingFinal.team1
+              : decidingFinal.team2;
+
+            return (
+              <div className="flex flex-col items-center justify-center" style={{ minWidth: "160px" }}>
+                <div className="text-center mb-4 py-2 px-4 rounded-lg bg-yellow-500/20 border border-yellow-500/50">
+                  <span className="text-sm font-bold text-yellow-600 dark:text-yellow-400">
+                    🏆 Champion
+                  </span>
                 </div>
-              );
-            }
-            return null;
+                <Card className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-500/50 p-4 text-center">
+                  <Trophy className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                  <p className="font-bold text-lg">{winner?.name}</p>
+                </Card>
+              </div>
+            );
           })()}
         </div>
       </div>
@@ -906,82 +959,105 @@ export const DoubleEliminationBracket = ({
           </div>
           
           {/* Grand Final */}
-          {grandFinalMatch && (
+          {grandFinalMatches.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4 pb-2 border-b border-primary">
                 <Trophy className="h-5 w-5 text-yellow-500" />
                 <h3 className="text-lg font-semibold text-yellow-500">Grande Finale</h3>
               </div>
-              <div className="flex justify-center">
-                <div style={{ minWidth: "280px" }}>
-                  <BracketMatch
-                    match={grandFinalMatch}
-                    matchNumber={1}
-                    isEditing={editingMatchId === grandFinalMatch.id}
-                    scores={scores[grandFinalMatch.id] || { team1: "", team2: "" }}
-                    isClosed={isClosed}
-                    isFinal={true}
-                    isRecentlyCompleted={recentlyCompletedMatchId === grandFinalMatch.id}
-                    advancedTeamId={undefined}
-                    isLocked={false}
-                    isCompleted={!!grandFinalMatch.winner_id}
-                    isCreator={isCreator}
-                    onStartEdit={() => {
-                      if (grandFinalMatch.isPlaceholder) return;
-                      if (grandFinalMatch.winner_id) {
-                        toast.error("This match is finished");
-                        return;
-                      }
-                      setEditingMatchId(grandFinalMatch.id);
-                      setScores({
-                        ...scores,
-                        [grandFinalMatch.id]: {
-                          team1: grandFinalMatch.team1_score?.toString() || "0",
-                          team2: grandFinalMatch.team2_score?.toString() || "0",
-                        },
-                      });
-                    }}
-                    onSaveScore={() => handleScoreUpdate(grandFinalMatch.id)}
-                    onCancelEdit={() => setEditingMatchId(null)}
-                    onScoreChange={(team, value) =>
-                      setScores({
-                        ...scores,
-                        [grandFinalMatch.id]: {
-                          ...(scores[grandFinalMatch.id] || { team1: "0", team2: "0" }),
-                          [team]: value,
-                        },
-                      })
-                    }
-                    onMatchClick={() => {
-                      if (grandFinalMatch.isPlaceholder) return;
-                      setSelectedMatch(grandFinalMatch);
-                      if (grandFinalMatch.winner_id) {
-                        setRecapDialogOpen(true);
-                      } else {
-                        setStatsDialogOpen(true);
-                      }
-                    }}
-                    onIncrementScore={(teamId, teamName) => {
-                      if (grandFinalMatch.isPlaceholder) return;
-                      if (grandFinalMatch.winner_id) {
-                        toast.error("Match finished");
-                        return;
-                      }
-                      setScoringTeam({ id: teamId, name: teamName, matchId: grandFinalMatch.id });
-                      setGoalScorerDialogOpen(true);
-                    }}
-                  />
-                  {grandFinalMatch.winner_id && (
-                    <div className="mt-4 text-center p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
-                      <Trophy className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-                      <p className="text-lg font-bold text-yellow-500">
-                        🏆 Champion: {grandFinalMatch.winner_id === grandFinalMatch.team1_id 
-                          ? grandFinalMatch.team1?.name 
-                          : grandFinalMatch.team2?.name}
-                      </p>
+
+              <div className="flex flex-col items-center gap-4">
+                {grandFinalMatches.map((gf, idx) => {
+                  const label = gf.round_number === winnersRoundsCount + 2 ? "Finale 2 (Reset)" : "Finale 1";
+                  const isReset = gf.round_number === winnersRoundsCount + 2;
+                  const resetLocked = isReset && !grandFinalMatches.some(m => m.round_number === winnersRoundsCount + 1 && m.winner_id);
+
+                  return (
+                    <div key={gf.id} className="w-full" style={{ maxWidth: "360px" }}>
+                      <div className="text-center text-xs text-muted-foreground mb-2">{label}</div>
+                      <BracketMatch
+                        match={gf}
+                        matchNumber={idx + 1}
+                        isEditing={editingMatchId === gf.id}
+                        scores={scores[gf.id] || { team1: "", team2: "" }}
+                        isClosed={isClosed}
+                        isFinal={true}
+                        isRecentlyCompleted={recentlyCompletedMatchId === gf.id}
+                        advancedTeamId={undefined}
+                        isLocked={resetLocked}
+                        isCompleted={!!gf.winner_id}
+                        isCreator={isCreator}
+                        onStartEdit={() => {
+                          if (gf.isPlaceholder) return;
+                          if (resetLocked) {
+                            toast.error("Complete Finale 1 first");
+                            return;
+                          }
+                          if (gf.winner_id) {
+                            toast.error("This match is finished");
+                            return;
+                          }
+                          setEditingMatchId(gf.id);
+                          setScores({
+                            ...scores,
+                            [gf.id]: {
+                              team1: gf.team1_score?.toString() || "0",
+                              team2: gf.team2_score?.toString() || "0",
+                            },
+                          });
+                        }}
+                        onSaveScore={() => handleScoreUpdate(gf.id)}
+                        onCancelEdit={() => setEditingMatchId(null)}
+                        onScoreChange={(team, value) =>
+                          setScores({
+                            ...scores,
+                            [gf.id]: {
+                              ...(scores[gf.id] || { team1: "0", team2: "0" }),
+                              [team]: value,
+                            },
+                          })
+                        }
+                        onMatchClick={() => {
+                          if (gf.isPlaceholder) return;
+                          if (resetLocked) {
+                            toast.error("Complete Finale 1 first");
+                            return;
+                          }
+                          setSelectedMatch(gf);
+                          if (gf.winner_id) {
+                            setRecapDialogOpen(true);
+                          } else {
+                            setStatsDialogOpen(true);
+                          }
+                        }}
+                        onIncrementScore={(teamId, teamName) => {
+                          if (gf.isPlaceholder) return;
+                          if (resetLocked) {
+                            toast.error("Complete Finale 1 first");
+                            return;
+                          }
+                          if (gf.winner_id) {
+                            toast.error("Match finished");
+                            return;
+                          }
+                          setScoringTeam({ id: teamId, name: teamName, matchId: gf.id });
+                          setGoalScorerDialogOpen(true);
+                        }}
+                      />
                     </div>
-                  )}
-                </div>
+                  );
+                })}
+
+                {decidingFinal?.winner_id && (
+                  <div className="mt-2 text-center p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg" style={{ maxWidth: "420px", width: "100%" }}>
+                    <Trophy className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                    <p className="text-lg font-bold text-yellow-500">
+                      🏆 Champion: {decidingFinal.winner_id === decidingFinal.team1_id
+                        ? decidingFinal.team1?.name
+                        : decidingFinal.team2?.name}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
