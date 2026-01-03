@@ -811,7 +811,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
                 disabled={isClosed || isLockedByPreviousMatch}
               >
                 <Monitor className="h-4 w-4 mr-2" />
-                Send to Field
+                Send to Court
               </Button>
               <div className="flex gap-2">
                 {isEditing && (
