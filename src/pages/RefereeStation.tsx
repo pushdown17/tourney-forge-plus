@@ -233,14 +233,24 @@ const RefereeStation = () => {
     stat: keyof Omit<PlayerStat, 'id' | 'player_id' | 'player_name' | 'tournament_team_player_id'>,
     delta: number
   ) => {
-    const updateTeam = (team: Team) => ({
-      ...team,
-      players: team.players.map(p => 
+    const updateTeam = (team: Team) => {
+      const updatedPlayers = team.players.map(p => 
         p.player_id === playerId 
           ? { ...p, [stat]: Math.max(0, p[stat] + delta) }
           : p
-      )
-    });
+      );
+      
+      // If updating goals, also update the team score
+      const newScore = stat === 'goals' 
+        ? Math.max(0, team.score + delta) 
+        : team.score;
+      
+      return {
+        ...team,
+        score: newScore,
+        players: updatedPlayers
+      };
+    };
 
     if (teamNumber === 1 && team1) {
       setTeam1(updateTeam(team1));
