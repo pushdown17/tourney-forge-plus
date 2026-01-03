@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Trophy, Shield, Skull, RefreshCw } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { cn } from "@/lib/utils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Button } from "@/components/ui/button";
 
 interface Team {
@@ -75,7 +75,7 @@ export const DoubleEliminationBracket = ({
   const [recentlyAdvancedTeamIds, setRecentlyAdvancedTeamIds] = useState<string[]>([]);
   const [numberOfFields, setNumberOfFields] = useState(1);
   const [recapDialogOpen, setRecapDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("winners");
+  
 
   // If not yet in elimination phase, show transition component
   if (currentPhase !== "double_elimination") {
@@ -873,26 +873,27 @@ export const DoubleEliminationBracket = ({
           <p className="text-muted-foreground">No matches generated</p>
         </div>
       ) : (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-6">
-            <TabsTrigger value="winners" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Winners ({winnersMatches.length})
-            </TabsTrigger>
-            <TabsTrigger value="losers" className="flex items-center gap-2">
-              <Skull className="h-4 w-4" />
-              Losers ({losersMatches.length})
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="winners" className="mt-0">
+        <div className="space-y-8">
+          {/* Winners Bracket */}
+          <div>
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
+              <Shield className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold">Winners Bracket</h3>
+              <span className="text-sm text-muted-foreground">({winnersMatches.length} matchs)</span>
+            </div>
             {renderBracket(winnersMatches, false)}
-          </TabsContent>
+          </div>
           
-          <TabsContent value="losers" className="mt-0">
+          {/* Losers Bracket */}
+          <div>
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
+              <Skull className="h-5 w-5 text-destructive" />
+              <h3 className="text-lg font-semibold">Losers Bracket</h3>
+              <span className="text-sm text-muted-foreground">({losersMatches.length} matchs)</span>
+            </div>
             {renderBracket(losersMatches, true)}
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       )}
 
       {selectedMatch && (
