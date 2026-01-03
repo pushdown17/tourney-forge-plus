@@ -662,7 +662,12 @@ export const DoubleEliminationBracket = ({
   );
   const losersMatches = matches.filter(m => m.is_third_place_match);
 
-  const decidingFinal = [...grandFinalMatches].reverse().find(m => m.winner_id) || null;
+  // Only show champion if ALL grand final matches are completed
+  // If there's a reset match without a winner, tournament is not decided yet
+  const allGrandFinalsCompleted = grandFinalMatches.length > 0 && grandFinalMatches.every(m => m.winner_id);
+  const decidingFinal = allGrandFinalsCompleted 
+    ? grandFinalMatches[grandFinalMatches.length - 1] 
+    : null;
 
   const generateBracketStructure = (bracketMatches: Match[], isLosers: boolean) => {
     if (!tournament?.teams_for_elimination) return [];
