@@ -253,7 +253,7 @@ export const DoubleEliminationBracket = ({
     loserId: string
   ) => {
     try {
-      const isLosersBracket = completedMatch.is_third_place_match; // Using this flag for losers bracket
+      const isLosersBracket = completedMatch.is_third_place_match;
       const roundNumber = completedMatch.round_number;
 
       // Get all matches of the same round and bracket type
@@ -279,13 +279,12 @@ export const DoubleEliminationBracket = ({
         return;
       }
 
-      // Get existing next round matches
-      const { data: existingNextRound, error: existingError } = await supabase
+      // Get ALL existing matches for this tournament
+      const { data: allExistingMatches, error: existingError } = await supabase
         .from("matches")
         .select("*")
         .eq("tournament_id", tournamentId)
-        .eq("phase", "double_elimination")
-        .gte("round_number", roundNumber + 1);
+        .eq("phase", "double_elimination");
 
       if (existingError) throw existingError;
 
@@ -293,40 +292,33 @@ export const DoubleEliminationBracket = ({
 
       // Winners bracket logic
       if (!isLosersBracket) {
-        // Move loser to losers bracket
-        const losersRound = roundNumber; // Losers bracket rounds align with winners
+        // Get all losers from this winners round
+        const allLosersFromRound = roundMatches
+          .filter(m => m.winner_id)
+          .map(m => m.winner_id === m.team1_id ? m.team2_id : m.team1_id);
+
+        // Get already paired losers in losers bracket for this round
+        const existingLosersMatches = allExistingMatches?.filter(
+          m => m.is_third_place_match && m.round_number === roundNumber
+        ) || [];
         
-        // Check if losers bracket round exists
-        const losersMatchExists = existingNextRound?.some(m => 
-          m.is_third_place_match && 
-          (m.team1_id === loserId || m.team2_id === loserId)
-        );
+        const alreadyPairedLosers = existingLosersMatches.flatMap(m => [m.team1_id, m.team2_id]);
 
-        if (!losersMatchExists) {
-          // Find another loser from same winners round to pair with
-          const otherLosers = roundMatches
-            .filter(m => m.id !== completedMatch.id && m.winner_id)
-            .map(m => m.winner_id === m.team1_id ? m.team2_id : m.team1_id);
+        // Find unpaired losers
+        const unpairedLosers = allLosersFromRound.filter(l => !alreadyPairedLosers.includes(l));
 
-          if (otherLosers.length > 0) {
-            // Find an unpaired loser
-            const pairedLosers = existingNextRound
-              ?.filter(m => m.is_third_place_match && m.round_number === losersRound)
-              .flatMap(m => [m.team1_id, m.team2_id]) || [];
-            
-            const unpairedLoser = otherLosers.find(l => !pairedLosers.includes(l));
-            
-            if (unpairedLoser && !pairedLosers.includes(loserId)) {
-              matchesToCreate.push({
-                tournament_id: tournamentId,
-                phase: "double_elimination",
-                round_number: losersRound,
-                team1_id: loserId,
-                team2_id: unpairedLoser,
-                is_third_place_match: true, // Losers bracket
-                field_number: 1,
-              });
-            }
+        // Create matches for pairs of unpaired losers
+        for (let i = 0; i < unpairedLosers.length; i += 2) {
+          if (i + 1 < unpairedLosers.length) {
+            matchesToCreate.push({
+              tournament_id: tournamentId,
+              phase: "double_elimination",
+              round_number: roundNumber,
+              team1_id: unpairedLosers[i],
+              team2_id: unpairedLosers[i + 1],
+              is_third_place_match: true,
+              field_number: (matchesToCreate.length % numberOfFields) + 1,
+            });
           }
         }
 
@@ -336,7 +328,7 @@ export const DoubleEliminationBracket = ({
         if (allRoundComplete && roundMatches.length >= 2) {
           // Generate next winners round
           const nextWinnersRound = roundNumber + 1;
-          const existingWinnersNext = existingNextRound?.filter(
+          const existingWinnersNext = allExistingMatches?.filter(
             m => !m.is_third_place_match && m.round_number === nextWinnersRound
           ) || [];
 
@@ -377,7 +369,7 @@ export const DoubleEliminationBracket = ({
         
         if (allLosersRoundComplete && roundMatches.length >= 2) {
           const nextLosersRound = roundNumber + 1;
-          const existingLosersNext = existingNextRound?.filter(
+          const existingLosersNext = allExistingMatches?.filter(
             m => m.is_third_place_match && m.round_number === nextLosersRound
           ) || [];
 
@@ -412,14 +404,14 @@ export const DoubleEliminationBracket = ({
           const losersBracketWinner = roundMatches[0].winner_id;
           
           // Find winners bracket winner
-          const winnersMatches = matches.filter(m => !m.is_third_place_match);
-          const maxWinnersRound = Math.max(...winnersMatches.map(m => m.round_number));
-          const winnersFinal = winnersMatches.find(
+          const winnersMatchesList = matches.filter(m => !m.is_third_place_match);
+          const maxWinnersRound = Math.max(...winnersMatchesList.map(m => m.round_number));
+          const winnersFinal = winnersMatchesList.find(
             m => m.round_number === maxWinnersRound && m.winner_id
           );
 
           if (winnersFinal?.winner_id) {
-            const grandFinalExists = existingNextRound?.some(m =>
+            const grandFinalExists = allExistingMatches?.some(m =>
               m.round_number > maxWinnersRound &&
               ((m.team1_id === winnersFinal.winner_id && m.team2_id === losersBracketWinner) ||
                (m.team1_id === losersBracketWinner && m.team2_id === winnersFinal.winner_id))
