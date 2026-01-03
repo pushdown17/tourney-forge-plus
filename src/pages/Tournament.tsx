@@ -17,6 +17,7 @@ import { StandingsTable } from "@/components/tournament/StandingsTable";
 import { TeamHistory } from "@/components/tournament/TeamHistory";
 import { PlayerRankings } from "@/components/tournament/PlayerRankings";
 import { ClosedTournamentSummary } from "@/components/tournament/ClosedTournamentSummary";
+import { RefereeStationsManager } from "@/components/tournament/RefereeStationsManager";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -256,10 +257,11 @@ const Tournament = () => {
           <TabsContent value="teams" className="animate-fade-in">
             <Tabs defaultValue="manage-teams" className="space-y-4">
               <div className="overflow-x-auto -mx-4 px-4">
-                <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-3 bg-muted/30">
+                <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-4 bg-muted/30">
                   <TabsTrigger value="manage-teams" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Teams</TabsTrigger>
                   <TabsTrigger value="manage-players" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Players</TabsTrigger>
                   <TabsTrigger value="player-stats" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Player Stats</TabsTrigger>
+                  <TabsTrigger value="referee-stations" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Stations</TabsTrigger>
                 </TabsList>
               </div>
               
@@ -273,6 +275,10 @@ const Tournament = () => {
 
               <TabsContent value="player-stats">
                 <PlayerStatsManager tournamentId={id!} isClosed={tournament.is_closed} isCreator={isCreator} />
+              </TabsContent>
+
+              <TabsContent value="referee-stations">
+                <RefereeStationsManager tournamentId={id!} isCreator={isCreator} />
               </TabsContent>
             </Tabs>
           </TabsContent>

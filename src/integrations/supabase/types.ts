@@ -220,6 +220,54 @@ export type Database = {
           },
         ]
       }
+      referee_stations: {
+        Row: {
+          created_at: string
+          current_match_id: string | null
+          id: string
+          is_active: boolean
+          station_name: string
+          station_number: number
+          tournament_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_match_id?: string | null
+          id?: string
+          is_active?: boolean
+          station_name?: string
+          station_number: number
+          tournament_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_match_id?: string | null
+          id?: string
+          is_active?: boolean
+          station_name?: string
+          station_number?: number
+          tournament_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referee_stations_current_match_id_fkey"
+            columns: ["current_match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referee_stations_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_stats: {
         Row: {
           draws: number

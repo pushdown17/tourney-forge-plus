@@ -17,11 +17,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock } from "lucide-react";
+import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock, Monitor } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
 import { MatchStatsRecap } from "./MatchStatsRecap";
 import { MatchStatsViewDialog } from "./MatchStatsViewDialog";
+import { SendToStationDialog } from "./SendToStationDialog";
 
 interface RoundRobinManagerProps {
   tournamentId: string;
@@ -408,6 +409,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   const [quickStatDialogOpen, setQuickStatDialogOpen] = useState(false);
   const [quickStatType, setQuickStatType] = useState<"assists" | "fouls" | "penalty_30s" | "penalty_1m" | "penalty_2m">("assists");
   const [quickStatTeam, setQuickStatTeam] = useState<{ id: string; name: string } | null>(null);
+  const [sendToStationOpen, setSendToStationOpen] = useState(false);
   
   const isLocked = editingMatchId !== null && editingMatchId !== match.id;
   const isEditing = editingMatchId === match.id;
@@ -737,26 +739,36 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
         )}
 
         {isCreator && (
-          <div className="flex gap-2 justify-end">
-            {isEditing && (
-              <Button
-                onClick={() => {
-                  setTeam1Score(match.team1_score ?? 0);
-                  setTeam2Score(match.team2_score ?? 0);
-                  setEditingMatchId(null);
-                }}
-                size="sm"
-                variant="outline"
-              >
-                Cancel
-              </Button>
-            )}
+          <div className="flex gap-2 justify-between">
             <Button
-              onClick={handleValidateScore}
+              onClick={() => setSendToStationOpen(true)}
+              size="sm"
+              variant="outline"
               disabled={isLocked || isClosed}
             >
-              Validate
+              <Monitor className="h-4 w-4 mr-2" />
+              Send to Field
             </Button>
+            <div className="flex gap-2">
+              {isEditing && (
+                <Button
+                  onClick={() => {
+                    setTeam1Score(match.team1_score ?? 0);
+                    setTeam2Score(match.team2_score ?? 0);
+                    setEditingMatchId(null);
+                  }}
+                  size="sm"
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+              )}
+              <Button
+                onClick={handleValidateScore}
+                disabled={isLocked || isClosed}
+              >
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -902,6 +914,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           }}
         />
       )}
+      
+      <SendToStationDialog
+        open={sendToStationOpen}
+        onOpenChange={setSendToStationOpen}
+        tournamentId={tournamentId}
+        matchId={match.id}
+        matchLabel={`${match.team1?.name || "Team 1"} vs ${match.team2?.name || "Team 2"}`}
+      />
     </Collapsible>
   );
 };
