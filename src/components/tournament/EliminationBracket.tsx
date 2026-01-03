@@ -25,6 +25,7 @@ import {
 interface Team {
   id: string;
   name: string;
+  seed?: number;
 }
 
 interface Match {
@@ -133,23 +134,47 @@ export const EliminationBracket = ({
       setTournament(tournamentData);
       setNumberOfFields(tournamentData.number_of_fields || 1);
 
-      // Get elimination matches
-      const { data: matchesData, error: matchesError } = await supabase
-        .from("matches")
-        .select(`
-          *,
-          team1:teams!matches_team1_id_fkey(id, name),
-          team2:teams!matches_team2_id_fkey(id, name)
-        `)
-        .eq("tournament_id", tournamentId)
-        .eq("phase", currentPhase)
-        .order("round_number", { ascending: true });
+      // Fetch matches and standings in parallel
+      const [matchesResult, standingsResult] = await Promise.all([
+        supabase
+          .from("matches")
+          .select(`
+            *,
+            team1:teams!matches_team1_id_fkey(id, name),
+            team2:teams!matches_team2_id_fkey(id, name)
+          `)
+          .eq("tournament_id", tournamentId)
+          .eq("phase", currentPhase)
+          .order("round_number", { ascending: true }),
+        supabase
+          .from("team_stats")
+          .select("team_id, points, goals_for, goals_against")
+          .eq("tournament_id", tournamentId)
+          .order("points", { ascending: false })
+          .order("goals_for", { ascending: false })
+      ]);
 
-      if (matchesError) throw matchesError;
-      setMatches(matchesData || []);
+      if (matchesResult.error) throw matchesResult.error;
+      
+      // Build seed map from standings
+      const seedMap = new Map<string, number>();
+      if (standingsResult.data) {
+        standingsResult.data.forEach((stat, index) => {
+          seedMap.set(stat.team_id, index + 1);
+        });
+      }
+
+      // Attach seed to teams
+      const matchesWithSeeds = (matchesResult.data || []).map(match => ({
+        ...match,
+        team1: match.team1 ? { ...match.team1, seed: seedMap.get(match.team1.id) } : match.team1,
+        team2: match.team2 ? { ...match.team2, seed: seedMap.get(match.team2.id) } : match.team2,
+      }));
+
+      setMatches(matchesWithSeeds);
 
       // If no matches, propose to generate them
-      if (!matchesData || matchesData.length === 0) {
+      if (!matchesResult.data || matchesResult.data.length === 0) {
         // Auto-generate matches
         await generateBracket(tournamentData.teams_for_elimination);
       }
