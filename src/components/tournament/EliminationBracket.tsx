@@ -5,6 +5,7 @@ import { BracketMatch } from "./BracketMatch";
 import { PhaseTransition } from "./PhaseTransition";
 import { MatchStatsDialog } from "./MatchStatsDialog";
 import { MatchStatsRecapDialog } from "./MatchStatsRecapDialog";
+import { DoubleEliminationBracket } from "./DoubleEliminationBracket";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trophy, Medal } from "lucide-react";
@@ -57,6 +58,19 @@ export const EliminationBracket = ({
   isClosed = false,
   isCreator = false
 }: EliminationBracketProps) => {
+  // If double elimination, use dedicated component
+  if (eliminationType === "double" || currentPhase === "double_elimination") {
+    return (
+      <DoubleEliminationBracket
+        tournamentId={tournamentId}
+        currentPhase={currentPhase}
+        onPhaseChanged={onPhaseChanged}
+        isClosed={isClosed}
+        isCreator={isCreator}
+      />
+    );
+  }
+
   // If not yet in elimination phase, show transition component
   if (currentPhase !== "single_elimination" && currentPhase !== "double_elimination") {
     return (
