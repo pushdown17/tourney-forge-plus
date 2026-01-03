@@ -5,12 +5,13 @@ interface ScoreInputProps {
   value: number;
   onChange: (value: number) => void;
   onIncrement?: () => void;
+  onDecrement?: () => void;
   disabled?: boolean;
   className?: string;
   compact?: boolean;
 }
 
-export const ScoreInput = ({ value, onChange, onIncrement, disabled = false, className = "", compact = false }: ScoreInputProps) => {
+export const ScoreInput = ({ value, onChange, onIncrement, onDecrement, disabled = false, className = "", compact = false }: ScoreInputProps) => {
   const increment = () => {
     onChange(value + 1);
     onIncrement?.();
@@ -19,6 +20,7 @@ export const ScoreInput = ({ value, onChange, onIncrement, disabled = false, cla
   const decrement = () => {
     if (value > 0) {
       onChange(value - 1);
+      onDecrement?.();
     }
   };
 

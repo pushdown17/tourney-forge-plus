@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { Trophy, TrendingUp, ChevronDown, ChevronUp, Users, Target, AlertTriangle, Clock, Zap, Monitor } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { GoalScorerDialog } from "./GoalScorerDialog";
+import { GoalRemoverDialog } from "./GoalRemoverDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
 import { MatchStatsRecap } from "./MatchStatsRecap";
 import { SendToStationDialog } from "./SendToStationDialog";
@@ -448,7 +449,9 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
   const [playerStats, setPlayerStats] = useState<Record<string, any>>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [goalScorerDialogOpen, setGoalScorerDialogOpen] = useState(false);
+  const [goalRemoverDialogOpen, setGoalRemoverDialogOpen] = useState(false);
   const [scoringTeam, setScoringTeam] = useState<{ id: string; name: string } | null>(null);
+  const [removingTeam, setRemovingTeam] = useState<{ id: string; name: string } | null>(null);
   const [quickStatDialogOpen, setQuickStatDialogOpen] = useState(false);
   const [quickStatType, setQuickStatType] = useState<"assists" | "fouls" | "penalty_30s" | "penalty_1m" | "penalty_2m">("assists");
   const [quickStatTeam, setQuickStatTeam] = useState<{ id: string; name: string } | null>(null);
@@ -710,6 +713,10 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
                 setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
                 setGoalScorerDialogOpen(true);
               }}
+              onDecrement={() => {
+                setRemovingTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
+                setGoalRemoverDialogOpen(true);
+              }}
               disabled={isClosed || isLockedByPreviousMatch || !isCreator}
             />
           </div>
@@ -724,6 +731,10 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
               onIncrement={() => {
                 setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
                 setGoalScorerDialogOpen(true);
+              }}
+              onDecrement={() => {
+                setRemovingTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
+                setGoalRemoverDialogOpen(true);
               }}
               disabled={isClosed || isLockedByPreviousMatch || !isCreator}
             />
@@ -950,6 +961,30 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
           onGoalRecorded={() => {
             // Reload immediately after recording
             fetchPlayerStats();
+          }}
+        />
+      )}
+
+      {removingTeam && (
+        <GoalRemoverDialog
+          open={goalRemoverDialogOpen}
+          onOpenChange={(open) => {
+            setGoalRemoverDialogOpen(open);
+            if (!open) {
+              fetchPlayerStats();
+            }
+          }}
+          teamName={removingTeam.name}
+          players={(removingTeam.id === match.team1_id ? team1Players : team2Players).map(p => ({
+            id: p.id,
+            name: p.name,
+            goals: playerStats[p.id]?.goals || 0
+          }))}
+          onSelectPlayer={async (playerId) => {
+            const currentGoals = playerStats[playerId]?.goals || 0;
+            if (currentGoals > 0) {
+              await updatePlayerStat(playerId, "goals", currentGoals - 1);
+            }
           }}
         />
       )}
