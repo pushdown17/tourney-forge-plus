@@ -82,7 +82,7 @@ const RefereeStation = () => {
     setTournament(stationData.tournament);
 
     if (stationData.current_match_id) {
-      await fetchMatch(stationData.current_match_id);
+      await fetchMatch(stationData.current_match_id, stationData.tournament_id);
     } else {
       setMatch(null);
       setTeam1(null);
@@ -92,7 +92,7 @@ const RefereeStation = () => {
     setLoading(false);
   }, [stationId]);
 
-  const fetchMatch = async (matchId: string) => {
+  const fetchMatch = async (matchId: string, tournamentId: string) => {
     const { data: matchData, error: matchError } = await supabase
       .from("matches")
       .select(`
@@ -108,12 +108,13 @@ const RefereeStation = () => {
       return;
     }
 
+    console.log("Match data fetched:", matchData);
     setMatch(matchData);
     
     // Fetch players for both teams
     await Promise.all([
-      fetchTeamPlayers(matchData.team1_id, matchData.team1, matchData.team1_score || 0, matchId, true),
-      fetchTeamPlayers(matchData.team2_id, matchData.team2, matchData.team2_score || 0, matchId, false)
+      fetchTeamPlayers(matchData.team1_id, matchData.team1, matchData.team1_score || 0, matchId, true, tournamentId),
+      fetchTeamPlayers(matchData.team2_id, matchData.team2, matchData.team2_score || 0, matchId, false, tournamentId)
     ]);
   };
 
@@ -122,15 +123,22 @@ const RefereeStation = () => {
     teamData: { id: string; name: string }, 
     score: number,
     matchId: string,
-    isTeam1: boolean
+    isTeam1: boolean,
+    tournamentId: string
   ) => {
+    console.log("Fetching team players for:", teamData?.name, "teamId:", teamId, "tournamentId:", tournamentId);
+    
     // Get tournament_team for this team
-    const { data: tournamentTeam } = await supabase
+    const { data: tournamentTeam, error: ttError } = await supabase
       .from("tournament_teams")
       .select("id")
-      .eq("tournament_id", station?.tournament_id || tournament?.id)
+      .eq("tournament_id", tournamentId)
       .eq("team_id", teamId)
       .single();
+
+    if (ttError) {
+      console.error("Error fetching tournament_team:", ttError);
+    }
 
     if (!tournamentTeam) return;
 
