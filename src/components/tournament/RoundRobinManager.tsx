@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScoreInput } from "@/components/ui/score-input";
 import {
@@ -38,6 +39,21 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
+  const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
+
+  // Fetch matches currently on referee stations
+  const fetchActiveStationMatches = async () => {
+    const { data, error } = await supabase
+      .from("referee_stations")
+      .select("current_match_id")
+      .eq("tournament_id", tournamentId)
+      .eq("is_active", true)
+      .not("current_match_id", "is", null);
+
+    if (!error && data) {
+      setActiveStationMatches(new Set(data.map(s => s.current_match_id).filter(Boolean)));
+    }
+  };
 
   const handleTeamClick = (teamName: string) => {
     setSelectedTeam(selectedTeam === teamName ? null : teamName);
@@ -50,11 +66,12 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
 
   useEffect(() => {
     fetchMatches();
+    fetchActiveStationMatches();
   }, [tournamentId]);
 
   // Real-time subscription for match updates
   useEffect(() => {
-    const channel = supabase
+    const matchChannel = supabase
       .channel(`round-robin-matches-${tournamentId}`)
       .on(
         'postgres_changes',
@@ -71,8 +88,27 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       )
       .subscribe();
 
+    // Real-time subscription for referee station updates
+    const stationChannel = supabase
+      .channel(`round-robin-stations-${tournamentId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'referee_stations',
+          filter: `tournament_id=eq.${tournamentId}`
+        },
+        (payload) => {
+          console.log('Station update received:', payload);
+          fetchActiveStationMatches();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(matchChannel);
+      supabase.removeChannel(stationChannel);
     };
   }, [tournamentId]);
 
@@ -323,6 +359,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                 setEditingMatchId={setEditingMatchId}
                 isClosed={isClosed}
                 isCreator={isCreator}
+                isOnRefereeStation={activeStationMatches.has(match.id)}
               />
             ))}
           </div>
@@ -419,9 +456,10 @@ interface MatchCardProps {
   setEditingMatchId: (id: string | null) => void;
   isClosed?: boolean;
   isCreator?: boolean;
+  isOnRefereeStation?: boolean;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -654,7 +692,15 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
-      <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg ${isLocked ? 'opacity-50' : ''}`}>
+      <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border transition-colors ${isOnRefereeStation ? 'border-primary ring-2 ring-primary/30' : 'border-transparent'} ${isLocked ? 'opacity-50' : ''}`}>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          {isOnRefereeStation && (
+            <Badge className="text-xs animate-pulse bg-primary">
+              <Monitor className="h-3 w-3 mr-1" />
+              En arbitrage
+            </Badge>
+          )}
+        </div>
         {isLocked && (
           <div className="text-xs text-muted-foreground mb-2">
             🔒 Please validate the current match before modifying this one
