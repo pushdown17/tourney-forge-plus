@@ -68,6 +68,30 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
     }
   }, [tournamentId, currentRound, initialized]);
 
+  // Real-time subscription for match updates
+  useEffect(() => {
+    const channel = supabase
+      .channel(`swiss-matches-${tournamentId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'matches',
+          filter: `tournament_id=eq.${tournamentId}`
+        },
+        (payload) => {
+          console.log('Match update received:', payload);
+          fetchMatches();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tournamentId, currentRound]);
+
   const fetchMaxRound = async () => {
     const { data, error } = await supabase
       .from("matches")

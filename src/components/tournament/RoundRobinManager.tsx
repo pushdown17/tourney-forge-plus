@@ -52,6 +52,30 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     fetchMatches();
   }, [tournamentId]);
 
+  // Real-time subscription for match updates
+  useEffect(() => {
+    const channel = supabase
+      .channel(`round-robin-matches-${tournamentId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'matches',
+          filter: `tournament_id=eq.${tournamentId}`
+        },
+        (payload) => {
+          console.log('Match update received:', payload);
+          fetchMatches();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tournamentId]);
+
   const fetchMatches = async () => {
     const { data, error } = await supabase
       .from("matches")
