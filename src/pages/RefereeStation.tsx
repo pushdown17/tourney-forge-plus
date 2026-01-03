@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock } from "lucide-react";
+import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import {
@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import type { User } from "@supabase/supabase-js";
 
 interface PlayerStat {
   id: string;
@@ -51,6 +52,10 @@ interface Match {
 
 const RefereeStation = () => {
   const { stationId } = useParams<{ stationId: string }>();
+  const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [station, setStation] = useState<any>(null);
   const [tournament, setTournament] = useState<any>(null);
   const [match, setMatch] = useState<Match | null>(null);
@@ -62,12 +67,29 @@ const RefereeStation = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
 
+  // Check authentication
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        setAuthLoading(false);
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const fetchStation = useCallback(async () => {
-    if (!stationId) return;
+    if (!stationId || !user) return;
 
     const { data: stationData, error: stationError } = await supabase
       .from("referee_stations")
-      .select("*, tournament:tournament_id(id, name)")
+      .select("*, tournament:tournament_id(id, name, created_by)")
       .eq("id", stationId)
       .single();
 
@@ -78,6 +100,14 @@ const RefereeStation = () => {
       return;
     }
 
+    // Check if user is the tournament creator
+    if (stationData.tournament?.created_by !== user.id) {
+      setIsAuthorized(false);
+      setLoading(false);
+      return;
+    }
+
+    setIsAuthorized(true);
     setStation(stationData);
     setTournament(stationData.tournament);
 
@@ -90,7 +120,7 @@ const RefereeStation = () => {
     }
 
     setLoading(false);
-  }, [stationId]);
+  }, [stationId, user]);
 
   const fetchMatch = async (matchId: string, tournamentId: string) => {
     const { data: matchData, error: matchError } = await supabase
@@ -191,7 +221,7 @@ const RefereeStation = () => {
 
   // Setup realtime subscription
   useEffect(() => {
-    if (!stationId) return;
+    if (!stationId || !user) return;
 
     fetchStation();
 
@@ -217,7 +247,7 @@ const RefereeStation = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [stationId, fetchStation]);
+  }, [stationId, user, fetchStation]);
 
   const updateScore = (teamNumber: 1 | 2, delta: number) => {
     if (teamNumber === 1 && team1) {
@@ -336,10 +366,55 @@ const RefereeStation = () => {
     setTeam2(null);
   };
 
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="p-8 text-center max-w-md">
+          <LogIn className="h-12 w-12 text-primary mx-auto mb-4" />
+          <h1 className="text-xl font-bold mb-2">Connexion requise</h1>
+          <p className="text-muted-foreground mb-6">
+            Vous devez être connecté avec le compte du créateur du tournoi pour accéder à cette station arbitre.
+          </p>
+          <Button onClick={() => navigate("/auth")}>
+            Se connecter
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show unauthorized message if user is not the tournament creator
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="p-8 text-center max-w-md">
+          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h1 className="text-xl font-bold mb-2">Accès non autorisé</h1>
+          <p className="text-muted-foreground mb-6">
+            Seul le créateur du tournoi peut accéder à cette station arbitre.
+          </p>
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Retour à l'accueil
+          </Button>
+        </Card>
       </div>
     );
   }
