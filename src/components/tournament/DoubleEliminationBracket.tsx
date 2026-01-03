@@ -923,7 +923,7 @@ export const DoubleEliminationBracket = ({
                     isFinal={true}
                     isRecentlyCompleted={recentlyCompletedMatchId === grandFinalMatch.id}
                     advancedTeamId={undefined}
-                    isLocked={!losersMatches.every(m => m.winner_id !== null)}
+                    isLocked={false}
                     isCompleted={!!grandFinalMatch.winner_id}
                     isCreator={isCreator}
                     onStartEdit={() => {
