@@ -592,7 +592,18 @@ export const DoubleEliminationBracket = ({
   };
 
   // Separate matches by bracket type
-  const winnersMatches = matches.filter(m => !m.is_third_place_match);
+  const totalTeams = tournament?.teams_for_elimination || 8;
+  const winnersRoundsCount = Math.log2(totalTeams); // For 8 teams = 3 (R1, R2, R3)
+  
+  // Grand Final is round > winnersRoundsCount and not a third_place_match
+  const grandFinalMatch = matches.find(m => 
+    !m.is_third_place_match && m.round_number > winnersRoundsCount
+  );
+  
+  // Winners bracket excludes grand final
+  const winnersMatches = matches.filter(m => 
+    !m.is_third_place_match && m.round_number <= winnersRoundsCount
+  );
   const losersMatches = matches.filter(m => m.is_third_place_match);
 
   const generateBracketStructure = (bracketMatches: Match[], isLosers: boolean) => {
@@ -893,6 +904,62 @@ export const DoubleEliminationBracket = ({
             </div>
             {renderBracket(losersMatches, true)}
           </div>
+          
+          {/* Grand Final */}
+          {grandFinalMatch && (
+            <div>
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-primary">
+                <Trophy className="h-5 w-5 text-yellow-500" />
+                <h3 className="text-lg font-semibold text-yellow-500">Grande Finale</h3>
+              </div>
+              <div className="flex justify-center">
+                <div style={{ minWidth: "280px" }}>
+                  <BracketMatch
+                    match={grandFinalMatch}
+                    matchNumber={1}
+                    isEditing={editingMatchId === grandFinalMatch.id}
+                    scores={scores[grandFinalMatch.id] || { team1: "", team2: "" }}
+                    isClosed={isClosed}
+                    isFinal={true}
+                    isRecentlyCompleted={recentlyCompletedMatchId === grandFinalMatch.id}
+                    advancedTeamId={undefined}
+                    isLocked={!losersMatches.every(m => m.winner_id !== null)}
+                    isCompleted={!!grandFinalMatch.winner_id}
+                    isCreator={isCreator}
+                    onStartEdit={() => {
+                      if (grandFinalMatch.winner_id) {
+                        toast.error("This match is finished");
+                        return;
+                      }
+                      setSelectedMatch(grandFinalMatch);
+                      setStatsDialogOpen(true);
+                    }}
+                    onSaveScore={() => {}}
+                    onCancelEdit={() => setEditingMatchId(null)}
+                    onScoreChange={() => {}}
+                    onMatchClick={() => {
+                      setSelectedMatch(grandFinalMatch);
+                      setRecapDialogOpen(true);
+                    }}
+                    onIncrementScore={(teamId, teamName) => {
+                      setScoringTeam({ id: teamId, name: teamName, matchId: grandFinalMatch.id });
+                      setGoalScorerDialogOpen(true);
+                    }}
+                  />
+                  {grandFinalMatch.winner_id && (
+                    <div className="mt-4 text-center p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+                      <Trophy className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                      <p className="text-lg font-bold text-yellow-500">
+                        🏆 Champion: {grandFinalMatch.winner_id === grandFinalMatch.team1_id 
+                          ? grandFinalMatch.team1?.name 
+                          : grandFinalMatch.team2?.name}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
