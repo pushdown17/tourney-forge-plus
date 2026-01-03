@@ -927,21 +927,46 @@ export const DoubleEliminationBracket = ({
                     isCompleted={!!grandFinalMatch.winner_id}
                     isCreator={isCreator}
                     onStartEdit={() => {
+                      if (grandFinalMatch.isPlaceholder) return;
                       if (grandFinalMatch.winner_id) {
                         toast.error("This match is finished");
                         return;
                       }
-                      setSelectedMatch(grandFinalMatch);
-                      setStatsDialogOpen(true);
+                      setEditingMatchId(grandFinalMatch.id);
+                      setScores({
+                        ...scores,
+                        [grandFinalMatch.id]: {
+                          team1: grandFinalMatch.team1_score?.toString() || "0",
+                          team2: grandFinalMatch.team2_score?.toString() || "0",
+                        },
+                      });
                     }}
-                    onSaveScore={() => {}}
+                    onSaveScore={() => handleScoreUpdate(grandFinalMatch.id)}
                     onCancelEdit={() => setEditingMatchId(null)}
-                    onScoreChange={() => {}}
+                    onScoreChange={(team, value) =>
+                      setScores({
+                        ...scores,
+                        [grandFinalMatch.id]: {
+                          ...(scores[grandFinalMatch.id] || { team1: "0", team2: "0" }),
+                          [team]: value,
+                        },
+                      })
+                    }
                     onMatchClick={() => {
+                      if (grandFinalMatch.isPlaceholder) return;
                       setSelectedMatch(grandFinalMatch);
-                      setRecapDialogOpen(true);
+                      if (grandFinalMatch.winner_id) {
+                        setRecapDialogOpen(true);
+                      } else {
+                        setStatsDialogOpen(true);
+                      }
                     }}
                     onIncrementScore={(teamId, teamName) => {
+                      if (grandFinalMatch.isPlaceholder) return;
+                      if (grandFinalMatch.winner_id) {
+                        toast.error("Match finished");
+                        return;
+                      }
                       setScoringTeam({ id: teamId, name: teamName, matchId: grandFinalMatch.id });
                       setGoalScorerDialogOpen(true);
                     }}
