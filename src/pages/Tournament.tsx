@@ -3,10 +3,11 @@ import { useParams, Link } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Calendar, Lock, Unlock } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Lock, Unlock, Settings, Save } from "lucide-react";
 import { TeamsManager } from "@/components/tournament/TeamsManager";
 import { PlayersManager } from "@/components/tournament/PlayersManager";
 import { PlayerStatsManager } from "@/components/tournament/PlayerStatsManager";
@@ -28,6 +29,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 
 const Tournament = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +43,9 @@ const Tournament = () => {
   const [isCreator, setIsCreator] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [teamsForElimination, setTeamsForElimination] = useState("");
+  const [savingTeams, setSavingTeams] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const fetchTournament = async () => {
     try {
@@ -47,6 +57,7 @@ const Tournament = () => {
 
       if (error) throw error;
       setTournament(data);
+      setTeamsForElimination(data.teams_for_elimination?.toString() || "8");
       
       // Check if current user is the creator
       const { data: { user } } = await supabase.auth.getUser();
@@ -55,6 +66,32 @@ const Tournament = () => {
       toast.error("Error loading tournament");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveTeamsForElimination = async () => {
+    const teamsCount = parseInt(teamsForElimination);
+    if (isNaN(teamsCount) || teamsCount < 2 || teamsCount > 64) {
+      toast.error("Please enter a number between 2 and 64");
+      return;
+    }
+
+    setSavingTeams(true);
+    try {
+      const { error } = await supabase
+        .from("tournaments")
+        .update({ teams_for_elimination: teamsCount })
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success(`Teams for elimination updated to ${teamsCount}`);
+      setSettingsOpen(false);
+      await fetchTournament();
+    } catch (error: any) {
+      toast.error("Error updating settings");
+    } finally {
+      setSavingTeams(false);
     }
   };
 
@@ -187,24 +224,65 @@ const Tournament = () => {
                 </div>
               </div>
               {isCreator && (
-                <Button
-                  onClick={handleCloseClick}
-                  disabled={updatingStatus}
-                  variant={tournament.is_closed ? "default" : "destructive"}
-                  className="whitespace-nowrap"
-                >
-                  {tournament.is_closed ? (
-                    <>
-                      <Unlock className="mr-2 h-4 w-4" />
-                      Reopen
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="mr-2 h-4 w-4" />
-                      Close
-                    </>
+                <div className="flex items-center gap-2">
+                  {tournament.elimination_type && (
+                    <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="icon">
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="teams-elimination">Teams for Elimination</Label>
+                            <Input
+                              id="teams-elimination"
+                              type="number"
+                              min="2"
+                              max="64"
+                              value={teamsForElimination}
+                              onChange={(e) => setTeamsForElimination(e.target.value)}
+                              placeholder="e.g., 8, 14, 16..."
+                            />
+                            {parseInt(teamsForElimination) > 0 && !Number.isInteger(Math.log2(parseInt(teamsForElimination))) && (
+                              <p className="text-xs text-muted-foreground">
+                                ℹ️ {Math.pow(2, Math.ceil(Math.log2(parseInt(teamsForElimination)))) - parseInt(teamsForElimination)} bye(s) in round 1
+                              </p>
+                            )}
+                          </div>
+                          <Button 
+                            onClick={saveTeamsForElimination} 
+                            disabled={savingTeams}
+                            className="w-full"
+                            size="sm"
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            {savingTeams ? "Saving..." : "Save"}
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   )}
-                </Button>
+                  <Button
+                    onClick={handleCloseClick}
+                    disabled={updatingStatus}
+                    variant={tournament.is_closed ? "default" : "destructive"}
+                    className="whitespace-nowrap"
+                  >
+                    {tournament.is_closed ? (
+                      <>
+                        <Unlock className="mr-2 h-4 w-4" />
+                        Reopen
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="mr-2 h-4 w-4" />
+                        Close
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
             </div>
           </Card>
