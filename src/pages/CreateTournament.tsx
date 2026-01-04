@@ -168,17 +168,19 @@ const CreateTournament = () => {
               {format !== "round-robin" && format !== "swiss" && (
                 <div className="space-y-2">
                   <Label htmlFor="teamsForElimination">Number of Teams Qualifying for Finals</Label>
-                  <Select value={teamsForElimination} onValueChange={setTeamsForElimination}>
-                    <SelectTrigger id="teamsForElimination" className="bg-secondary/50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="4">4 teams</SelectItem>
-                      <SelectItem value="8">8 teams</SelectItem>
-                      <SelectItem value="16">16 teams</SelectItem>
-                      <SelectItem value="32">32 teams</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    id="teamsForElimination"
+                    type="number"
+                    min="2"
+                    max="64"
+                    placeholder="e.g., 8, 14, 16..."
+                    value={teamsForElimination}
+                    onChange={(e) => setTeamsForElimination(e.target.value)}
+                    className="bg-secondary/50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Choose any number (2-64). Non-power-of-2 numbers will have byes in the first round.
+                  </p>
                 </div>
               )}
 
