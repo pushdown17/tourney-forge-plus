@@ -208,38 +208,75 @@ export const EliminationBracket = ({
         return;
       }
 
+      // Calculate bracket size (next power of 2)
+      const bracketSize = Math.pow(2, Math.ceil(Math.log2(teamsCount)));
+      const numberOfByes = bracketSize - teamsCount;
+      
       // Calculate the number of rounds needed
-      const totalRounds = Math.log2(teamsCount);
+      const totalRounds = Math.log2(bracketSize);
       
-      // Create ALL rounds in advance
+      // Create first round matches with byes
       const allMatches = [];
+      const round2Qualifiers: { teamId: string; position: number }[] = [];
       
-      // First round: with real teams
-      const halfCount = teamsCount / 2;
-      for (let i = 0; i < halfCount; i++) {
-        const team1 = standings[i];
-        const team2 = standings[teamsCount - 1 - i];
+      // Standard seeding: 1 vs last, 2 vs second-to-last, etc.
+      // But we need to handle byes - top seeds get byes
+      const firstRoundMatchCount = bracketSize / 2;
+      let matchIndex = 0;
+      
+      for (let i = 0; i < firstRoundMatchCount; i++) {
+        // Standard bracket seeding positions
+        const position1 = i;
+        const position2 = bracketSize - 1 - i;
         
-        // Assign a court in round-robin
-        const fieldNumber = (i % numberOfFields) + 1;
+        const team1Index = position1 < teamsCount ? position1 : null;
+        const team2Index = position2 < teamsCount ? position2 : null;
         
-        allMatches.push({
-          tournament_id: tournamentId,
-          phase: currentPhase,
-          round_number: 1,
-          team1_id: team1.team_id,
-          team2_id: team2.team_id,
-          field_number: fieldNumber,
-        });
+        const team1 = team1Index !== null ? standings[team1Index] : null;
+        const team2 = team2Index !== null ? standings[team2Index] : null;
+        
+        if (team1 && team2) {
+          // Normal match - both teams present
+          const fieldNumber = (matchIndex % numberOfFields) + 1;
+          
+          allMatches.push({
+            tournament_id: tournamentId,
+            phase: currentPhase,
+            round_number: 1,
+            team1_id: team1.team_id,
+            team2_id: team2.team_id,
+            field_number: fieldNumber,
+          });
+          matchIndex++;
+        } else if (team1 && !team2) {
+          // Team 1 gets a bye - advances directly to round 2
+          round2Qualifiers.push({ teamId: team1.team_id, position: i });
+        } else if (!team1 && team2) {
+          // Team 2 gets a bye - advances directly to round 2
+          round2Qualifiers.push({ teamId: team2.team_id, position: i });
+        }
       }
 
-      const { error: insertError } = await supabase
-        .from("matches")
-        .insert(allMatches);
+      // Insert first round matches
+      if (allMatches.length > 0) {
+        const { error: insertError } = await supabase
+          .from("matches")
+          .insert(allMatches);
 
-      if (insertError) throw insertError;
+        if (insertError) throw insertError;
+      }
 
-      toast.success("Bracket generated successfully!");
+      // If there are byes, show a message
+      if (numberOfByes > 0) {
+        const byeTeamNames = round2Qualifiers
+          .map(q => standings.find(s => s.team_id === q.teamId)?.team?.name)
+          .filter(Boolean)
+          .join(", ");
+        toast.success(`Bracket generated! ${numberOfByes} bye(s): ${byeTeamNames}`);
+      } else {
+        toast.success("Bracket generated successfully!");
+      }
+      
       await fetchTournamentAndMatches();
     } catch (error: any) {
       toast.error("Error generating bracket");
@@ -506,7 +543,9 @@ export const EliminationBracket = ({
   };
 
   const getRoundName = (roundNumber: number, totalTeams: number) => {
-    const totalRounds = Math.log2(totalTeams);
+    // Use bracket size (next power of 2) for proper round naming
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
+    const totalRounds = Math.log2(bracketSize);
     const roundsRemaining = totalRounds - roundNumber + 1;
     
     if (roundsRemaining === 1) return "Final";
@@ -521,11 +560,13 @@ export const EliminationBracket = ({
     if (!tournament?.teams_for_elimination) return [];
     
     const totalTeams = tournament.teams_for_elimination;
-    const totalRounds = Math.log2(totalTeams);
+    // Use bracket size (next power of 2) for structure
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
+    const totalRounds = Math.log2(bracketSize);
     const structure: any[][] = [];
 
     for (let round = 1; round <= totalRounds; round++) {
-      const matchesInRound = totalTeams / Math.pow(2, round);
+      const matchesInRound = bracketSize / Math.pow(2, round);
       const roundMatches = [];
       
       // Filter and sort matches of this round (exclude 3rd place match)
@@ -577,7 +618,9 @@ export const EliminationBracket = ({
   // Check if semi-finals are completed (for 3rd place match)
   const areSemiFinalsCompleted = (): boolean => {
     const totalTeams = tournament?.teams_for_elimination || 8;
-    const totalRounds = Math.log2(totalTeams);
+    // Use bracket size (next power of 2)
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
+    const totalRounds = Math.log2(bracketSize);
     const semiFinalsRound = totalRounds - 1; // Second to last round
     
     const semiFinalsMatches = matches.filter(
