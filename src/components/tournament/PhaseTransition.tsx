@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trophy, ArrowRight } from "lucide-react";
@@ -92,17 +92,19 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
             <label className="text-sm font-medium">
               Number of qualifying teams
             </label>
-            <Select value={teamsForElimination} onValueChange={setTeamsForElimination}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="4">4 teams</SelectItem>
-                <SelectItem value="8">8 teams</SelectItem>
-                <SelectItem value="16">16 teams</SelectItem>
-                <SelectItem value="32">32 teams</SelectItem>
-              </SelectContent>
-            </Select>
+            <Input
+              type="number"
+              min="2"
+              max="64"
+              placeholder="e.g., 8, 14, 16..."
+              value={teamsForElimination}
+              onChange={(e) => setTeamsForElimination(e.target.value)}
+            />
+            {parseInt(teamsForElimination) > 0 && !Number.isInteger(Math.log2(parseInt(teamsForElimination))) && (
+              <p className="text-xs text-muted-foreground">
+                ℹ️ {Math.pow(2, Math.ceil(Math.log2(parseInt(teamsForElimination)))) - parseInt(teamsForElimination)} team(s) will receive a bye in round 1
+              </p>
+            )}
           </div>
 
           <Button 
