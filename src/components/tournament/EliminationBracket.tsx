@@ -123,6 +123,43 @@ export const EliminationBracket = ({
     fetchTournamentAndMatches();
   }, [tournamentId]);
 
+  // Realtime subscription for live score updates
+  useEffect(() => {
+    const channel = supabase
+      .channel(`matches-${tournamentId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'matches',
+          filter: `tournament_id=eq.${tournamentId}`
+        },
+        (payload) => {
+          console.log('Match updated in realtime:', payload);
+          // Update the match in our local state
+          setMatches(prevMatches => 
+            prevMatches.map(match => {
+              if (match.id === payload.new.id) {
+                return {
+                  ...match,
+                  team1_score: payload.new.team1_score,
+                  team2_score: payload.new.team2_score,
+                  winner_id: payload.new.winner_id,
+                };
+              }
+              return match;
+            })
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tournamentId]);
+
   const fetchTournamentAndMatches = async () => {
     setLoading(true);
     try {
