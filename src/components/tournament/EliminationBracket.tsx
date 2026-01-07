@@ -125,37 +125,46 @@ export const EliminationBracket = ({
 
   // Realtime subscription for live score updates
   useEffect(() => {
+    console.log('Setting up realtime subscription for tournament:', tournamentId);
+    
     const channel = supabase
-      .channel(`matches-${tournamentId}`)
+      .channel(`matches-realtime-${tournamentId}`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
-          table: 'matches',
-          filter: `tournament_id=eq.${tournamentId}`
+          table: 'matches'
         },
         (payload) => {
-          console.log('Match updated in realtime:', payload);
-          // Update the match in our local state
-          setMatches(prevMatches => 
-            prevMatches.map(match => {
-              if (match.id === payload.new.id) {
-                return {
-                  ...match,
-                  team1_score: payload.new.team1_score,
-                  team2_score: payload.new.team2_score,
-                  winner_id: payload.new.winner_id,
-                };
-              }
-              return match;
-            })
-          );
+          console.log('Realtime event received:', payload);
+          
+          // Only process updates for this tournament
+          if (payload.new && (payload.new as any).tournament_id === tournamentId) {
+            console.log('Match updated in realtime:', payload.new);
+            
+            setMatches(prevMatches => 
+              prevMatches.map(match => {
+                if (match.id === (payload.new as any).id) {
+                  return {
+                    ...match,
+                    team1_score: (payload.new as any).team1_score,
+                    team2_score: (payload.new as any).team2_score,
+                    winner_id: (payload.new as any).winner_id,
+                  };
+                }
+                return match;
+              })
+            );
+          }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [tournamentId]);
