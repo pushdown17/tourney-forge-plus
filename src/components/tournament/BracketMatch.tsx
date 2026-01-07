@@ -1,8 +1,14 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScoreInput } from "@/components/ui/score-input";
 import { cn } from "@/lib/utils";
-import { Trophy, Lock } from "lucide-react";
+import { Trophy, Lock, Monitor, ClipboardEdit } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface Team {
   id: string;
@@ -37,11 +43,13 @@ interface BracketMatchProps {
   isLocked?: boolean;
   isCompleted?: boolean;
   isCreator?: boolean;
+  tournamentId?: string;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveScore: () => void;
   onScoreChange: (team: "team1" | "team2", value: string) => void;
   onMatchClick: () => void;
+  onSendToStation?: () => void;
   onIncrementScore: (teamId: string, teamName: string) => void;
 }
 
@@ -57,13 +65,16 @@ export const BracketMatch = ({
   isLocked = false,
   isCompleted = false,
   isCreator = false,
+  tournamentId,
   onStartEdit,
   onCancelEdit,
   onSaveScore,
   onScoreChange,
   onMatchClick,
+  onSendToStation,
   onIncrementScore,
 }: BracketMatchProps) => {
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const isPlaceholder = match.isPlaceholder;
   const hasTeams = match.team1 && match.team2;
   const hasWinner = !!match.winner_id;
@@ -97,91 +108,137 @@ export const BracketMatch = ({
         )}
       </div>
 
-      {/* Match card */}
-      <Card
-        className={cn(
-          "overflow-hidden transition-all duration-300",
-          "bg-card/80 backdrop-blur-sm border-border/50",
-          !isPlaceholder && "hover:shadow-md hover:border-primary/30 cursor-pointer",
-          isMatchLocked && !isCompleted && "opacity-60 cursor-not-allowed",
-          hasWinner && "ring-1 ring-primary/30",
-          isFinal && "ring-2 ring-yellow-500/50",
-          isRecentlyCompleted && "animate-pulse ring-2 ring-primary shadow-lg shadow-primary/30"
-        )}
-        onClick={() => !isPlaceholder && onMatchClick()}
-      >
-        {/* Team 1 */}
-        <div
-          className={cn(
-            "flex items-center justify-between px-3 py-2 border-b border-border/30",
-            "transition-all duration-500",
-            match.winner_id === match.team1_id && "bg-primary/15",
-            advancedTeamId === match.team1_id && "bg-primary/30 animate-[pulse_0.5s_ease-in-out_3]"
-          )}
-        >
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {match.winner_id === match.team1_id && (
-              <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+      {/* Match card with Popover */}
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+        <PopoverTrigger asChild>
+          <Card
+            className={cn(
+              "overflow-hidden transition-all duration-300",
+              "bg-card/80 backdrop-blur-sm border-border/50",
+              !isPlaceholder && "hover:shadow-md hover:border-primary/30 cursor-pointer",
+              isMatchLocked && !isCompleted && "opacity-60 cursor-not-allowed",
+              hasWinner && "ring-1 ring-primary/30",
+              isFinal && "ring-2 ring-yellow-500/50",
+              isRecentlyCompleted && "animate-pulse ring-2 ring-primary shadow-lg shadow-primary/30"
             )}
-            {match.team1?.seed && (
-              <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
-                #{match.team1.seed}
-              </span>
-            )}
-            <span className={cn(
-              "text-sm truncate",
-              match.winner_id === match.team1_id && "font-semibold text-primary",
-              !match.team1?.name && "text-muted-foreground italic"
-            )}>
-              {match.team1?.name || "TBD"}
-            </span>
-          </div>
-          {match.team1_score !== null && (
-            <span className={cn(
-              "text-sm font-mono font-bold ml-2 min-w-[1.5rem] text-center",
-              match.winner_id === match.team1_id && "text-primary"
-            )}>
-              {match.team1_score}
-            </span>
-          )}
-        </div>
+            onClick={(e) => {
+              if (isPlaceholder) return;
+              if (isMatchLocked && !isCompleted) return;
+              // For non-creators or completed matches, go directly to stats/recap
+              if (!isCreator || isCompleted) {
+                onMatchClick();
+                return;
+              }
+              // For creators with active matches, show popover
+              setPopoverOpen(true);
+            }}
+          >
+            {/* Team 1 */}
+            <div
+              className={cn(
+                "flex items-center justify-between px-3 py-2 border-b border-border/30",
+                "transition-all duration-500",
+                match.winner_id === match.team1_id && "bg-primary/15",
+                advancedTeamId === match.team1_id && "bg-primary/30 animate-[pulse_0.5s_ease-in-out_3]"
+              )}
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {match.winner_id === match.team1_id && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                )}
+                {match.team1?.seed && (
+                  <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
+                    #{match.team1.seed}
+                  </span>
+                )}
+                <span className={cn(
+                  "text-sm truncate",
+                  match.winner_id === match.team1_id && "font-semibold text-primary",
+                  !match.team1?.name && "text-muted-foreground italic"
+                )}>
+                  {match.team1?.name || "TBD"}
+                </span>
+              </div>
+              {match.team1_score !== null && (
+                <span className={cn(
+                  "text-sm font-mono font-bold ml-2 min-w-[1.5rem] text-center",
+                  match.winner_id === match.team1_id && "text-primary"
+                )}>
+                  {match.team1_score}
+                </span>
+              )}
+            </div>
 
-        {/* Team 2 */}
-        <div
-          className={cn(
-            "flex items-center justify-between px-3 py-2",
-            "transition-all duration-500",
-            match.winner_id === match.team2_id && "bg-primary/15",
-            advancedTeamId === match.team2_id && "bg-primary/30 animate-[pulse_0.5s_ease-in-out_3]"
-          )}
-        >
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {match.winner_id === match.team2_id && (
-              <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+            {/* Team 2 */}
+            <div
+              className={cn(
+                "flex items-center justify-between px-3 py-2",
+                "transition-all duration-500",
+                match.winner_id === match.team2_id && "bg-primary/15",
+                advancedTeamId === match.team2_id && "bg-primary/30 animate-[pulse_0.5s_ease-in-out_3]"
+              )}
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {match.winner_id === match.team2_id && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                )}
+                {match.team2?.seed && (
+                  <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
+                    #{match.team2.seed}
+                  </span>
+                )}
+                <span className={cn(
+                  "text-sm truncate",
+                  match.winner_id === match.team2_id && "font-semibold text-primary",
+                  !match.team2?.name && "text-muted-foreground italic"
+                )}>
+                  {match.team2?.name || "TBD"}
+                </span>
+              </div>
+              {match.team2_score !== null && (
+                <span className={cn(
+                  "text-sm font-mono font-bold ml-2 min-w-[1.5rem] text-center",
+                  match.winner_id === match.team2_id && "text-primary"
+                )}>
+                  {match.team2_score}
+                </span>
+              )}
+            </div>
+          </Card>
+        </PopoverTrigger>
+        
+        {/* Action menu popover */}
+        <PopoverContent className="w-48 p-2" align="center">
+          <div className="flex flex-col gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setPopoverOpen(false);
+                onMatchClick();
+              }}
+            >
+              <ClipboardEdit className="h-4 w-4" />
+              Gérer le score
+            </Button>
+            {onSendToStation && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  setPopoverOpen(false);
+                  onSendToStation();
+                }}
+              >
+                <Monitor className="h-4 w-4" />
+                Envoyer à l'arbitre
+              </Button>
             )}
-            {match.team2?.seed && (
-              <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
-                #{match.team2.seed}
-              </span>
-            )}
-            <span className={cn(
-              "text-sm truncate",
-              match.winner_id === match.team2_id && "font-semibold text-primary",
-              !match.team2?.name && "text-muted-foreground italic"
-            )}>
-              {match.team2?.name || "TBD"}
-            </span>
           </div>
-          {match.team2_score !== null && (
-            <span className={cn(
-              "text-sm font-mono font-bold ml-2 min-w-[1.5rem] text-center",
-              match.winner_id === match.team2_id && "text-primary"
-            )}>
-              {match.team2_score}
-            </span>
-          )}
-        </div>
-      </Card>
+        </PopoverContent>
+      </Popover>
 
       {/* Score edit section - Only display if user is creator and match is not completed */}
       {!isPlaceholder && hasTeams && !isCompleted && canEdit && (

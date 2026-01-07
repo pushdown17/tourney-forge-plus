@@ -6,6 +6,7 @@ import { PhaseTransition } from "./PhaseTransition";
 import { MatchStatsDialog } from "./MatchStatsDialog";
 import { MatchStatsRecapDialog } from "./MatchStatsRecapDialog";
 import { DoubleEliminationBracket } from "./DoubleEliminationBracket";
+import { SendToStationDialog } from "./SendToStationDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trophy, Medal } from "lucide-react";
@@ -111,6 +112,8 @@ export const EliminationBracket = ({
   const [numberOfFields, setNumberOfFields] = useState(1);
   const [recapDialogOpen, setRecapDialogOpen] = useState(false);
   const [thirdPlaceDialogOpen, setThirdPlaceDialogOpen] = useState(false);
+  const [stationDialogOpen, setStationDialogOpen] = useState(false);
+  const [stationMatch, setStationMatch] = useState<{ id: string; label: string } | null>(null);
   const [pendingFinalMatches, setPendingFinalMatches] = useState<{
     finale: any;
     thirdPlace: any;
@@ -782,6 +785,7 @@ export const EliminationBracket = ({
                             isLocked={isLocked}
                             isCompleted={isMatchCompleted}
                             isCreator={isCreator}
+                            tournamentId={tournamentId}
                             onStartEdit={() => {
                               if (isLocked || isMatchCompleted) {
                                 if (isMatchCompleted) {
@@ -820,6 +824,11 @@ export const EliminationBracket = ({
                                   setStatsDialogOpen(true);
                                 }
                               }
+                            }}
+                            onSendToStation={() => {
+                              const label = `${match.team1?.name || "TBD"} vs ${match.team2?.name || "TBD"}`;
+                              setStationMatch({ id: match.id, label });
+                              setStationDialogOpen(true);
                             }}
                             onIncrementScore={(teamId, teamName) => {
                               if (isLocked || isMatchCompleted) {
@@ -1008,6 +1017,16 @@ export const EliminationBracket = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {stationMatch && (
+        <SendToStationDialog
+          open={stationDialogOpen}
+          onOpenChange={setStationDialogOpen}
+          tournamentId={tournamentId}
+          matchId={stationMatch.id}
+          matchLabel={stationMatch.label}
+        />
+      )}
     </Card>
   );
 };
