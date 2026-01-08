@@ -11,7 +11,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Monitor, Loader2, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Monitor, Loader2, Check, Timer } from "lucide-react";
 
 interface RefereeStation {
   id: string;
@@ -38,6 +40,8 @@ export const SendToStationDialog = ({
   const [stations, setStations] = useState<RefereeStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState<string | null>(null);
+  const [timerMinutes, setTimerMinutes] = useState<string>("10");
+  const [timerEnabled, setTimerEnabled] = useState(true);
 
   const fetchStations = async () => {
     const { data, error } = await supabase
@@ -65,9 +69,19 @@ export const SendToStationDialog = ({
   const sendToStation = async (stationId: string) => {
     setSending(stationId);
 
+    const timerDuration = timerEnabled && timerMinutes 
+      ? parseInt(timerMinutes) * 60 
+      : null;
+
     const { error } = await supabase
       .from("referee_stations")
-      .update({ current_match_id: matchId })
+      .update({ 
+        current_match_id: matchId,
+        timer_duration_seconds: timerDuration,
+        timer_started_at: null,
+        timer_paused_at: null,
+        timer_elapsed_when_paused: 0
+      } as any)
       .eq("id", stationId);
 
     if (error) {
@@ -95,7 +109,39 @@ export const SendToStationDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="py-4 space-y-4">
+          {/* Timer configuration */}
+          <div className="p-4 rounded-lg border bg-muted/30">
+            <div className="flex items-center gap-3 mb-3">
+              <Timer className="h-5 w-5 text-primary" />
+              <span className="font-medium">Chrono du match</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={timerEnabled}
+                  onChange={(e) => setTimerEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded"
+                />
+                <span className="text-sm">Activer le chrono</span>
+              </label>
+              {timerEnabled && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={timerMinutes}
+                    onChange={(e) => setTimerMinutes(e.target.value)}
+                    className="w-20 h-8"
+                  />
+                  <span className="text-sm text-muted-foreground">minutes</span>
+                </div>
+              )}
+            </div>
+          </div>
+
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />

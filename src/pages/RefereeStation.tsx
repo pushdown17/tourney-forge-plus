@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { MatchTimer } from "@/components/tournament/MatchTimer";
 import type { User } from "@supabase/supabase-js";
 
 interface PlayerStat {
@@ -501,6 +502,20 @@ const RefereeStation = () => {
                 {' · '}Round {match.round_number}
               </p>
             </Card>
+
+            {/* Timer */}
+            {station.timer_duration_seconds && (
+              <MatchTimer
+                stationId={stationId!}
+                tournamentId={station.tournament_id}
+                matchId={match.id}
+                durationSeconds={station.timer_duration_seconds}
+                startedAt={station.timer_started_at}
+                pausedAt={station.timer_paused_at}
+                elapsedWhenPaused={station.timer_elapsed_when_paused || 0}
+                canControl={true}
+              />
+            )}
 
             {/* Scoreboard */}
             <Card className="p-4">

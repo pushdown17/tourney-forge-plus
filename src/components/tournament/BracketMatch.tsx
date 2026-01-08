@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { ScoreInput } from "@/components/ui/score-input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Trophy, Lock, Monitor, ClipboardEdit, Radio } from "lucide-react";
+import { Trophy, Lock, Monitor, ClipboardEdit, Radio, Timer } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { TimerDisplay } from "./TimerDisplay";
 
 interface Team {
   id: string;
@@ -32,6 +33,13 @@ interface Match {
   isPlaceholder?: boolean;
 }
 
+interface TimerState {
+  durationSeconds: number;
+  startedAt: string | null;
+  pausedAt: string | null;
+  elapsedWhenPaused: number;
+}
+
 interface BracketMatchProps {
   match: Match;
   matchNumber: number;
@@ -45,6 +53,7 @@ interface BracketMatchProps {
   isCompleted?: boolean;
   isCreator?: boolean;
   isLive?: boolean;
+  timerState?: TimerState | null;
   tournamentId?: string;
   onStartEdit: () => void;
   onCancelEdit: () => void;
@@ -68,6 +77,7 @@ export const BracketMatch = ({
   isCompleted = false,
   isCreator = false,
   isLive = false,
+  timerState,
   tournamentId,
   onStartEdit,
   onCancelEdit,
@@ -98,7 +108,16 @@ export const BracketMatch = ({
             C{match.field_number}
           </span>
         )}
-        {isLive && (
+        {isLive && timerState && (
+          <TimerDisplay
+            durationSeconds={timerState.durationSeconds}
+            startedAt={timerState.startedAt}
+            pausedAt={timerState.pausedAt}
+            elapsedWhenPaused={timerState.elapsedWhenPaused}
+            compact
+          />
+        )}
+        {isLive && !timerState && (
           <Badge variant="destructive" className="h-4 px-1.5 text-[10px] font-bold gap-1 animate-pulse">
             <Radio className="h-2.5 w-2.5" />
             LIVE
