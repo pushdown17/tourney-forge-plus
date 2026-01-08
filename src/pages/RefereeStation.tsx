@@ -249,12 +249,36 @@ const RefereeStation = () => {
     };
   }, [stationId, user, fetchStation]);
 
+  // Broadcast live score to viewers
+  const broadcastLiveScore = useCallback((newTeam1Score: number, newTeam2Score: number) => {
+    if (!match || !station?.tournament_id) return;
+    
+    const channel = supabase.channel(`tournament-live-${station.tournament_id}`);
+    channel.send({
+      type: 'broadcast',
+      event: 'live_score',
+      payload: {
+        matchId: match.id,
+        team1_score: newTeam1Score,
+        team2_score: newTeam2Score
+      }
+    });
+  }, [match, station?.tournament_id]);
+
   const updateScore = (teamNumber: 1 | 2, delta: number) => {
+    let newTeam1Score = team1?.score || 0;
+    let newTeam2Score = team2?.score || 0;
+    
     if (teamNumber === 1 && team1) {
-      setTeam1({ ...team1, score: Math.max(0, team1.score + delta) });
+      newTeam1Score = Math.max(0, team1.score + delta);
+      setTeam1({ ...team1, score: newTeam1Score });
     } else if (teamNumber === 2 && team2) {
-      setTeam2({ ...team2, score: Math.max(0, team2.score + delta) });
+      newTeam2Score = Math.max(0, team2.score + delta);
+      setTeam2({ ...team2, score: newTeam2Score });
     }
+    
+    // Broadcast the live score
+    broadcastLiveScore(newTeam1Score, newTeam2Score);
   };
 
   const updatePlayerStat = (
@@ -282,10 +306,22 @@ const RefereeStation = () => {
       };
     };
 
+    let newTeam1Score = team1?.score || 0;
+    let newTeam2Score = team2?.score || 0;
+
     if (teamNumber === 1 && team1) {
-      setTeam1(updateTeam(team1));
+      const updated = updateTeam(team1);
+      setTeam1(updated);
+      newTeam1Score = updated.score;
     } else if (teamNumber === 2 && team2) {
-      setTeam2(updateTeam(team2));
+      const updated = updateTeam(team2);
+      setTeam2(updated);
+      newTeam2Score = updated.score;
+    }
+
+    // Broadcast live score when goals change
+    if (stat === 'goals') {
+      broadcastLiveScore(newTeam1Score, newTeam2Score);
     }
   };
 
