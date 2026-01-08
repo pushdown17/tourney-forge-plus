@@ -188,6 +188,15 @@ export const MatchTimer = ({
   const resumeTimer = async () => {
     const now = new Date().toISOString();
     
+    // First, get the current elapsed time from DB (set during pause)
+    const { data: stationData } = await supabase
+      .from('referee_stations')
+      .select('timer_elapsed_when_paused')
+      .eq('id', stationId)
+      .single();
+    
+    const currentElapsed = stationData?.timer_elapsed_when_paused || elapsedWhenPaused;
+    
     const { error } = await supabase
       .from('referee_stations')
       .update({
@@ -201,7 +210,7 @@ export const MatchTimer = ({
         action: 'resume',
         timer_started_at: now,
         timer_paused_at: null,
-        timer_elapsed_when_paused: elapsedWhenPaused
+        timer_elapsed_when_paused: currentElapsed
       });
     }
   };
