@@ -964,6 +964,61 @@ export const EliminationBracket = ({
         </p>
       </div>
 
+      {/* Byes section - Teams qualified directly for quarter-finals */}
+      {(() => {
+        const totalTeams = tournament?.teams_for_elimination || 0;
+        const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
+        const numberOfByes = bracketSize - totalTeams;
+        
+        if (numberOfByes <= 0) return null;
+        
+        // Get the teams with byes (top N seeds based on standings)
+        // We determine this by finding teams in R2 that don't have a corresponding R1 match opponent
+        const r1Matches = matches.filter(m => m.round_number === 1 && !m.is_third_place_match);
+        const teamsInR1 = new Set([
+          ...r1Matches.map(m => m.team1_id),
+          ...r1Matches.map(m => m.team2_id)
+        ]);
+        
+        const r2Matches = matches.filter(m => m.round_number === 2 && !m.is_third_place_match);
+        const byeTeams: { id: string; name: string }[] = [];
+        
+        r2Matches.forEach(m => {
+          if (m.team1 && !teamsInR1.has(m.team1_id)) {
+            byeTeams.push({ id: m.team1_id, name: m.team1.name });
+          }
+          if (m.team2 && !teamsInR1.has(m.team2_id)) {
+            byeTeams.push({ id: m.team2_id, name: m.team2.name });
+          }
+        });
+        
+        if (byeTeams.length === 0) return null;
+        
+        return (
+          <div className="mb-6 p-4 rounded-lg border border-amber-500/30 bg-amber-500/10">
+            <div className="flex items-center gap-2 mb-3">
+              <Medal className="h-5 w-5 text-amber-500" />
+              <h3 className="font-semibold text-amber-600 dark:text-amber-400">
+                Byes - Qualifiés directement pour les quarts
+              </h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {byeTeams.map(team => (
+                <div 
+                  key={team.id}
+                  className="px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-sm font-medium text-amber-700 dark:text-amber-300"
+                >
+                  {team.name}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Ces équipes sont exemptées du 1er tour grâce à leur classement
+            </p>
+          </div>
+        );
+      })()}
+
       {matches.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No matches generated</p>
