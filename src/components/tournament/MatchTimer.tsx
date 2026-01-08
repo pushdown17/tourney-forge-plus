@@ -132,6 +132,7 @@ export const MatchTimer = ({
       payload: {
         matchId,
         stationId,
+        durationSeconds,
         ...updates
       }
     });
