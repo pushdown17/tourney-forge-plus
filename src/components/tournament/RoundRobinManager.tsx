@@ -18,13 +18,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock, Monitor } from "lucide-react";
+import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock, Monitor, Radio } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { GoalRemoverDialog } from "./GoalRemoverDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
 import { MatchStatsRecap } from "./MatchStatsRecap";
 import { MatchStatsViewDialog } from "./MatchStatsViewDialog";
 import { SendToStationDialog } from "./SendToStationDialog";
+import { TimerDisplay } from "./TimerDisplay";
 
 interface RoundRobinManagerProps {
   tournamentId: string;
@@ -40,6 +41,13 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
+  const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
+  const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: {
+    durationSeconds: number;
+    startedAt: string | null;
+    pausedAt: string | null;
+    elapsedWhenPaused: number;
+  }}>({});
 
   // Fetch matches currently on referee stations
   const fetchActiveStationMatches = async () => {
@@ -109,6 +117,86 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     return () => {
       supabase.removeChannel(matchChannel);
       supabase.removeChannel(stationChannel);
+    };
+  }, [tournamentId]);
+
+  // Live broadcast subscription for real-time score updates and timer
+  useEffect(() => {
+    const liveTimeouts: { [matchId: string]: NodeJS.Timeout } = {};
+    
+    const channel = supabase
+      .channel(`tournament-live-rr-${tournamentId}`)
+      .on(
+        'broadcast',
+        { event: 'live_score' },
+        (payload) => {
+          const { matchId, team1_score, team2_score } = payload.payload;
+          
+          setLiveMatches(prev => new Set(prev).add(matchId));
+          
+          if (liveTimeouts[matchId]) {
+            clearTimeout(liveTimeouts[matchId]);
+          }
+          
+          liveTimeouts[matchId] = setTimeout(() => {
+            setLiveMatches(prev => {
+              const next = new Set(prev);
+              next.delete(matchId);
+              return next;
+            });
+          }, 10000);
+          
+          setMatches(prevMatches => 
+            prevMatches.map(match => {
+              if (match.id === matchId) {
+                return { ...match, team1_score, team2_score };
+              }
+              return match;
+            })
+          );
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'timer_update' },
+        (payload) => {
+          const { matchId, action, timer_started_at, timer_paused_at, timer_elapsed_when_paused } = payload.payload;
+          
+          if (action === 'start' || action === 'resume') {
+            setLiveMatches(prev => new Set(prev).add(matchId));
+          }
+          
+          setMatchTimers(prev => ({
+            ...prev,
+            [matchId]: {
+              ...prev[matchId],
+              startedAt: timer_started_at,
+              pausedAt: timer_paused_at,
+              elapsedWhenPaused: timer_elapsed_when_paused ?? prev[matchId]?.elapsedWhenPaused ?? 0
+            }
+          }));
+          
+          if (action === 'reset') {
+            setTimeout(() => {
+              setLiveMatches(prev => {
+                const next = new Set(prev);
+                next.delete(matchId);
+                return next;
+              });
+              setMatchTimers(prev => {
+                const next = { ...prev };
+                delete next[matchId];
+                return next;
+              });
+            }, 2000);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      Object.values(liveTimeouts).forEach(timeout => clearTimeout(timeout));
+      supabase.removeChannel(channel);
     };
   }, [tournamentId]);
 
@@ -360,6 +448,8 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                 isClosed={isClosed}
                 isCreator={isCreator}
                 isOnRefereeStation={activeStationMatches.has(match.id)}
+                isLive={liveMatches.has(match.id)}
+                timerState={matchTimers[match.id] || null}
               />
             ))}
           </div>
@@ -457,9 +547,16 @@ interface MatchCardProps {
   isClosed?: boolean;
   isCreator?: boolean;
   isOnRefereeStation?: boolean;
+  isLive?: boolean;
+  timerState?: {
+    durationSeconds: number;
+    startedAt: string | null;
+    pausedAt: string | null;
+    elapsedWhenPaused: number;
+  } | null;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, timerState }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -694,7 +791,22 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
       <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border transition-colors ${isOnRefereeStation ? 'border-primary ring-2 ring-primary/30' : 'border-transparent'} ${isLocked ? 'opacity-50' : ''}`}>
         <div className="flex items-center justify-center gap-2 mb-1">
-          {isOnRefereeStation && (
+          {isLive && timerState && (
+            <TimerDisplay
+              durationSeconds={timerState.durationSeconds}
+              startedAt={timerState.startedAt}
+              pausedAt={timerState.pausedAt}
+              elapsedWhenPaused={timerState.elapsedWhenPaused}
+              compact
+            />
+          )}
+          {isLive && !timerState && (
+            <Badge variant="destructive" className="text-xs animate-pulse gap-1">
+              <Radio className="h-3 w-3" />
+              LIVE
+            </Badge>
+          )}
+          {isOnRefereeStation && !isLive && (
             <Badge className="text-xs animate-pulse bg-primary">
               <Monitor className="h-3 w-3 mr-1" />
               En arbitrage
