@@ -207,6 +207,51 @@ export const EliminationBracket = ({
     };
   }, [tournamentId]);
 
+  // Realtime subscription for referee station timer updates
+  useEffect(() => {
+    console.log('Setting up realtime referee_stations subscription for tournament:', tournamentId);
+    
+    const channel = supabase
+      .channel(`stations-timer-${tournamentId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'referee_stations',
+          filter: `tournament_id=eq.${tournamentId}`
+        },
+        (payload) => {
+          console.log('Referee station update received:', payload);
+          const station = payload.new as any;
+          
+          if (station.current_match_id) {
+            // Update timer state from DB
+            if (station.timer_duration_seconds) {
+              setMatchTimers(prev => ({
+                ...prev,
+                [station.current_match_id]: {
+                  durationSeconds: station.timer_duration_seconds,
+                  startedAt: station.timer_started_at,
+                  pausedAt: station.timer_paused_at,
+                  elapsedWhenPaused: station.timer_elapsed_when_paused || 0
+                }
+              }));
+              setLiveMatches(prev => new Set(prev).add(station.current_match_id));
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Referee stations subscription status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up referee stations subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [tournamentId]);
+
   // Live broadcast subscription for real-time score updates (before save) and timer updates
   useEffect(() => {
     console.log('Setting up live broadcast subscription for tournament:', tournamentId);
