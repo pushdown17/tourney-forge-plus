@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 
 const Tournament = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tournament, setTournament] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isCreator, setIsCreator] = useState(false);
@@ -46,6 +47,23 @@ const Tournament = () => {
   const [teamsForElimination, setTeamsForElimination] = useState("");
   const [savingTeams, setSavingTeams] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  
+  const activeTab = searchParams.get("tab") || "teams";
+  const activeSubTab = searchParams.get("subtab") || "manage-teams";
+  
+  const setActiveTab = (tab: string) => {
+    setSearchParams(prev => {
+      prev.set("tab", tab);
+      return prev;
+    });
+  };
+  
+  const setActiveSubTab = (subtab: string) => {
+    setSearchParams(prev => {
+      prev.set("subtab", subtab);
+      return prev;
+    });
+  };
 
   const fetchTournament = async () => {
     try {
@@ -288,7 +306,7 @@ const Tournament = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="teams" className="space-y-6 animate-scale-in">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 animate-scale-in">
           <div className="overflow-x-auto -mx-4 px-4">
             <TabsList className={`inline-flex w-auto min-w-full md:grid md:w-full h-auto p-1 bg-muted/50 ${tournament.elimination_type ? 'md:grid-cols-6' : 'md:grid-cols-5'}`}>
               <TabsTrigger 
@@ -333,7 +351,7 @@ const Tournament = () => {
           </div>
 
           <TabsContent value="teams" className="animate-fade-in">
-            <Tabs defaultValue="manage-teams" className="space-y-4">
+            <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-4">
               <div className="overflow-x-auto -mx-4 px-4">
                 <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-4 bg-muted/30">
                   <TabsTrigger value="manage-teams" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Teams</TabsTrigger>
