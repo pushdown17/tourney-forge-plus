@@ -15,6 +15,7 @@ interface MatchTimerProps {
   pausedAt: string | null;
   elapsedWhenPaused: number;
   canControl?: boolean;
+  showMilliseconds?: boolean;
   onTimeEnd?: () => void;
 }
 
@@ -27,55 +28,56 @@ export const MatchTimer = ({
   pausedAt,
   elapsedWhenPaused,
   canControl = false,
+  showMilliseconds = false,
   onTimeEnd
 }: MatchTimerProps) => {
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(durationSeconds || 0);
+  const [remainingMs, setRemainingMs] = useState<number>((durationSeconds || 0) * 1000);
   const [isRunning, setIsRunning] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedEndSound = useRef(false);
 
-  // Calculate remaining time based on timer state
-  const calculateRemaining = useCallback(() => {
-    if (!durationSeconds) return durationSeconds || 0;
+  // Calculate remaining time in milliseconds based on timer state
+  const calculateRemainingMs = useCallback(() => {
+    if (!durationSeconds) return (durationSeconds || 0) * 1000;
     
     if (!startedAt) {
       // Timer not started yet
-      return durationSeconds;
+      return durationSeconds * 1000;
     }
     
     if (pausedAt) {
-      // elapsedWhenPaused already contains the TOTAL elapsed time (set during pause)
-      return Math.max(0, durationSeconds - elapsedWhenPaused);
+      // elapsedWhenPaused already contains the TOTAL elapsed time in seconds (set during pause)
+      return Math.max(0, (durationSeconds - elapsedWhenPaused) * 1000);
     }
     
     // Timer is running
     const startTime = new Date(startedAt).getTime();
     const now = getSyncedNowMs();
-    const elapsed = Math.floor((now - startTime) / 1000) + elapsedWhenPaused;
-    return Math.max(0, durationSeconds - elapsed);
+    const elapsedMs = now - startTime + elapsedWhenPaused * 1000;
+    return Math.max(0, durationSeconds * 1000 - elapsedMs);
   }, [durationSeconds, startedAt, pausedAt, elapsedWhenPaused]);
 
   // Update timer state
   useEffect(() => {
     const isCurrentlyRunning = startedAt !== null && pausedAt === null;
     setIsRunning(isCurrentlyRunning);
-    setRemainingSeconds(calculateRemaining());
+    setRemainingMs(calculateRemainingMs());
     
     // Reset end state if timer is reset
     if (!startedAt) {
       setHasEnded(false);
       hasPlayedEndSound.current = false;
     }
-  }, [startedAt, pausedAt, calculateRemaining]);
+  }, [startedAt, pausedAt, calculateRemainingMs]);
 
-  // Countdown effect
+  // Countdown effect - update more frequently for milliseconds display
   useEffect(() => {
     if (!isRunning) return;
     
     const interval = setInterval(() => {
-      const remaining = calculateRemaining();
-      setRemainingSeconds(remaining);
+      const remaining = calculateRemainingMs();
+      setRemainingMs(remaining);
       
       if (remaining <= 0 && !hasEnded) {
         setHasEnded(true);
@@ -85,10 +87,10 @@ export const MatchTimer = ({
           onTimeEnd?.();
         }
       }
-    }, 100);
+    }, showMilliseconds ? 50 : 100);
     
     return () => clearInterval(interval);
-  }, [isRunning, calculateRemaining, hasEnded, onTimeEnd]);
+  }, [isRunning, calculateRemainingMs, hasEnded, onTimeEnd, showMilliseconds]);
 
   const playEndSound = () => {
     // Create audio context for end sound
@@ -235,9 +237,15 @@ export const MatchTimer = ({
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    const milliseconds = Math.floor((ms % 1000) / 10);
+    
+    if (showMilliseconds) {
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+    }
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -264,7 +272,7 @@ export const MatchTimer = ({
           "text-4xl font-mono font-bold tabular-nums",
           hasEnded ? "text-destructive" : isRunning ? "text-primary" : "text-foreground"
         )}>
-          {formatTime(remainingSeconds)}
+          {formatTime(remainingMs)}
         </span>
         {hasEnded && (
           <Badge variant="destructive" className="animate-pulse">
