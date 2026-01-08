@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScoreInput } from "@/components/ui/score-input";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Trophy, Lock, Monitor, ClipboardEdit } from "lucide-react";
+import { Trophy, Lock, Monitor, ClipboardEdit, Radio } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -43,6 +44,7 @@ interface BracketMatchProps {
   isLocked?: boolean;
   isCompleted?: boolean;
   isCreator?: boolean;
+  isLive?: boolean;
   tournamentId?: string;
   onStartEdit: () => void;
   onCancelEdit: () => void;
@@ -65,6 +67,7 @@ export const BracketMatch = ({
   isLocked = false,
   isCompleted = false,
   isCreator = false,
+  isLive = false,
   tournamentId,
   onStartEdit,
   onCancelEdit,
@@ -95,13 +98,19 @@ export const BracketMatch = ({
             C{match.field_number}
           </span>
         )}
+        {isLive && (
+          <Badge variant="destructive" className="h-4 px-1.5 text-[10px] font-bold gap-1 animate-pulse">
+            <Radio className="h-2.5 w-2.5" />
+            LIVE
+          </Badge>
+        )}
         {isFinal && (
           <Trophy className="h-3 w-3 text-yellow-500" />
         )}
-        {isMatchLocked && !isCompleted && (
+        {isMatchLocked && !isCompleted && !isLive && (
           <Lock className="h-3 w-3 text-muted-foreground" />
         )}
-        {isCompleted && (
+        {isCompleted && !isLive && (
           <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
             Completed
           </span>
