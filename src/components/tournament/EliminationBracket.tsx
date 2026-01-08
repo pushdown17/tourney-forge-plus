@@ -101,7 +101,6 @@ export const EliminationBracket = ({
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [tournament, setTournament] = useState<any>(null);
-  const [byeTeams, setByeTeams] = useState<Team[]>([]);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [scores, setScores] = useState<{ [key: string]: { team1: string; team2: string } }>({});
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -428,25 +427,8 @@ export const EliminationBracket = ({
         });
       }
 
-      // Compute bye teams (top seeds) when qualified teams isn't a power of 2
-      const qualifiedTeamsCount = tournamentData.teams_for_elimination || 0;
-      const bracketSize = qualifiedTeamsCount > 0
-        ? Math.pow(2, Math.ceil(Math.log2(qualifiedTeamsCount)))
-        : 0;
-      const numberOfByes = bracketSize - qualifiedTeamsCount;
+      // No BYE logic: if teams_for_elimination isn't a power of 2, we rely on a preliminary round.
 
-      if (numberOfByes > 0 && standingsResult.data) {
-        const topSeeds = standingsResult.data.slice(0, numberOfByes) as any[];
-        setByeTeams(
-          topSeeds.map((stat, index) => ({
-            id: stat.team_id,
-            name: stat.team?.name || `Seed ${index + 1}`,
-            seed: index + 1,
-          }))
-        );
-      } else {
-        setByeTeams([]);
-      }
 
       // Attach seed to teams
       const matchesWithSeeds = (matchesResult.data || []).map(match => ({
@@ -948,168 +930,55 @@ export const EliminationBracket = ({
   // Generate complete bracket structure (all rounds)
   const generateBracketStructure = () => {
     if (!tournament?.teams_for_elimination) return [];
-    
+
     const totalTeams = tournament.teams_for_elimination;
     const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
-    const numberOfByes = bracketSize - totalTeams;
     const totalRounds = Math.log2(bracketSize);
+
     const structure: any[][] = [];
 
-    // Check if there are preliminary matches (round 0)
+    // Preliminary round (round 0) if it exists
     const preliminaryMatches = matches
-      .filter(m => m.round_number === 0 && !m.is_third_place_match)
+      .filter((m) => m.round_number === 0 && !m.is_third_place_match)
       .sort((a, b) => a.id.localeCompare(b.id));
 
-    if (preliminaryMatches.length > 0 || numberOfByes > 0) {
-      // Add preliminary round to structure
-      if (preliminaryMatches.length > 0) {
-        structure.push(preliminaryMatches);
-      }
+    if (preliminaryMatches.length > 0) {
+      structure.push(preliminaryMatches);
     }
 
-    // Build standard seeding order
-    const buildSeedOrder = (size: number): number[] => {
-      let order = [1, 2];
-      for (let current = 2; current < size; current *= 2) {
-        const nextSize = current * 2;
-        const next: number[] = [];
-        for (const s of order) next.push(s, nextSize + 1 - s);
-        order = next;
-      }
-      return order;
-    };
-
-    const seedOrder = buildSeedOrder(bracketSize);
-
+    // Standard rounds 1..N (fill missing matches with placeholders for layout)
     for (let round = 1; round <= totalRounds; round++) {
+      const expectedMatches = bracketSize / Math.pow(2, round);
+
       const roundMatchesSorted = matches
-        .filter(m => m.round_number === round && !m.is_third_place_match)
+        .filter((m) => m.round_number === round && !m.is_third_place_match)
         .sort((a, b) => a.id.localeCompare(b.id));
-      
-      if (round === 1) {
-        // For round 1: ALWAYS show full bracket structure for proper alignment
-        // Each slot position represents a potential match
-        const expectedSlots = bracketSize / 2; // 8 slots for bracket of 16
-        const roundMatches: any[] = [];
-        
-        // Determine which slots have byes based on seed order
-        // In standard seeding: slot i has seed (i+1) vs seed (bracketSize - i)
-        // Bye occurs when the higher seed doesn't exist (> totalTeams)
-        const byeSlots: Set<number> = new Set();
-        const byeSlotToTeam: Map<number, Team> = new Map();
-        
-        for (let i = 0; i < expectedSlots; i++) {
-          const seed1 = i + 1;
-          const seed2 = bracketSize - i;
-          
-          // If seed2 > totalTeams, this is a bye slot
-          if (seed2 > totalTeams) {
-            byeSlots.add(i);
-            // Find the bye team (seed1) from byeTeams array
-            const byeTeam = byeTeams.find(bt => bt.seed === seed1);
-            if (byeTeam) {
-              byeSlotToTeam.set(i, byeTeam);
-            }
-          }
+
+      const roundMatches: any[] = [];
+
+      for (let i = 0; i < expectedMatches; i++) {
+        const existingMatch = roundMatchesSorted[i];
+        if (existingMatch) {
+          roundMatches.push(existingMatch);
+        } else {
+          roundMatches.push({
+            id: `placeholder-${round}-${i}`,
+            round_number: round,
+            team1_id: "",
+            team2_id: "",
+            team1: null,
+            team2: null,
+            team1_score: null,
+            team2_score: null,
+            winner_id: null,
+            isPlaceholder: true,
+          });
         }
-        
-        // Build the R1 structure with actual matches and bye placeholders
-        let actualMatchIndex = 0;
-        for (let slotIndex = 0; slotIndex < expectedSlots; slotIndex++) {
-          if (byeSlots.has(slotIndex)) {
-            // This is a bye slot - show the team that advances directly
-            const byeTeam = byeSlotToTeam.get(slotIndex);
-            roundMatches.push({
-              id: `bye-${slotIndex}`,
-              round_number: round,
-              team1: byeTeam || null,
-              team2: null,
-              team1_id: byeTeam?.id || "",
-              team2_id: "",
-              team1_score: null,
-              team2_score: null,
-              winner_id: byeTeam?.id || null,
-              isBye: true,
-              isPlaceholder: true,
-            });
-          } else {
-            // Regular match slot
-            const existingMatch = roundMatchesSorted[actualMatchIndex];
-            if (existingMatch) {
-              roundMatches.push(existingMatch);
-              actualMatchIndex++;
-            } else {
-              // Placeholder for match not yet created
-              roundMatches.push({
-                id: `placeholder-${round}-${slotIndex}`,
-                round_number: round,
-                team1: null,
-                team2: null,
-                team1_score: null,
-                team2_score: null,
-                winner_id: null,
-                isPlaceholder: true,
-              });
-            }
-          }
-        }
-        
-        structure.push(roundMatches);
-      } else {
-        // For rounds 2+: calculate expected matches normally
-        const matchesInRound = bracketSize / Math.pow(2, round);
-        const roundMatches = [];
-
-        const groupSize = round === 2 ? 4 : Math.pow(2, round);
-
-        for (let i = 0; i < matchesInRound; i++) {
-          const existingMatch = roundMatchesSorted[i];
-
-          if (existingMatch) {
-            roundMatches.push(existingMatch);
-          } else {
-            // Create a placeholder match for future rounds
-            const placeholder: any = {
-              id: `placeholder-${round}-${i}`,
-              round_number: round,
-              team1_id: "",
-              team2_id: "",
-              team1: null,
-              team2: null,
-              team1_score: null,
-              team2_score: null,
-              winner_id: null,
-              isPlaceholder: true,
-            };
-
-            // Inject bye teams into Round 2 slots (so they appear directly in the bracket)
-            if (round === 2 && byeTeams.length > 0) {
-              for (const bt of byeTeams) {
-                if (!bt.seed) continue;
-                const pos = seedOrder.indexOf(bt.seed);
-                if (pos === -1) continue;
-
-                const matchIndex = Math.floor(pos / groupSize);
-                if (matchIndex !== i) continue;
-
-                const side = (pos % groupSize) < (groupSize / 2) ? 0 : 1;
-                if (side === 0) {
-                  placeholder.team1_id = bt.id;
-                  placeholder.team1 = { id: bt.id, name: bt.name, seed: bt.seed };
-                } else {
-                  placeholder.team2_id = bt.id;
-                  placeholder.team2 = { id: bt.id, name: bt.name, seed: bt.seed };
-                }
-              }
-            }
-
-            roundMatches.push(placeholder);
-          }
-        }
-        structure.push(roundMatches);
       }
+
+      structure.push(roundMatches);
     }
-    
+
     return structure;
   };
 
@@ -1214,11 +1083,21 @@ export const EliminationBracket = ({
                 // First match offset to center between source matches
                 const topOffset = unit * (Math.pow(2, roundIndex) - 1) / 2;
                 
-                // Match number
-                let matchNumberStart = 1;
-                for (let i = 0; i < roundIndex; i++) {
-                  matchNumberStart += Math.pow(2, Math.log2(totalTeams) - i - 1);
-                }
+                // Match number (stable integers, supports preliminary round)
+                const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
+                const preliminaryCount =
+                  bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0
+                    ? bracketStructure[0].length
+                    : 0;
+
+                const matchNumberStart = (() => {
+                  if (roundNumber === 0) return 0;
+                  let start = preliminaryCount;
+                  for (let r = 1; r < roundNumber; r++) {
+                    start += bracketSize / Math.pow(2, r);
+                  }
+                  return start;
+                })();
                 
                 return (
                   <div key={roundNumber} className="flex flex-col" style={{ minWidth: "180px" }}>
@@ -1279,17 +1158,13 @@ export const EliminationBracket = ({
                         const canAccessMatch = isPreviousRoundCompleted(roundNumber);
                         const isLocked = !canAccessMatch && !match.winner_id;
                         const isMatchCompleted = !!match.winner_id;
-                        const isByeSlot = (match as any).isBye;
-                        
-                        // Calculate actual match number (excluding byes)
-                        const byeCountBefore = roundMatches.slice(0, matchIndex).filter((m: any) => m.isBye).length;
-                        const actualMatchNumber = matchNumberStart + matchIndex - byeCountBefore - (isByeSlot ? 1 : 0);
-                        
+                        const matchNumber = matchNumberStart + matchIndex + 1;
+
                         return (
                           <BracketMatch
                             key={match.id}
                             match={match}
-                            matchNumber={isByeSlot ? 0 : actualMatchNumber + 1}
+                            matchNumber={matchNumber}
                             isEditing={editingMatchId === match.id}
                             scores={scores[match.id] || { team1: "", team2: "" }}
                             isClosed={isClosed || isLocked}
@@ -1303,10 +1178,8 @@ export const EliminationBracket = ({
                             isLive={liveMatches.has(match.id)}
                             timerState={matchTimers[match.id] || null}
                             tournamentId={tournamentId}
-                            byeTeamIds={byeTeams.map(t => t.id)}
                             onStartEdit={() => {
-                              if (isLocked || isMatchCompleted || isByeSlot) {
-                                if (isByeSlot) return;
+                              if (isLocked || isMatchCompleted) {
                                 if (isMatchCompleted) {
                                   toast.error("This match is finished and can no longer be modified");
                                 } else {
@@ -1330,7 +1203,6 @@ export const EliminationBracket = ({
                               [match.id]: { ...scores[match.id], [team]: value }
                             })}
                             onMatchClick={() => {
-                              if (isByeSlot) return;
                               if (isLocked && !isMatchCompleted) {
                                 toast.error("Complete the previous round matches first");
                                 return;
@@ -1346,7 +1218,6 @@ export const EliminationBracket = ({
                               }
                             }}
                             onSendToStation={() => {
-                              if (isByeSlot) return;
                               const label = `${match.team1?.name || "TBD"} vs ${match.team2?.name || "TBD"}`;
                               setStationMatch({ id: match.id, label });
                               setStationDialogOpen(true);
