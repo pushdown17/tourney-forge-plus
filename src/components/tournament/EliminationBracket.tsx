@@ -347,6 +347,31 @@ export const EliminationBracket = ({
           }
         }
       )
+      .on(
+        'broadcast',
+        { event: 'match_ended' },
+        (payload) => {
+          console.log('Match ended broadcast received:', payload);
+          const { matchId } = payload.payload;
+          
+          // Remove from live matches
+          setLiveMatches(prev => {
+            const next = new Set(prev);
+            next.delete(matchId);
+            return next;
+          });
+          
+          // Remove timer state
+          setMatchTimers(prev => {
+            const next = { ...prev };
+            delete next[matchId];
+            return next;
+          });
+          
+          // Refresh matches to get final scores
+          // Note: Matches will be updated via the postgres_changes subscription
+        }
+      )
       .subscribe((status) => {
         console.log('Live broadcast subscription status:', status);
       });
