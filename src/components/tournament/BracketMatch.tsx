@@ -31,6 +31,7 @@ interface Match {
   team1?: Team;
   team2?: Team;
   isPlaceholder?: boolean;
+  isBye?: boolean;
 }
 
 interface TimerState {
@@ -91,6 +92,7 @@ export const BracketMatch = ({
 }: BracketMatchProps) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const isPlaceholder = match.isPlaceholder;
+  const isBye = (match as any).isBye;
   const hasTeams = match.team1 && match.team2;
   const hasWinner = !!match.winner_id;
   const team1HasBye = byeTeamIds.includes(match.team1_id);
@@ -99,6 +101,51 @@ export const BracketMatch = ({
   const isMatchLocked = isCompleted || isLocked;
   // Only show edit controls if user is the creator
   const canEdit = isCreator && !isClosed && !isMatchLocked;
+
+  // Special rendering for bye slots (team directly qualified)
+  if (isBye && match.team1) {
+    return (
+      <div className="animate-fade-in h-[124px] flex flex-col">
+        {/* Bye header */}
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+            Qualifié direct
+          </span>
+        </div>
+
+        {/* Bye card - single team advancing */}
+        <Card
+          className={cn(
+            "overflow-hidden transition-all duration-300",
+            "bg-primary/5 backdrop-blur-sm border-primary/30 border-dashed",
+            "ring-1 ring-primary/20"
+          )}
+        >
+          {/* Team advancing */}
+          <div className="flex items-center justify-center px-3 py-4 bg-primary/10">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+              {match.team1?.seed && (
+                <span className="text-[10px] font-mono font-semibold text-primary bg-primary/20 px-1 py-0.5 rounded shrink-0">
+                  #{match.team1.seed}
+                </span>
+              )}
+              <span className="text-sm font-semibold text-primary">
+                {match.team1?.name}
+              </span>
+            </div>
+          </div>
+
+          {/* Empty opponent slot */}
+          <div className="flex items-center justify-center px-3 py-2 border-t border-primary/20">
+            <span className="text-xs text-muted-foreground/50 italic">
+              Pas d'adversaire
+            </span>
+          </div>
+        </Card>
+      </div>
+    );
+  }
   
   return (
     <div className="animate-fade-in h-[124px] flex flex-col">
