@@ -228,6 +228,10 @@ export type Database = {
           is_active: boolean
           station_name: string
           station_number: number
+          timer_duration_seconds: number | null
+          timer_elapsed_when_paused: number | null
+          timer_paused_at: string | null
+          timer_started_at: string | null
           tournament_id: string
           updated_at: string
         }
@@ -238,6 +242,10 @@ export type Database = {
           is_active?: boolean
           station_name?: string
           station_number: number
+          timer_duration_seconds?: number | null
+          timer_elapsed_when_paused?: number | null
+          timer_paused_at?: string | null
+          timer_started_at?: string | null
           tournament_id: string
           updated_at?: string
         }
@@ -248,6 +256,10 @@ export type Database = {
           is_active?: boolean
           station_name?: string
           station_number?: number
+          timer_duration_seconds?: number | null
+          timer_elapsed_when_paused?: number | null
+          timer_paused_at?: string | null
+          timer_started_at?: string | null
           tournament_id?: string
           updated_at?: string
         }
