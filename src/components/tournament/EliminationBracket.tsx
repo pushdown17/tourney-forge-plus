@@ -1117,6 +1117,7 @@ export const EliminationBracket = ({
                             isLive={liveMatches.has(match.id)}
                             timerState={matchTimers[match.id] || null}
                             tournamentId={tournamentId}
+                            byeTeamIds={byeTeams.map(t => t.id)}
                             onStartEdit={() => {
                               if (isLocked || isMatchCompleted) {
                                 if (isMatchCompleted) {
