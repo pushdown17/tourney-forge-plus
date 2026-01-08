@@ -823,39 +823,67 @@ export const EliminationBracket = ({
     const totalTeams = tournament.teams_for_elimination;
     // Use bracket size (next power of 2) for structure
     const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
+    const numberOfByes = bracketSize - totalTeams;
     const totalRounds = Math.log2(bracketSize);
     const structure: any[][] = [];
 
     for (let round = 1; round <= totalRounds; round++) {
-      const matchesInRound = bracketSize / Math.pow(2, round);
-      const roundMatches = [];
-      
       // Filter and sort matches of this round (exclude 3rd place match)
       const roundMatchesSorted = matches
         .filter(m => m.round_number === round && !m.is_third_place_match)
         .sort((a, b) => a.id.localeCompare(b.id)); // Stable sort by ID
       
-      for (let i = 0; i < matchesInRound; i++) {
-        // Take the i-th match of this round
-        const existingMatch = roundMatchesSorted[i];
+      if (round === 1) {
+        // For round 1 with byes: only show actual matches (not placeholders)
+        // The number of actual R1 matches = (bracketSize / 2) - numberOfByes
+        const expectedR1Matches = (bracketSize / 2) - numberOfByes;
         
-        if (existingMatch) {
-          roundMatches.push(existingMatch);
+        if (roundMatchesSorted.length > 0) {
+          // Show only the actual matches that exist
+          structure.push(roundMatchesSorted);
         } else {
-          // Create a placeholder match
-          roundMatches.push({
-            id: `placeholder-${round}-${i}`,
-            round_number: round,
-            team1: null,
-            team2: null,
-            team1_score: null,
-            team2_score: null,
-            winner_id: null,
-            isPlaceholder: true
-          });
+          // No matches yet - show expected number of placeholders
+          const placeholders = [];
+          for (let i = 0; i < expectedR1Matches; i++) {
+            placeholders.push({
+              id: `placeholder-${round}-${i}`,
+              round_number: round,
+              team1: null,
+              team2: null,
+              team1_score: null,
+              team2_score: null,
+              winner_id: null,
+              isPlaceholder: true
+            });
+          }
+          structure.push(placeholders);
         }
+      } else {
+        // For rounds 2+: calculate expected matches normally
+        const matchesInRound = bracketSize / Math.pow(2, round);
+        const roundMatches = [];
+        
+        for (let i = 0; i < matchesInRound; i++) {
+          const existingMatch = roundMatchesSorted[i];
+          
+          if (existingMatch) {
+            roundMatches.push(existingMatch);
+          } else {
+            // Create a placeholder match for future rounds
+            roundMatches.push({
+              id: `placeholder-${round}-${i}`,
+              round_number: round,
+              team1: null,
+              team2: null,
+              team1_score: null,
+              team2_score: null,
+              winner_id: null,
+              isPlaceholder: true
+            });
+          }
+        }
+        structure.push(roundMatches);
       }
-      structure.push(roundMatches);
     }
     
     return structure;
