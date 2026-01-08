@@ -114,6 +114,7 @@ export const EliminationBracket = ({
   const [thirdPlaceDialogOpen, setThirdPlaceDialogOpen] = useState(false);
   const [stationDialogOpen, setStationDialogOpen] = useState(false);
   const [stationMatch, setStationMatch] = useState<{ id: string; label: string } | null>(null);
+  const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
   const [pendingFinalMatches, setPendingFinalMatches] = useState<{
     finale: any;
     thirdPlace: any;
@@ -173,6 +174,8 @@ export const EliminationBracket = ({
   useEffect(() => {
     console.log('Setting up live broadcast subscription for tournament:', tournamentId);
     
+    const liveTimeouts: { [matchId: string]: NodeJS.Timeout } = {};
+    
     const channel = supabase
       .channel(`tournament-live-${tournamentId}`)
       .on(
@@ -182,6 +185,23 @@ export const EliminationBracket = ({
           console.log('Live score broadcast received:', payload);
           
           const { matchId, team1_score, team2_score } = payload.payload;
+          
+          // Mark match as live
+          setLiveMatches(prev => new Set(prev).add(matchId));
+          
+          // Clear existing timeout for this match
+          if (liveTimeouts[matchId]) {
+            clearTimeout(liveTimeouts[matchId]);
+          }
+          
+          // Set timeout to remove live status after 10 seconds of inactivity
+          liveTimeouts[matchId] = setTimeout(() => {
+            setLiveMatches(prev => {
+              const next = new Set(prev);
+              next.delete(matchId);
+              return next;
+            });
+          }, 10000);
           
           setMatches(prevMatches => 
             prevMatches.map(match => {
@@ -203,6 +223,8 @@ export const EliminationBracket = ({
 
     return () => {
       console.log('Cleaning up live broadcast subscription');
+      // Clear all timeouts
+      Object.values(liveTimeouts).forEach(timeout => clearTimeout(timeout));
       supabase.removeChannel(channel);
     };
   }, [tournamentId]);
@@ -869,6 +891,7 @@ export const EliminationBracket = ({
                             isLocked={isLocked}
                             isCompleted={isMatchCompleted}
                             isCreator={isCreator}
+                            isLive={liveMatches.has(match.id)}
                             tournamentId={tournamentId}
                             onStartEdit={() => {
                               if (isLocked || isMatchCompleted) {
@@ -984,6 +1007,7 @@ export const EliminationBracket = ({
                       isFinal={false}
                       isLocked={thirdPlaceLocked}
                       isCompleted={isThirdPlaceCompleted}
+                      isLive={liveMatches.has(thirdPlaceMatch.id)}
                       onStartEdit={() => {
                         if (thirdPlaceLocked || isThirdPlaceCompleted) {
                           if (isThirdPlaceCompleted) {
