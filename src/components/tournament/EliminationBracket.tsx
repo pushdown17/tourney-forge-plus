@@ -129,7 +129,37 @@ export const EliminationBracket = ({
 
   useEffect(() => {
     fetchTournamentAndMatches();
+    fetchActiveTimers();
   }, [tournamentId]);
+
+  // Fetch active timers from referee stations
+  const fetchActiveTimers = async () => {
+    const { data: stations, error } = await supabase
+      .from('referee_stations')
+      .select('current_match_id, timer_duration_seconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused')
+      .eq('tournament_id', tournamentId)
+      .not('current_match_id', 'is', null);
+    
+    if (error || !stations) return;
+    
+    const timers: { [matchId: string]: { durationSeconds: number; startedAt: string | null; pausedAt: string | null; elapsedWhenPaused: number } } = {};
+    const liveMatchIds: string[] = [];
+    
+    stations.forEach((station: any) => {
+      if (station.current_match_id && station.timer_duration_seconds) {
+        timers[station.current_match_id] = {
+          durationSeconds: station.timer_duration_seconds,
+          startedAt: station.timer_started_at,
+          pausedAt: station.timer_paused_at,
+          elapsedWhenPaused: station.timer_elapsed_when_paused || 0
+        };
+        liveMatchIds.push(station.current_match_id);
+      }
+    });
+    
+    setMatchTimers(timers);
+    setLiveMatches(new Set(liveMatchIds));
+  };
 
   // Realtime subscription for saved score updates (database changes)
   useEffect(() => {
@@ -230,7 +260,7 @@ export const EliminationBracket = ({
         (payload) => {
           console.log('Timer update broadcast received:', payload);
           
-          const { matchId, action, timer_started_at, timer_paused_at, timer_elapsed_when_paused } = payload.payload;
+          const { matchId, action, durationSeconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused } = payload.payload;
           
           // Mark match as live when timer is running
           if (action === 'start' || action === 'resume') {
@@ -241,7 +271,7 @@ export const EliminationBracket = ({
           setMatchTimers(prev => ({
             ...prev,
             [matchId]: {
-              ...prev[matchId],
+              durationSeconds: durationSeconds ?? prev[matchId]?.durationSeconds ?? 0,
               startedAt: timer_started_at,
               pausedAt: timer_paused_at,
               elapsedWhenPaused: timer_elapsed_when_paused ?? prev[matchId]?.elapsedWhenPaused ?? 0
