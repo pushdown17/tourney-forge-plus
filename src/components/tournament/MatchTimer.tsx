@@ -45,11 +45,8 @@ export const MatchTimer = ({
     }
     
     if (pausedAt) {
-      // Timer is paused - calculate based on when it was paused
-      const startTime = new Date(startedAt).getTime();
-      const pauseTime = new Date(pausedAt).getTime();
-      const elapsed = Math.floor((pauseTime - startTime) / 1000) + elapsedWhenPaused;
-      return Math.max(0, durationSeconds - elapsed);
+      // elapsedWhenPaused already contains the TOTAL elapsed time (set during pause)
+      return Math.max(0, durationSeconds - elapsedWhenPaused);
     }
     
     // Timer is running
