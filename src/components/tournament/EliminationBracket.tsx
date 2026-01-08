@@ -496,120 +496,68 @@ export const EliminationBracket = ({
       
       console.log(`Generating bracket: ${teamsCount} teams, bracket size ${bracketSize}, ${numberOfByes} byes`);
       
-      // NEW FORMAT: Preliminary round for the lowest seeds
-      // Instead of byes for top seeds, the bottom teams play preliminary matches
-      // Winners face the top seeds in Round 1
+      // NEW FORMAT: Only ONE preliminary match between the 2 lowest seeds
+      // For 14 teams: seed 13 vs seed 14, winner faces seed 1 in Round 1
+      // Seeds 2-12 play normal Round 1 matches with standard seeding
+      // Remaining byes go to top seeds (after seed 1 who faces preliminary winner)
       
       const matchesToInsert: any[] = [];
-      const preliminaryTeamIds: string[] = []; // Teams in preliminary
-      const byeTeamIds: string[] = []; // Teams that still get byes
       const byeTeamNames: string[] = [];
       let matchIndex = 0;
       
       if (numberOfByes > 0) {
-        // Create preliminary matches: bottom N*2 teams play, winners face top N seeds
-        // For 14 teams (2 byes): seeds 13, 14 play preliminary → winner faces seed 1
-        //                        seeds 11, 12 play preliminary → winner faces seed 2
-        // But if numberOfByes = 2, we only need 2 spots filled
-        // So we have: 2 preliminary matches with 4 teams (11-14)
+        // Only ONE preliminary match: seed (teamsCount-1) vs seed (teamsCount)
+        // For 14 teams: seed 13 vs seed 14
+        const lowSeedTeam = standings[teamsCount - 1];  // Last seed (14th)
+        const highSeedTeam = standings[teamsCount - 2]; // Second-to-last (13th)
         
-        // Number of preliminary matches = numberOfByes
-        const numPreliminaryMatches = numberOfByes;
-        
-        // Teams in preliminary: the bottom (numberOfByes * 2) seeds
-        // BUT we can only do preliminary if we have enough teams for it
-        const teamsForPreliminary = Math.min(numberOfByes * 2, teamsCount);
-        const actualPreliminaryMatches = Math.floor(teamsForPreliminary / 2);
-        
-        // If we can't make full preliminary matches, some top seeds still get byes
-        const remainingByes = numberOfByes - actualPreliminaryMatches;
-        
-        console.log(`Preliminary: ${actualPreliminaryMatches} matches, ${remainingByes} remaining byes`);
-        
-        // Create preliminary matches (round 0)
-        for (let i = 0; i < actualPreliminaryMatches; i++) {
-          // Pair: (teamsCount - 2*i - 1) vs (teamsCount - 2*i - 2)
-          // For 14 teams, i=0: seed 14 vs seed 13, i=1: seed 12 vs seed 11
-          const lowSeedIndex = teamsCount - 1 - (2 * i);     // 13, 11, ...
-          const highSeedIndex = teamsCount - 2 - (2 * i);    // 12, 10, ...
+        if (lowSeedTeam && highSeedTeam) {
+          const fieldNumber = 1;
+          matchesToInsert.push({
+            tournament_id: tournamentId,
+            phase: currentPhase,
+            round_number: 0, // Preliminary round
+            team1_id: highSeedTeam.team_id, // Higher seed first (13)
+            team2_id: lowSeedTeam.team_id,  // Lower seed (14)
+            field_number: fieldNumber,
+          });
           
-          if (highSeedIndex < 0) break;
-          
-          const lowSeedTeam = standings[lowSeedIndex];
-          const highSeedTeam = standings[highSeedIndex];
-          
-          if (lowSeedTeam && highSeedTeam) {
-            const fieldNumber = (matchIndex % numberOfFields) + 1;
-            matchesToInsert.push({
-              tournament_id: tournamentId,
-              phase: currentPhase,
-              round_number: 0, // Preliminary round
-              team1_id: highSeedTeam.team_id, // Higher seed first
-              team2_id: lowSeedTeam.team_id,
-              field_number: fieldNumber,
-            });
-            preliminaryTeamIds.push(highSeedTeam.team_id, lowSeedTeam.team_id);
-            matchIndex++;
-            
-            console.log(`Preliminary ${i}: #${highSeedIndex + 1} ${highSeedTeam.team?.name} vs #${lowSeedIndex + 1} ${lowSeedTeam.team?.name}`);
-          }
+          console.log(`Preliminary: #${teamsCount - 1} ${highSeedTeam.team?.name} vs #${teamsCount} ${lowSeedTeam.team?.name}`);
         }
         
-        // Remaining byes for top seeds that don't have preliminary opponents
-        for (let i = 0; i < remainingByes; i++) {
-          const seed = i + 1 + actualPreliminaryMatches; // After the seeds facing preliminary winners
-          if (seed <= teamsCount && standings[seed - 1]) {
-            byeTeamIds.push(standings[seed - 1].team_id);
-            byeTeamNames.push(standings[seed - 1].team?.name || `Seed ${seed}`);
+        // Remaining byes (numberOfByes - 1) go to seeds 2, 3, 4... 
+        // (Seed 1 faces preliminary winner, so no bye for seed 1)
+        for (let i = 0; i < numberOfByes - 1; i++) {
+          const seedIndex = i + 1; // Seeds 2, 3, 4...
+          if (seedIndex < teamsCount - 2 && standings[seedIndex]) {
+            byeTeamNames.push(standings[seedIndex].team?.name || `Seed ${seedIndex + 1}`);
           }
         }
       }
       
       // Create Round 1 matches
-      // Teams NOT in preliminary play Round 1 directly
-      // Top N seeds (where N = numberOfByes) will face preliminary winners (TBD)
-      const firstRoundMatchCount = bracketSize / 2;
+      // Teams that play in Round 1: seeds 2 to (teamsCount - 2)
+      // Seed 1 waits for preliminary winner
+      // Seeds (teamsCount-1) and teamsCount are in preliminary
       
-      // Teams available for R1: all except those in preliminary
-      const r1Teams = standings.filter(s => !preliminaryTeamIds.includes(s.team_id));
+      // Available teams for R1: indices 1 to (teamsCount - 3) = seeds 2 to (teamsCount - 2)
+      const r1AvailableTeams = standings.slice(1, teamsCount - 2); // Exclude seed 1 (waits) and last 2 (preliminary)
       
-      // Standard seeding for available teams
-      // The top seeds (facing preliminary winners) wait for their opponents
-      // We create R1 matches for all other teams
+      // Number of R1 matches needed (excluding the seed 1 vs preliminary winner slot)
+      // Bracket has bracketSize/2 matches in R1, minus 1 for seed 1's match
+      const totalR1Slots = bracketSize / 2;
       
-      const numTopSeedsFacingPrelim = numberOfByes; // These wait for preliminary winners
-      matchIndex = 0;
+      // Standard seeding: 1v16, 8v9, 5v12, 4v13, 6v11, 3v14, 7v10, 2v15 (for 16-bracket)
+      // But we're adjusting: seed 1 faces preliminary winner, so we skip that slot
+      // Seeds 2-12 play normally among themselves
       
-      for (let i = 0; i < firstRoundMatchCount; i++) {
-        const seed1 = i + 1;
-        const seed2 = bracketSize - i;
-        
-        // Convert to indices among non-preliminary teams
-        // Seed 1 faces preliminary winner (no match created yet)
-        // Seed 8 vs Seed 9 (both in R1 teams)
-        
-        if (seed1 <= numTopSeedsFacingPrelim) {
-          // This top seed faces a preliminary winner - skip for now
-          // Match will be created when preliminary finishes
-          console.log(`Slot ${i}: Seed ${seed1} waits for preliminary winner`);
-          continue;
-        }
-        
-        // Find actual teams for this matchup
-        // Adjust seed2 to account for preliminary teams removed
-        const adjustedSeed2 = seed2 - (numberOfByes * 2); // Remove preliminary teams
-        
-        if (adjustedSeed2 > r1Teams.length || seed1 > r1Teams.length) {
-          // Not enough teams - this is a bye
-          if (seed1 <= r1Teams.length) {
-            byeTeamIds.push(r1Teams[seed1 - 1].team_id);
-            byeTeamNames.push(r1Teams[seed1 - 1].team?.name || `Seed ${seed1}`);
-          }
-          continue;
-        }
-        
-        const team1 = r1Teams[seed1 - 1];
-        const team2 = r1Teams[r1Teams.length - 1 - (i - numTopSeedsFacingPrelim)];
+      // Simple approach: pair available teams by seeding
+      // Team at index i pairs with team at index (r1AvailableTeams.length - 1 - i)
+      const numR1Matches = Math.floor(r1AvailableTeams.length / 2);
+      
+      for (let i = 0; i < numR1Matches; i++) {
+        const team1 = r1AvailableTeams[i];
+        const team2 = r1AvailableTeams[r1AvailableTeams.length - 1 - i];
         
         if (team1 && team2 && team1.team_id !== team2.team_id) {
           const fieldNumber = (matchIndex % numberOfFields) + 1;
@@ -623,7 +571,9 @@ export const EliminationBracket = ({
           });
           matchIndex++;
           
-          console.log(`R1: #${r1Teams.indexOf(team1) + 1} ${team1.team?.name} vs #${r1Teams.indexOf(team2) + 1} ${team2.team?.name}`);
+          const seed1 = standings.indexOf(team1) + 1;
+          const seed2 = standings.indexOf(team2) + 1;
+          console.log(`R1 Match ${i + 1}: #${seed1} ${team1.team?.name} vs #${seed2} ${team2.team?.name}`);
         }
       }
 
@@ -639,7 +589,7 @@ export const EliminationBracket = ({
       // Show appropriate message
       const prelimCount = matchesToInsert.filter(m => m.round_number === 0).length;
       if (prelimCount > 0) {
-        toast.success(`Bracket generated! ${prelimCount} preliminary match(es)`);
+        toast.success(`Bracket généré! 1 match préliminaire (${standings[teamsCount - 2]?.team?.name} vs ${standings[teamsCount - 1]?.team?.name})`);
       } else if (byeTeamNames.length > 0) {
         toast.success(`Bracket generated! ${byeTeamNames.length} bye(s): ${byeTeamNames.join(", ")}`);
       } else {
