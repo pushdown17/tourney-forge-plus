@@ -1150,28 +1150,25 @@ export const EliminationBracket = ({
         </p>
       </div>
 
-      {/* Byes section - Teams qualified directly for quarter-finals */}
+      {/* Byes section - Teams qualified directly */}
       {byeTeams.length > 0 && (
-        <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-primary/10">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="mb-6 p-4 rounded-lg border-2 border-primary bg-primary/10">
+          <div className="flex items-center gap-2 mb-2">
             <Medal className="h-5 w-5 text-primary" />
             <h3 className="font-semibold text-foreground">
-              Byes — qualifiés directement pour les quarts
+              Équipes qualifiées directement
             </h3>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             {byeTeams.map(team => (
               <div
                 key={team.id}
-                className="px-3 py-1.5 rounded-full border border-primary/20 bg-background/60 text-sm font-medium text-foreground"
+                className="px-4 py-2 rounded-lg border-2 border-primary bg-background text-sm font-semibold text-foreground shadow-sm"
               >
                 {team.seed ? `#${team.seed} ` : ""}{team.name}
               </div>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Ces équipes sont exemptées du 1er tour grâce à leur classement.
-          </p>
         </div>
       )}
       {matches.length === 0 ? (
