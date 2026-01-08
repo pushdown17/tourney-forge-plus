@@ -123,9 +123,9 @@ export const EliminationBracket = ({
     fetchTournamentAndMatches();
   }, [tournamentId]);
 
-  // Realtime subscription for live score updates
+  // Realtime subscription for saved score updates (database changes)
   useEffect(() => {
-    console.log('Setting up realtime subscription for tournament:', tournamentId);
+    console.log('Setting up realtime DB subscription for tournament:', tournamentId);
     
     const channel = supabase
       .channel(`matches-realtime-${tournamentId}`)
@@ -137,7 +137,7 @@ export const EliminationBracket = ({
           table: 'matches'
         },
         (payload) => {
-          console.log('Realtime event received:', payload);
+          console.log('Realtime DB event received:', payload);
           
           // Only process updates for this tournament
           if (payload.new && (payload.new as any).tournament_id === tournamentId) {
@@ -160,11 +160,49 @@ export const EliminationBracket = ({
         }
       )
       .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
+        console.log('Realtime DB subscription status:', status);
       });
 
     return () => {
-      console.log('Cleaning up realtime subscription');
+      console.log('Cleaning up realtime DB subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [tournamentId]);
+
+  // Live broadcast subscription for real-time score updates (before save)
+  useEffect(() => {
+    console.log('Setting up live broadcast subscription for tournament:', tournamentId);
+    
+    const channel = supabase
+      .channel(`tournament-live-${tournamentId}`)
+      .on(
+        'broadcast',
+        { event: 'live_score' },
+        (payload) => {
+          console.log('Live score broadcast received:', payload);
+          
+          const { matchId, team1_score, team2_score } = payload.payload;
+          
+          setMatches(prevMatches => 
+            prevMatches.map(match => {
+              if (match.id === matchId) {
+                return {
+                  ...match,
+                  team1_score,
+                  team2_score,
+                };
+              }
+              return match;
+            })
+          );
+        }
+      )
+      .subscribe((status) => {
+        console.log('Live broadcast subscription status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up live broadcast subscription');
       supabase.removeChannel(channel);
     };
   }, [tournamentId]);
