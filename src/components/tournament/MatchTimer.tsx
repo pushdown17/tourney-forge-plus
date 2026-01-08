@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Pause, RotateCcw, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { getSyncedNowMs } from "@/lib/serverTime";
 
 interface MatchTimerProps {
   stationId: string;
@@ -53,7 +54,7 @@ export const MatchTimer = ({
     
     // Timer is running
     const startTime = new Date(startedAt).getTime();
-    const now = Date.now();
+    const now = getSyncedNowMs();
     const elapsed = Math.floor((now - startTime) / 1000) + elapsedWhenPaused;
     return Math.max(0, durationSeconds - elapsed);
   }, [durationSeconds, startedAt, pausedAt, elapsedWhenPaused]);
@@ -139,7 +140,7 @@ export const MatchTimer = ({
   };
 
   const startTimer = async () => {
-    const now = new Date().toISOString();
+    const now = new Date(getSyncedNowMs()).toISOString();
     
     const { error } = await supabase
       .from('referee_stations')
@@ -160,11 +161,11 @@ export const MatchTimer = ({
   };
 
   const pauseTimer = async () => {
-    const now = new Date().toISOString();
+    const now = new Date(getSyncedNowMs()).toISOString();
     
     // Calculate total elapsed time including previous pauses
     const startTime = new Date(startedAt!).getTime();
-    const currentElapsed = Math.floor((Date.now() - startTime) / 1000);
+    const currentElapsed = Math.floor((getSyncedNowMs() - startTime) / 1000);
     const totalElapsed = currentElapsed + elapsedWhenPaused;
     
     const { error } = await supabase
@@ -186,7 +187,7 @@ export const MatchTimer = ({
   };
 
   const resumeTimer = async () => {
-    const now = new Date().toISOString();
+    const now = new Date(getSyncedNowMs()).toISOString();
     
     // First, get the current elapsed time from DB (set during pause)
     const { data: stationData } = await supabase
