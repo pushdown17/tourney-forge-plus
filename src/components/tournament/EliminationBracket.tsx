@@ -394,10 +394,15 @@ export const EliminationBracket = ({
       // With byes, the missing seeds (15, 16 if only 14 teams) give byes to top seeds
       
       // Create seeding matchups for round 1
-      const allMatches = [];
-      const byeTeams: string[] = [];
+      const round1Matches = [];
+      const byeTeamIds: string[] = []; // Teams that get a bye
+      const byeTeamNames: string[] = [];
       const firstRoundMatchCount = bracketSize / 2;
       let matchIndex = 0;
+      
+      // Track which R1 match slot each team is in (for R2 pairing)
+      const r1SlotToTeamId: (string | null)[] = new Array(firstRoundMatchCount).fill(null);
+      const r1SlotHasBye: boolean[] = new Array(firstRoundMatchCount).fill(false);
       
       for (let i = 0; i < firstRoundMatchCount; i++) {
         // Seed positions: match i has seed (i+1) vs seed (bracketSize - i)
@@ -419,7 +424,7 @@ export const EliminationBracket = ({
           // Normal match - both teams present
           const fieldNumber = (matchIndex % numberOfFields) + 1;
           
-          allMatches.push({
+          round1Matches.push({
             tournament_id: tournamentId,
             phase: currentPhase,
             round_number: 1,
@@ -430,27 +435,87 @@ export const EliminationBracket = ({
           matchIndex++;
         } else if (team1 && !team2) {
           // Team 1 gets a bye (their opponent doesn't exist)
-          byeTeams.push(team1.team?.name || `Seed ${seed1}`);
+          byeTeamIds.push(team1.team_id);
+          byeTeamNames.push(team1.team?.name || `Seed ${seed1}`);
+          r1SlotHasBye[i] = true;
+          r1SlotToTeamId[i] = team1.team_id;
           console.log(`  → ${team1.team?.name} gets a BYE`);
         } else if (!team1 && team2) {
           // Team 2 gets a bye (shouldn't happen with proper seeding)
-          byeTeams.push(team2.team?.name || `Seed ${seed2}`);
+          byeTeamIds.push(team2.team_id);
+          byeTeamNames.push(team2.team?.name || `Seed ${seed2}`);
+          r1SlotHasBye[i] = true;
+          r1SlotToTeamId[i] = team2.team_id;
           console.log(`  → ${team2.team?.name} gets a BYE`);
         }
       }
 
       // Insert first round matches
-      if (allMatches.length > 0) {
+      if (round1Matches.length > 0) {
         const { error: insertError } = await supabase
           .from("matches")
-          .insert(allMatches);
+          .insert(round1Matches);
 
         if (insertError) throw insertError;
       }
 
+      // If there are byes, create Round 2 matches with bye teams already placed
+      if (numberOfByes > 0) {
+        const round2MatchCount = bracketSize / 4; // Quarter-finals
+        const round2Matches = [];
+        
+        for (let i = 0; i < round2MatchCount; i++) {
+          // Each R2 match takes winners from R1 slots (i*2) and (i*2 + 1)
+          const slot1 = i * 2;
+          const slot2 = i * 2 + 1;
+          
+          const slot1HasBye = r1SlotHasBye[slot1];
+          const slot2HasBye = r1SlotHasBye[slot2];
+          const byeTeamId1 = slot1HasBye ? r1SlotToTeamId[slot1] : null;
+          const byeTeamId2 = slot2HasBye ? r1SlotToTeamId[slot2] : null;
+          
+          // Only create R2 match if at least one slot has a bye team
+          if (slot1HasBye || slot2HasBye) {
+            // We need placeholder teams for the non-bye slot
+            // For now, we'll create the match with the bye team in the correct position
+            // The other team will be filled in when R1 is completed
+            
+            // Get a placeholder team from the first R1 match (we'll update this later)
+            // Actually, we need to use the bye team and leave other as null temporarily
+            // But matches require both team1_id and team2_id...
+            
+            // We'll create a "placeholder" approach by using the same team twice temporarily
+            // and fixing it when R1 completes. Actually, better: only create if we have both.
+            
+            if (slot1HasBye && slot2HasBye) {
+              // Both slots have byes - create full R2 match
+              round2Matches.push({
+                tournament_id: tournamentId,
+                phase: currentPhase,
+                round_number: 2,
+                team1_id: byeTeamId1!,
+                team2_id: byeTeamId2!,
+                field_number: (i % numberOfFields) + 1,
+              });
+            }
+            // If only one has bye, we'll handle it when R1 completes
+          }
+        }
+        
+        if (round2Matches.length > 0) {
+          const { error: r2Error } = await supabase
+            .from("matches")
+            .insert(round2Matches);
+          
+          if (r2Error) {
+            console.error("Error inserting R2 matches:", r2Error);
+          }
+        }
+      }
+
       // If there are byes, show a message
-      if (byeTeams.length > 0) {
-        toast.success(`Bracket generated! ${byeTeams.length} bye(s): ${byeTeams.join(", ")}`);
+      if (byeTeamNames.length > 0) {
+        toast.success(`Bracket generated! ${byeTeamNames.length} bye(s): ${byeTeamNames.join(", ")}`);
       } else {
         toast.success("Bracket generated successfully!");
       }
