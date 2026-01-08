@@ -178,6 +178,7 @@ export const MatchTimer = ({
     if (!error) {
       broadcastTimerUpdate({
         action: 'pause',
+        timer_started_at: startedAt,
         timer_paused_at: now,
         timer_elapsed_when_paused: totalElapsed
       });
