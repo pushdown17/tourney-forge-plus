@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -266,6 +266,37 @@ const RefereeStation = () => {
     });
   }, [match, station?.tournament_id]);
 
+  // Auto-save debounce ref
+  const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-save scores to database
+  const autoSaveScores = useCallback(async (t1Score: number, t2Score: number) => {
+    if (!match) return;
+    
+    try {
+      await supabase
+        .from("matches")
+        .update({
+          team1_score: t1Score,
+          team2_score: t2Score
+        })
+        .eq("id", match.id);
+      console.log("Auto-saved scores:", t1Score, "-", t2Score);
+    } catch (error) {
+      console.error("Auto-save error:", error);
+    }
+  }, [match]);
+
+  // Debounced auto-save trigger
+  const triggerAutoSave = useCallback((t1Score: number, t2Score: number) => {
+    if (autoSaveTimeout.current) {
+      clearTimeout(autoSaveTimeout.current);
+    }
+    autoSaveTimeout.current = setTimeout(() => {
+      autoSaveScores(t1Score, t2Score);
+    }, 500); // Save 500ms after last change
+  }, [autoSaveScores]);
+
   const updateScore = (teamNumber: 1 | 2, delta: number) => {
     let newTeam1Score = team1?.score || 0;
     let newTeam2Score = team2?.score || 0;
@@ -280,6 +311,8 @@ const RefereeStation = () => {
     
     // Broadcast the live score
     broadcastLiveScore(newTeam1Score, newTeam2Score);
+    // Auto-save to database
+    triggerAutoSave(newTeam1Score, newTeam2Score);
   };
 
   const updatePlayerStat = (
@@ -323,6 +356,8 @@ const RefereeStation = () => {
     // Broadcast live score when goals change
     if (stat === 'goals') {
       broadcastLiveScore(newTeam1Score, newTeam2Score);
+      // Auto-save to database when goals change
+      triggerAutoSave(newTeam1Score, newTeam2Score);
     }
   };
 
