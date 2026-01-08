@@ -486,7 +486,7 @@ export const EliminationBracket = ({
       if (standingsError) throw standingsError;
 
       if (!standings || standings.length < teamsCount) {
-        toast.error(`Not enough qualified teams (${standings?.length || 0}/${teamsCount})`);
+        toast.error(`Pas assez d'équipes qualifiées (${standings?.length || 0}/${teamsCount})`);
         return;
       }
 
@@ -496,84 +496,68 @@ export const EliminationBracket = ({
       
       console.log(`Generating bracket: ${teamsCount} teams, bracket size ${bracketSize}, ${numberOfByes} byes`);
       
-      // NEW FORMAT: Only ONE preliminary match between the 2 lowest seeds
-      // For 14 teams: seed 13 vs seed 14, winner faces seed 1 in Round 1
-      // Seeds 2-12 play normal Round 1 matches with standard seeding
-      // Remaining byes go to top seeds (after seed 1 who faces preliminary winner)
+      // FORMAT: 
+      // - If there are byes needed: ONE preliminary match between 2 lowest seeds
+      // - Winner of preliminary faces #1 in Round 1
+      // - All other teams (#2 to #12 for 14 teams) play Round 1 with standard seeding
       
       const matchesToInsert: any[] = [];
-      const byeTeamNames: string[] = [];
       let matchIndex = 0;
       
       if (numberOfByes > 0) {
-        // Only ONE preliminary match: seed (teamsCount-1) vs seed (teamsCount)
-        // For 14 teams: seed 13 vs seed 14
-        const lowSeedTeam = standings[teamsCount - 1];  // Last seed (14th)
-        const highSeedTeam = standings[teamsCount - 2]; // Second-to-last (13th)
+        // Create ONE preliminary match: #13 vs #14 (for 14 teams)
+        const lastSeedTeam = standings[teamsCount - 1];     // #14
+        const secondLastTeam = standings[teamsCount - 2];   // #13
         
-        if (lowSeedTeam && highSeedTeam) {
-          const fieldNumber = 1;
+        if (lastSeedTeam && secondLastTeam) {
           matchesToInsert.push({
             tournament_id: tournamentId,
             phase: currentPhase,
             round_number: 0, // Preliminary round
-            team1_id: highSeedTeam.team_id, // Higher seed first (13)
-            team2_id: lowSeedTeam.team_id,  // Lower seed (14)
-            field_number: fieldNumber,
+            team1_id: secondLastTeam.team_id, // #13
+            team2_id: lastSeedTeam.team_id,   // #14
+            field_number: 1,
           });
           
-          console.log(`Preliminary: #${teamsCount - 1} ${highSeedTeam.team?.name} vs #${teamsCount} ${lowSeedTeam.team?.name}`);
-        }
-        
-        // Remaining byes (numberOfByes - 1) go to seeds 2, 3, 4... 
-        // (Seed 1 faces preliminary winner, so no bye for seed 1)
-        for (let i = 0; i < numberOfByes - 1; i++) {
-          const seedIndex = i + 1; // Seeds 2, 3, 4...
-          if (seedIndex < teamsCount - 2 && standings[seedIndex]) {
-            byeTeamNames.push(standings[seedIndex].team?.name || `Seed ${seedIndex + 1}`);
-          }
+          console.log(`Preliminary: #${teamsCount - 1} ${secondLastTeam.team?.name} vs #${teamsCount} ${lastSeedTeam.team?.name}`);
         }
       }
       
       // Create Round 1 matches
-      // Teams that play in Round 1: seeds 2 to (teamsCount - 2)
-      // Seed 1 waits for preliminary winner
-      // Seeds (teamsCount-1) and teamsCount are in preliminary
+      // Teams for R1: #2 to #(teamsCount - 2) = seeds 2 to 12 for 14 teams
+      // #1 waits for preliminary winner (match created when preliminary ends)
+      // #13 and #14 are in preliminary
       
-      // Available teams for R1: indices 1 to (teamsCount - 3) = seeds 2 to (teamsCount - 2)
-      const r1AvailableTeams = standings.slice(1, teamsCount - 2); // Exclude seed 1 (waits) and last 2 (preliminary)
+      // Get teams for R1: indices 1 to (teamsCount - 3) inclusive
+      const r1Teams = standings.slice(1, teamsCount - 2); // Seeds 2 to 12
       
-      // Number of R1 matches needed (excluding the seed 1 vs preliminary winner slot)
-      // Bracket has bracketSize/2 matches in R1, minus 1 for seed 1's match
-      const totalR1Slots = bracketSize / 2;
+      console.log(`R1 teams: ${r1Teams.length} teams (seeds 2 to ${teamsCount - 2})`);
       
-      // Standard seeding: 1v16, 8v9, 5v12, 4v13, 6v11, 3v14, 7v10, 2v15 (for 16-bracket)
-      // But we're adjusting: seed 1 faces preliminary winner, so we skip that slot
-      // Seeds 2-12 play normally among themselves
+      // Pair teams with standard seeding: highest vs lowest
+      // #2 vs #12, #3 vs #11, #4 vs #10, #5 vs #9, #6 vs #8
+      // If odd number, middle seed (#7) will face #1 in next round or get paired differently
       
-      // Simple approach: pair available teams by seeding
-      // Team at index i pairs with team at index (r1AvailableTeams.length - 1 - i)
-      const numR1Matches = Math.floor(r1AvailableTeams.length / 2);
+      const numR1Matches = Math.floor(r1Teams.length / 2);
       
       for (let i = 0; i < numR1Matches; i++) {
-        const team1 = r1AvailableTeams[i];
-        const team2 = r1AvailableTeams[r1AvailableTeams.length - 1 - i];
+        const highSeed = r1Teams[i];                           // #2, #3, #4...
+        const lowSeed = r1Teams[r1Teams.length - 1 - i];       // #12, #11, #10...
         
-        if (team1 && team2 && team1.team_id !== team2.team_id) {
+        if (highSeed && lowSeed && highSeed.team_id !== lowSeed.team_id) {
           const fieldNumber = (matchIndex % numberOfFields) + 1;
           matchesToInsert.push({
             tournament_id: tournamentId,
             phase: currentPhase,
             round_number: 1,
-            team1_id: team1.team_id,
-            team2_id: team2.team_id,
+            team1_id: highSeed.team_id,
+            team2_id: lowSeed.team_id,
             field_number: fieldNumber,
           });
           matchIndex++;
           
-          const seed1 = standings.indexOf(team1) + 1;
-          const seed2 = standings.indexOf(team2) + 1;
-          console.log(`R1 Match ${i + 1}: #${seed1} ${team1.team?.name} vs #${seed2} ${team2.team?.name}`);
+          const seed1 = standings.indexOf(highSeed) + 1;
+          const seed2 = standings.indexOf(lowSeed) + 1;
+          console.log(`R1: #${seed1} ${highSeed.team?.name} vs #${seed2} ${lowSeed.team?.name}`);
         }
       }
 
@@ -586,19 +570,19 @@ export const EliminationBracket = ({
         if (insertError) throw insertError;
       }
 
-      // Show appropriate message
+      // Show success message
       const prelimCount = matchesToInsert.filter(m => m.round_number === 0).length;
+      const r1Count = matchesToInsert.filter(m => m.round_number === 1).length;
+      
       if (prelimCount > 0) {
-        toast.success(`Bracket généré! 1 match préliminaire (${standings[teamsCount - 2]?.team?.name} vs ${standings[teamsCount - 1]?.team?.name})`);
-      } else if (byeTeamNames.length > 0) {
-        toast.success(`Bracket generated! ${byeTeamNames.length} bye(s): ${byeTeamNames.join(", ")}`);
+        toast.success(`Bracket généré! Tour préliminaire + ${r1Count} matchs en 8èmes`);
       } else {
-        toast.success("Bracket generated successfully!");
+        toast.success(`Bracket généré! ${r1Count} matchs`);
       }
       
       await fetchTournamentAndMatches();
     } catch (error: any) {
-      toast.error("Error generating bracket");
+      toast.error("Erreur lors de la génération du bracket");
       console.error(error);
     } finally {
       setGenerating(false);
