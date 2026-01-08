@@ -459,59 +459,6 @@ export const EliminationBracket = ({
         if (insertError) throw insertError;
       }
 
-      // If there are byes, create Round 2 matches with bye teams already placed
-      if (numberOfByes > 0) {
-        const round2MatchCount = bracketSize / 4; // Quarter-finals
-        const round2Matches = [];
-        
-        for (let i = 0; i < round2MatchCount; i++) {
-          // Each R2 match takes winners from R1 slots (i*2) and (i*2 + 1)
-          const slot1 = i * 2;
-          const slot2 = i * 2 + 1;
-          
-          const slot1HasBye = r1SlotHasBye[slot1];
-          const slot2HasBye = r1SlotHasBye[slot2];
-          const byeTeamId1 = slot1HasBye ? r1SlotToTeamId[slot1] : null;
-          const byeTeamId2 = slot2HasBye ? r1SlotToTeamId[slot2] : null;
-          
-          // Only create R2 match if at least one slot has a bye team
-          if (slot1HasBye || slot2HasBye) {
-            // We need placeholder teams for the non-bye slot
-            // For now, we'll create the match with the bye team in the correct position
-            // The other team will be filled in when R1 is completed
-            
-            // Get a placeholder team from the first R1 match (we'll update this later)
-            // Actually, we need to use the bye team and leave other as null temporarily
-            // But matches require both team1_id and team2_id...
-            
-            // We'll create a "placeholder" approach by using the same team twice temporarily
-            // and fixing it when R1 completes. Actually, better: only create if we have both.
-            
-            if (slot1HasBye && slot2HasBye) {
-              // Both slots have byes - create full R2 match
-              round2Matches.push({
-                tournament_id: tournamentId,
-                phase: currentPhase,
-                round_number: 2,
-                team1_id: byeTeamId1!,
-                team2_id: byeTeamId2!,
-                field_number: (i % numberOfFields) + 1,
-              });
-            }
-            // If only one has bye, we'll handle it when R1 completes
-          }
-        }
-        
-        if (round2Matches.length > 0) {
-          const { error: r2Error } = await supabase
-            .from("matches")
-            .insert(round2Matches);
-          
-          if (r2Error) {
-            console.error("Error inserting R2 matches:", r2Error);
-          }
-        }
-      }
 
       // If there are byes, show a message
       if (byeTeamNames.length > 0) {
@@ -613,7 +560,7 @@ export const EliminationBracket = ({
         .eq("phase", currentPhase)
         .eq("round_number", completedRound)
         .eq("is_third_place_match", false)
-        .order("id", { ascending: true });
+        .order("created_at", { ascending: true });
 
       if (matchesError) throw matchesError;
       if (!roundMatches || roundMatches.length === 0) return;
@@ -651,26 +598,22 @@ export const EliminationBracket = ({
       if (standingsError) throw standingsError;
 
       // Identify teams that had byes (top N seeds where N = numberOfByes)
-      const byeTeamIds = numberOfByes > 0 && standings 
-        ? standings.slice(0, numberOfByes).map(s => s.team_id)
+      const byeTeamsInSeedOrder = numberOfByes > 0 && standings
+        ? standings.slice(0, numberOfByes).map((s, idx) => ({ teamId: s.team_id, seed: idx + 1 }))
         : [];
 
       console.log(`Round ${completedRound} completed check: ${roundMatches.length} matches, ${numberOfByes} byes`);
-      console.log('Bye team IDs:', byeTeamIds);
+      console.log('Bye teams (seed order):', byeTeamsInSeedOrder);
 
       const matchesToCreate: any[] = [];
 
       // Special handling for round 1 with byes
       if (completedRound === 1 && numberOfByes > 0) {
-        // For round 1 with byes, we need to pair:
-        // - Bye teams with winners from specific R1 matches
-        // - Winners from other R1 matches with each other
-        
         // Get all winners from round 1
         const r1Winners = roundMatches
           .filter(m => m.winner_id)
           .map(m => m.winner_id);
-        
+
         // Check if all R1 matches are complete
         if (r1Winners.length !== roundMatches.length) {
           console.log('Not all R1 matches complete yet');
@@ -679,25 +622,37 @@ export const EliminationBracket = ({
 
         // Calculate expected R2 matches
         const expectedR2Matches = bracketSize / 4; // For 16: 4 matches in R2
-        
-        // Proper bracket seeding for R2:
-        // In a 16-team bracket with 2 byes:
-        // - R2 match 1: Seed 1 (bye) vs Winner of R1 match where seed 8 vs 9 played
-        // - R2 match 2: Winner(5v12) vs Winner(4v13)
-        // - R2 match 3: Winner(3v14) vs Winner(6v11)
-        // - R2 match 4: Seed 2 (bye) vs Winner of R1 match where seed 7 vs 10 played
-        
-        // For simplicity, we'll use position-based pairing:
-        // Bye teams fill slots 0 and expectedR2Matches-1 (first and last)
-        // R1 winners fill the remaining slots in order
-        
+
+        // Build a standard bracket seed order so byes land in the correct quarter (and never face each other in R2)
+        const buildSeedOrder = (size: number): number[] => {
+          let order = [1, 2];
+          for (let current = 2; current < size; current *= 2) {
+            const nextSize = current * 2;
+            const next: number[] = [];
+            for (const s of order) next.push(s, nextSize + 1 - s);
+            order = next;
+          }
+          return order;
+        };
+
+        const seedOrder = buildSeedOrder(bracketSize);
+        const groupSize = 4; // Round 2 groups 4 seeds per match
         const r2Slots: (string | null)[] = new Array(expectedR2Matches * 2).fill(null);
-        
-        // Place bye teams at their seeded positions (positions 0 and 1 for top 2 seeds)
-        for (let i = 0; i < byeTeamIds.length && i < r2Slots.length; i++) {
-          r2Slots[i * 2] = byeTeamIds[i]; // Position 0, 2, 4... (every other slot for team1)
+
+        // Place bye teams into their correct Round-2 match + side according to seed order
+        for (const bt of byeTeamsInSeedOrder) {
+          const pos = seedOrder.indexOf(bt.seed);
+          if (pos === -1) continue;
+
+          const matchIndex = Math.floor(pos / groupSize);
+          const side = (pos % groupSize) < (groupSize / 2) ? 0 : 1; // top half -> team1, bottom half -> team2
+          const slotIndex = matchIndex * 2 + side;
+
+          if (slotIndex >= 0 && slotIndex < r2Slots.length) {
+            r2Slots[slotIndex] = bt.teamId;
+          }
         }
-        
+
         // Place R1 winners in remaining slots
         let winnerIdx = 0;
         for (let i = 0; i < r2Slots.length && winnerIdx < r1Winners.length; i++) {
@@ -706,23 +661,23 @@ export const EliminationBracket = ({
             winnerIdx++;
           }
         }
-        
+
         console.log('R2 slots:', r2Slots);
-        
+
         // Create R2 matches from slots
         for (let i = 0; i < expectedR2Matches; i++) {
           const team1Id = r2Slots[i * 2];
           const team2Id = r2Slots[i * 2 + 1];
-          
+
           if (!team1Id || !team2Id) continue;
-          
+
           // Check if match already exists
           const exists = existingNextRoundMatches?.some(m =>
             !m.is_third_place_match &&
             ((m.team1_id === team1Id && m.team2_id === team2Id) ||
              (m.team1_id === team2Id && m.team2_id === team1Id))
           );
-          
+
           if (!exists) {
             const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
             matchesToCreate.push({
@@ -946,24 +901,64 @@ export const EliminationBracket = ({
         // For rounds 2+: calculate expected matches normally
         const matchesInRound = bracketSize / Math.pow(2, round);
         const roundMatches = [];
-        
+
+        // For round 2, we can prefill placeholders with bye teams (top seeds)
+        const buildSeedOrder = (size: number): number[] => {
+          let order = [1, 2];
+          for (let current = 2; current < size; current *= 2) {
+            const nextSize = current * 2;
+            const next: number[] = [];
+            for (const s of order) next.push(s, nextSize + 1 - s);
+            order = next;
+          }
+          return order;
+        };
+
+        const seedOrder = round === 2 && byeTeams.length > 0 ? buildSeedOrder(bracketSize) : [];
+        const groupSize = round === 2 ? 4 : 0;
+
         for (let i = 0; i < matchesInRound; i++) {
           const existingMatch = roundMatchesSorted[i];
-          
+
           if (existingMatch) {
             roundMatches.push(existingMatch);
           } else {
             // Create a placeholder match for future rounds
-            roundMatches.push({
+            const placeholder: any = {
               id: `placeholder-${round}-${i}`,
               round_number: round,
+              team1_id: "",
+              team2_id: "",
               team1: null,
               team2: null,
               team1_score: null,
               team2_score: null,
               winner_id: null,
-              isPlaceholder: true
-            });
+              isPlaceholder: true,
+            };
+
+            // Inject bye teams into Round 2 slots (so they appear directly in the bracket)
+            if (round === 2 && byeTeams.length > 0) {
+              for (const bt of byeTeams) {
+                if (!bt.seed) continue;
+                const pos = seedOrder.indexOf(bt.seed);
+                if (pos === -1) continue;
+
+                const matchIndex = Math.floor(pos / groupSize);
+                if (matchIndex !== i) continue;
+
+                const side = (pos % groupSize) < (groupSize / 2) ? 0 : 1;
+                if (side === 0) {
+                  placeholder.team1_id = bt.id;
+                  placeholder.team1 = { id: bt.id, name: bt.name, seed: bt.seed };
+                } else {
+                  placeholder.team2_id = bt.id;
+                  placeholder.team2 = { id: bt.id, name: bt.name, seed: bt.seed };
+                }
+              }
+            }
+
+            roundMatches.push(placeholder);
           }
         }
         structure.push(roundMatches);
