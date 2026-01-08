@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,29 +12,37 @@ import BracketDemo from "./pages/BracketDemo";
 import PlayerProfile from "./pages/PlayerProfile";
 import RefereeStation from "./pages/RefereeStation";
 import NotFound from "./pages/NotFound";
+import { syncServerTimeOffset } from "@/lib/serverTime";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/create-tournament" element={<CreateTournament />} />
-          <Route path="/tournament/:id" element={<Tournament />} />
-          <Route path="/bracket-demo" element={<BracketDemo />} />
-          <Route path="/player/:name" element={<PlayerProfile />} />
-          <Route path="/referee-station/:stationId" element={<RefereeStation />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  useEffect(() => {
+    // One-time sync so timers are consistent across devices
+    syncServerTimeOffset();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/create-tournament" element={<CreateTournament />} />
+            <Route path="/tournament/:id" element={<Tournament />} />
+            <Route path="/bracket-demo" element={<BracketDemo />} />
+            <Route path="/player/:name" element={<PlayerProfile />} />
+            <Route path="/referee-station/:stationId" element={<RefereeStation />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

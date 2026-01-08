@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getSyncedNowMs } from "@/lib/serverTime";
 
 interface TimerDisplayProps {
   durationSeconds: number;
@@ -41,7 +42,7 @@ export const TimerDisplay = ({
     }
     
     const startTime = new Date(startedAt).getTime();
-    const now = Date.now();
+    const now = getSyncedNowMs();
     const elapsed = Math.floor((now - startTime) / 1000) + elapsedWhenPaused;
     return Math.max(0, durationSeconds - elapsed);
   }, [durationSeconds, startedAt, pausedAt, elapsedWhenPaused]);
