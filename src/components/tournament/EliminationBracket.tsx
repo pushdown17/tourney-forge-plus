@@ -496,42 +496,124 @@ export const EliminationBracket = ({
       
       console.log(`Generating bracket: ${teamsCount} teams, bracket size ${bracketSize}, ${numberOfByes} byes`);
       
-      // Standard tournament seeding:
-      // In a bracket of 16: seed 1 vs 16, 2 vs 15, 3 vs 14, etc.
-      // With byes, the missing seeds (15, 16 if only 14 teams) give byes to top seeds
+      // NEW FORMAT: Preliminary round for the lowest seeds
+      // Instead of byes for top seeds, the bottom teams play preliminary matches
+      // Winners face the top seeds in Round 1
       
-      // Create seeding matchups for round 1
-      const round1Matches = [];
-      const byeTeamIds: string[] = []; // Teams that get a bye
+      const matchesToInsert: any[] = [];
+      const preliminaryTeamIds: string[] = []; // Teams in preliminary
+      const byeTeamIds: string[] = []; // Teams that still get byes
       const byeTeamNames: string[] = [];
-      const firstRoundMatchCount = bracketSize / 2;
       let matchIndex = 0;
       
-      // Track which R1 match slot each team is in (for R2 pairing)
-      const r1SlotToTeamId: (string | null)[] = new Array(firstRoundMatchCount).fill(null);
-      const r1SlotHasBye: boolean[] = new Array(firstRoundMatchCount).fill(false);
+      if (numberOfByes > 0) {
+        // Create preliminary matches: bottom N*2 teams play, winners face top N seeds
+        // For 14 teams (2 byes): seeds 13, 14 play preliminary → winner faces seed 1
+        //                        seeds 11, 12 play preliminary → winner faces seed 2
+        // But if numberOfByes = 2, we only need 2 spots filled
+        // So we have: 2 preliminary matches with 4 teams (11-14)
+        
+        // Number of preliminary matches = numberOfByes
+        const numPreliminaryMatches = numberOfByes;
+        
+        // Teams in preliminary: the bottom (numberOfByes * 2) seeds
+        // BUT we can only do preliminary if we have enough teams for it
+        const teamsForPreliminary = Math.min(numberOfByes * 2, teamsCount);
+        const actualPreliminaryMatches = Math.floor(teamsForPreliminary / 2);
+        
+        // If we can't make full preliminary matches, some top seeds still get byes
+        const remainingByes = numberOfByes - actualPreliminaryMatches;
+        
+        console.log(`Preliminary: ${actualPreliminaryMatches} matches, ${remainingByes} remaining byes`);
+        
+        // Create preliminary matches (round 0)
+        for (let i = 0; i < actualPreliminaryMatches; i++) {
+          // Pair: (teamsCount - 2*i - 1) vs (teamsCount - 2*i - 2)
+          // For 14 teams, i=0: seed 14 vs seed 13, i=1: seed 12 vs seed 11
+          const lowSeedIndex = teamsCount - 1 - (2 * i);     // 13, 11, ...
+          const highSeedIndex = teamsCount - 2 - (2 * i);    // 12, 10, ...
+          
+          if (highSeedIndex < 0) break;
+          
+          const lowSeedTeam = standings[lowSeedIndex];
+          const highSeedTeam = standings[highSeedIndex];
+          
+          if (lowSeedTeam && highSeedTeam) {
+            const fieldNumber = (matchIndex % numberOfFields) + 1;
+            matchesToInsert.push({
+              tournament_id: tournamentId,
+              phase: currentPhase,
+              round_number: 0, // Preliminary round
+              team1_id: highSeedTeam.team_id, // Higher seed first
+              team2_id: lowSeedTeam.team_id,
+              field_number: fieldNumber,
+            });
+            preliminaryTeamIds.push(highSeedTeam.team_id, lowSeedTeam.team_id);
+            matchIndex++;
+            
+            console.log(`Preliminary ${i}: #${highSeedIndex + 1} ${highSeedTeam.team?.name} vs #${lowSeedIndex + 1} ${lowSeedTeam.team?.name}`);
+          }
+        }
+        
+        // Remaining byes for top seeds that don't have preliminary opponents
+        for (let i = 0; i < remainingByes; i++) {
+          const seed = i + 1 + actualPreliminaryMatches; // After the seeds facing preliminary winners
+          if (seed <= teamsCount && standings[seed - 1]) {
+            byeTeamIds.push(standings[seed - 1].team_id);
+            byeTeamNames.push(standings[seed - 1].team?.name || `Seed ${seed}`);
+          }
+        }
+      }
+      
+      // Create Round 1 matches
+      // Teams NOT in preliminary play Round 1 directly
+      // Top N seeds (where N = numberOfByes) will face preliminary winners (TBD)
+      const firstRoundMatchCount = bracketSize / 2;
+      
+      // Teams available for R1: all except those in preliminary
+      const r1Teams = standings.filter(s => !preliminaryTeamIds.includes(s.team_id));
+      
+      // Standard seeding for available teams
+      // The top seeds (facing preliminary winners) wait for their opponents
+      // We create R1 matches for all other teams
+      
+      const numTopSeedsFacingPrelim = numberOfByes; // These wait for preliminary winners
+      matchIndex = 0;
       
       for (let i = 0; i < firstRoundMatchCount; i++) {
-        // Seed positions: match i has seed (i+1) vs seed (bracketSize - i)
-        const seed1 = i + 1;  // 1, 2, 3, ... 8
-        const seed2 = bracketSize - i;  // 16, 15, 14, ... 9
+        const seed1 = i + 1;
+        const seed2 = bracketSize - i;
         
-        // Convert seeds to array indices (0-based)
-        const team1Index = seed1 - 1;  // 0, 1, 2, ... 7
-        const team2Index = seed2 - 1;  // 15, 14, 13, ... 8
+        // Convert to indices among non-preliminary teams
+        // Seed 1 faces preliminary winner (no match created yet)
+        // Seed 8 vs Seed 9 (both in R1 teams)
         
-        // Check if teams exist (teams are ranked 0 to teamsCount-1)
-        const team1 = team1Index < teamsCount ? standings[team1Index] : null;
-        const team2 = team2Index < teamsCount ? standings[team2Index] : null;
+        if (seed1 <= numTopSeedsFacingPrelim) {
+          // This top seed faces a preliminary winner - skip for now
+          // Match will be created when preliminary finishes
+          console.log(`Slot ${i}: Seed ${seed1} waits for preliminary winner`);
+          continue;
+        }
         
-        console.log(`Match slot ${i}: seed ${seed1} (idx ${team1Index}) vs seed ${seed2} (idx ${team2Index})`);
-        console.log(`  Team1: ${team1?.team?.name || 'BYE'}, Team2: ${team2?.team?.name || 'BYE'}`);
+        // Find actual teams for this matchup
+        // Adjust seed2 to account for preliminary teams removed
+        const adjustedSeed2 = seed2 - (numberOfByes * 2); // Remove preliminary teams
         
-        if (team1 && team2) {
-          // Normal match - both teams present
+        if (adjustedSeed2 > r1Teams.length || seed1 > r1Teams.length) {
+          // Not enough teams - this is a bye
+          if (seed1 <= r1Teams.length) {
+            byeTeamIds.push(r1Teams[seed1 - 1].team_id);
+            byeTeamNames.push(r1Teams[seed1 - 1].team?.name || `Seed ${seed1}`);
+          }
+          continue;
+        }
+        
+        const team1 = r1Teams[seed1 - 1];
+        const team2 = r1Teams[r1Teams.length - 1 - (i - numTopSeedsFacingPrelim)];
+        
+        if (team1 && team2 && team1.team_id !== team2.team_id) {
           const fieldNumber = (matchIndex % numberOfFields) + 1;
-          
-          round1Matches.push({
+          matchesToInsert.push({
             tournament_id: tournamentId,
             phase: currentPhase,
             round_number: 1,
@@ -540,35 +622,25 @@ export const EliminationBracket = ({
             field_number: fieldNumber,
           });
           matchIndex++;
-        } else if (team1 && !team2) {
-          // Team 1 gets a bye (their opponent doesn't exist)
-          byeTeamIds.push(team1.team_id);
-          byeTeamNames.push(team1.team?.name || `Seed ${seed1}`);
-          r1SlotHasBye[i] = true;
-          r1SlotToTeamId[i] = team1.team_id;
-          console.log(`  → ${team1.team?.name} gets a BYE`);
-        } else if (!team1 && team2) {
-          // Team 2 gets a bye (shouldn't happen with proper seeding)
-          byeTeamIds.push(team2.team_id);
-          byeTeamNames.push(team2.team?.name || `Seed ${seed2}`);
-          r1SlotHasBye[i] = true;
-          r1SlotToTeamId[i] = team2.team_id;
-          console.log(`  → ${team2.team?.name} gets a BYE`);
+          
+          console.log(`R1: #${r1Teams.indexOf(team1) + 1} ${team1.team?.name} vs #${r1Teams.indexOf(team2) + 1} ${team2.team?.name}`);
         }
       }
 
-      // Insert first round matches
-      if (round1Matches.length > 0) {
+      // Insert all matches
+      if (matchesToInsert.length > 0) {
         const { error: insertError } = await supabase
           .from("matches")
-          .insert(round1Matches);
+          .insert(matchesToInsert);
 
         if (insertError) throw insertError;
       }
 
-
-      // If there are byes, show a message
-      if (byeTeamNames.length > 0) {
+      // Show appropriate message
+      const prelimCount = matchesToInsert.filter(m => m.round_number === 0).length;
+      if (prelimCount > 0) {
+        toast.success(`Bracket generated! ${prelimCount} preliminary match(es)`);
+      } else if (byeTeamNames.length > 0) {
         toast.success(`Bracket generated! ${byeTeamNames.length} bye(s): ${byeTeamNames.join(", ")}`);
       } else {
         toast.success("Bracket generated successfully!");
@@ -673,10 +745,14 @@ export const EliminationBracket = ({
       if (!roundMatches || roundMatches.length === 0) return;
 
       // If it's the final (1 match only) and it's finished
-      if (roundMatches.length === 1 && roundMatches[0].winner_id) {
+      if (roundMatches.length === 1 && roundMatches[0].winner_id && completedRound > 0) {
         toast.success("🏆 Tournament finished! Congratulations to the winner!");
         return;
       }
+
+      const teamsCount = tournament?.teams_for_elimination || 0;
+      const bracketSize = Math.pow(2, Math.ceil(Math.log2(teamsCount)));
+      const numberOfByes = bracketSize - teamsCount;
 
       // Check which next round matches already exist
       const { data: existingNextRoundMatches, error: existingError } = await supabase
@@ -689,11 +765,75 @@ export const EliminationBracket = ({
 
       if (existingError) throw existingError;
 
-      const teamsCount = tournament?.teams_for_elimination || 0;
-      const bracketSize = Math.pow(2, Math.ceil(Math.log2(teamsCount)));
-      const numberOfByes = bracketSize - teamsCount;
+      const matchesToCreate: any[] = [];
 
-      // Get standings to identify bye teams
+      // SPECIAL: Preliminary round (round 0) completed
+      if (completedRound === 0) {
+        // Get preliminary winners and top seeds
+        const prelimWinners = roundMatches
+          .filter(m => m.winner_id)
+          .map(m => m.winner_id);
+
+        if (prelimWinners.length !== roundMatches.length) {
+          console.log('Not all preliminary matches complete yet');
+          return;
+        }
+
+        // Get standings to find top seeds
+        const { data: standings, error: standingsError } = await supabase
+          .from("team_stats")
+          .select("team_id, team:team_id(id, name)")
+          .eq("tournament_id", tournamentId)
+          .order("points", { ascending: false })
+          .order("goals_for", { ascending: false })
+          .limit(teamsCount);
+
+        if (standingsError) throw standingsError;
+
+        // Create R1 matches: top seeds vs preliminary winners
+        // Seed 1 vs prelim winner 1, Seed 2 vs prelim winner 2, etc.
+        for (let i = 0; i < prelimWinners.length; i++) {
+          const topSeed = standings?.[i];
+          const prelimWinner = prelimWinners[i];
+
+          if (topSeed && prelimWinner) {
+            // Check if match already exists
+            const exists = existingNextRoundMatches?.some(m =>
+              (m.team1_id === topSeed.team_id && m.team2_id === prelimWinner) ||
+              (m.team1_id === prelimWinner && m.team2_id === topSeed.team_id)
+            );
+
+            if (!exists) {
+              const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
+              matchesToCreate.push({
+                tournament_id: tournamentId,
+                phase: currentPhase as any,
+                round_number: 1,
+                team1_id: topSeed.team_id,
+                team2_id: prelimWinner,
+                is_third_place_match: false,
+                field_number: fieldNumber,
+              });
+              
+              console.log(`R1 created: Seed ${i + 1} vs Prelim winner ${i + 1}`);
+            }
+          }
+        }
+
+        if (matchesToCreate.length > 0) {
+          const { error: insertError } = await supabase
+            .from("matches")
+            .insert(matchesToCreate);
+
+          if (insertError) throw insertError;
+
+          toast.success(`${matchesToCreate.length} R1 match(es) created!`);
+          await fetchTournamentAndMatches();
+        }
+        return;
+      }
+
+      // Get standings to identify bye teams (if any remaining)
       const { data: standings, error: standingsError } = await supabase
         .from("team_stats")
         .select("team_id")
@@ -704,197 +844,103 @@ export const EliminationBracket = ({
 
       if (standingsError) throw standingsError;
 
-      // Identify teams that had byes (top N seeds where N = numberOfByes)
-      const byeTeamsInSeedOrder = numberOfByes > 0 && standings
-        ? standings.slice(0, numberOfByes).map((s, idx) => ({ teamId: s.team_id, seed: idx + 1 }))
-        : [];
+      console.log(`Round ${completedRound} completed check: ${roundMatches.length} matches`);
 
-      console.log(`Round ${completedRound} completed check: ${roundMatches.length} matches, ${numberOfByes} byes`);
-      console.log('Bye teams (seed order):', byeTeamsInSeedOrder);
+      // Standard progression for R1 and beyond
+      // Process matches in pairs to generate next round matches progressively
+      for (let i = 0; i < roundMatches.length; i += 2) {
+        if (i + 1 >= roundMatches.length) break; // No complete pair
 
-      const matchesToCreate: any[] = [];
+        const match1 = roundMatches[i];
+        const match2 = roundMatches[i + 1];
 
-      // Special handling for round 1 with byes
-      if (completedRound === 1 && numberOfByes > 0) {
-        // Get all winners from round 1
-        const r1Winners = roundMatches
-          .filter(m => m.winner_id)
-          .map(m => m.winner_id);
-
-        // Check if all R1 matches are complete
-        if (r1Winners.length !== roundMatches.length) {
-          console.log('Not all R1 matches complete yet');
-          return; // Wait for all matches to complete
+        // Check if both matches in the pair are finished
+        if (!match1.winner_id || !match2.winner_id) {
+          continue; // This pair is not yet complete
         }
 
-        // Calculate expected R2 matches
-        const expectedR2Matches = bracketSize / 4; // For 16: 4 matches in R2
+        // Check if a match with these two teams already exists
+        const matchAlreadyExists = existingNextRoundMatches?.some(m => 
+          !m.is_third_place_match &&
+          ((m.team1_id === match1.winner_id && m.team2_id === match2.winner_id) ||
+           (m.team1_id === match2.winner_id && m.team2_id === match1.winner_id))
+        );
 
-        // Build a standard bracket seed order so byes land in the correct quarter (and never face each other in R2)
-        const buildSeedOrder = (size: number): number[] => {
-          let order = [1, 2];
-          for (let current = 2; current < size; current *= 2) {
-            const nextSize = current * 2;
-            const next: number[] = [];
-            for (const s of order) next.push(s, nextSize + 1 - s);
-            order = next;
-          }
-          return order;
-        };
-
-        const seedOrder = buildSeedOrder(bracketSize);
-        const groupSize = 4; // Round 2 groups 4 seeds per match
-        const r2Slots: (string | null)[] = new Array(expectedR2Matches * 2).fill(null);
-
-        // Place bye teams into their correct Round-2 match + side according to seed order
-        for (const bt of byeTeamsInSeedOrder) {
-          const pos = seedOrder.indexOf(bt.seed);
-          if (pos === -1) continue;
-
-          const matchIndex = Math.floor(pos / groupSize);
-          const side = (pos % groupSize) < (groupSize / 2) ? 0 : 1; // top half -> team1, bottom half -> team2
-          const slotIndex = matchIndex * 2 + side;
-
-          if (slotIndex >= 0 && slotIndex < r2Slots.length) {
-            r2Slots[slotIndex] = bt.teamId;
-          }
+        if (matchAlreadyExists) {
+          continue; // This match already exists
         }
 
-        // Place R1 winners in remaining slots
-        let winnerIdx = 0;
-        for (let i = 0; i < r2Slots.length && winnerIdx < r1Winners.length; i++) {
-          if (r2Slots[i] === null) {
-            r2Slots[i] = r1Winners[winnerIdx];
-            winnerIdx++;
-          }
-        }
+        // If it's the semi-finals (only 2 matches in the round)
+        if (roundMatches.length === 2 && i === 0) {
+          // Get the losers for the 3rd place match
+          const loser1 = match1.winner_id === match1.team1_id ? match1.team2_id : match1.team1_id;
+          const loser2 = match2.winner_id === match2.team1_id ? match2.team2_id : match2.team1_id;
 
-        console.log('R2 slots:', r2Slots);
-
-        // Create R2 matches from slots
-        for (let i = 0; i < expectedR2Matches; i++) {
-          const team1Id = r2Slots[i * 2];
-          const team2Id = r2Slots[i * 2 + 1];
-
-          if (!team1Id || !team2Id) continue;
-
-          // Check if match already exists
-          const exists = existingNextRoundMatches?.some(m =>
-            !m.is_third_place_match &&
-            ((m.team1_id === team1Id && m.team2_id === team2Id) ||
-             (m.team1_id === team2Id && m.team2_id === team1Id))
-          );
-
-          if (!exists) {
-            const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
-            matchesToCreate.push({
-              tournament_id: tournamentId,
-              phase: currentPhase as any,
-              round_number: completedRound + 1,
-              team1_id: team1Id,
-              team2_id: team2Id,
-              is_third_place_match: false,
-              field_number: fieldNumber,
-            });
-          }
-        }
-      } else {
-        // Standard progression without byes (or rounds after R1)
-        // Process matches in pairs to generate next round matches progressively
-        for (let i = 0; i < roundMatches.length; i += 2) {
-          if (i + 1 >= roundMatches.length) break; // No complete pair
-
-          const match1 = roundMatches[i];
-          const match2 = roundMatches[i + 1];
-
-          // Check if both matches in the pair are finished
-          if (!match1.winner_id || !match2.winner_id) {
-            continue; // This pair is not yet complete
-          }
-
-          // Check if a match with these two teams already exists
-          const matchAlreadyExists = existingNextRoundMatches?.some(m => 
+          // Check if these matches don't already exist
+          const finaleExists = existingNextRoundMatches?.some(m => 
             !m.is_third_place_match &&
             ((m.team1_id === match1.winner_id && m.team2_id === match2.winner_id) ||
              (m.team1_id === match2.winner_id && m.team2_id === match1.winner_id))
           );
 
-          if (matchAlreadyExists) {
-            continue; // This match already exists
+          const thirdPlaceExists = existingNextRoundMatches?.some(m => 
+            m.is_third_place_match &&
+            ((m.team1_id === loser1 && m.team2_id === loser2) ||
+             (m.team1_id === loser2 && m.team2_id === loser1))
+          );
+
+          // If final already exists, do nothing
+          if (finaleExists) {
+            continue;
           }
 
-          // If it's the semi-finals (only 2 matches in the round)
-          if (roundMatches.length === 2 && i === 0) {
-            // Get the losers for the 3rd place match
-            const loser1 = match1.winner_id === match1.team1_id ? match1.team2_id : match1.team1_id;
-            const loser2 = match2.winner_id === match2.team1_id ? match2.team2_id : match2.team1_id;
+          // Prepare final and 3rd place matches
+          const finaleMatch = {
+            tournament_id: tournamentId,
+            phase: currentPhase as any,
+            round_number: completedRound + 1,
+            team1_id: match1.winner_id,
+            team2_id: match2.winner_id,
+            is_third_place_match: false,
+            field_number: 1,
+          };
 
-            // Check if these matches don't already exist
-            const finaleExists = existingNextRoundMatches?.some(m => 
-              !m.is_third_place_match &&
-              ((m.team1_id === match1.winner_id && m.team2_id === match2.winner_id) ||
-               (m.team1_id === match2.winner_id && m.team2_id === match1.winner_id))
-            );
+          const thirdPlaceMatch = {
+            tournament_id: tournamentId,
+            phase: currentPhase as any,
+            round_number: completedRound + 1,
+            team1_id: loser1,
+            team2_id: loser2,
+            is_third_place_match: true,
+            field_number: 2,
+          };
 
-            const thirdPlaceExists = existingNextRoundMatches?.some(m => 
-              m.is_third_place_match &&
-              ((m.team1_id === loser1 && m.team2_id === loser2) ||
-               (m.team1_id === loser2 && m.team2_id === loser1))
-            );
-
-            // If final already exists, do nothing
-            if (finaleExists) {
-              continue;
-            }
-
-            // Prepare final and 3rd place matches
-            const finaleMatch = {
-              tournament_id: tournamentId,
-              phase: currentPhase as any,
-              round_number: completedRound + 1,
-              team1_id: match1.winner_id,
-              team2_id: match2.winner_id,
-              is_third_place_match: false,
-              field_number: 1,
-            };
-
-            const thirdPlaceMatch = {
-              tournament_id: tournamentId,
-              phase: currentPhase as any,
-              round_number: completedRound + 1,
-              team1_id: loser1,
-              team2_id: loser2,
-              is_third_place_match: true,
-              field_number: 2,
-            };
-
-            // If 3rd place match doesn't exist yet, ask for confirmation
-            if (!thirdPlaceExists) {
-              setPendingFinalMatches({
-                finale: finaleMatch,
-                thirdPlace: thirdPlaceMatch,
-              });
-              setThirdPlaceDialogOpen(true);
-              return; // Stop here, creation will be done after user response
-            } else {
-              // 3rd place match already exists (maybe declined), create just the final
-              matchesToCreate.push(finaleMatch);
-            }
-          } else {
-            // For other rounds: create next round match for this pair
-            // Assign a court in round-robin
-            const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
-            
-            matchesToCreate.push({
-              tournament_id: tournamentId,
-              phase: currentPhase as any,
-              round_number: completedRound + 1,
-              team1_id: match1.winner_id,
-              team2_id: match2.winner_id,
-              is_third_place_match: false,
-              field_number: fieldNumber,
+          // If 3rd place match doesn't exist yet, ask for confirmation
+          if (!thirdPlaceExists) {
+            setPendingFinalMatches({
+              finale: finaleMatch,
+              thirdPlace: thirdPlaceMatch,
             });
+            setThirdPlaceDialogOpen(true);
+            return; // Stop here, creation will be done after user response
+          } else {
+            // 3rd place match already exists (maybe declined), create just the final
+            matchesToCreate.push(finaleMatch);
           }
+        } else {
+          // For other rounds: create next round match for this pair
+          // Assign a court in round-robin
+          const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
+          
+          matchesToCreate.push({
+            tournament_id: tournamentId,
+            phase: currentPhase as any,
+            round_number: completedRound + 1,
+            team1_id: match1.winner_id,
+            team2_id: match2.winner_id,
+            is_third_place_match: false,
+            field_number: fieldNumber,
+          });
         }
       }
 
@@ -950,16 +996,19 @@ export const EliminationBracket = ({
   };
 
   const getRoundName = (roundNumber: number, totalTeams: number) => {
+    // Preliminary round
+    if (roundNumber === 0) return "Tour préliminaire";
+    
     // Use bracket size (next power of 2) for proper round naming
     const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
     const totalRounds = Math.log2(bracketSize);
     const roundsRemaining = totalRounds - roundNumber + 1;
     
-    if (roundsRemaining === 1) return "Final";
-    if (roundsRemaining === 2) return "Semi-finals";
-    if (roundsRemaining === 3) return "Quarter-finals";
-    if (roundsRemaining === 4) return "Round of 16";
-    return `R${roundNumber}`;
+    if (roundsRemaining === 1) return "Finale";
+    if (roundsRemaining === 2) return "Demi-finales";
+    if (roundsRemaining === 3) return "Quarts de finale";
+    if (roundsRemaining === 4) return "8èmes de finale";
+    return `Tour ${roundNumber}`;
   };
 
   // Generate complete bracket structure (all rounds)
@@ -967,13 +1016,24 @@ export const EliminationBracket = ({
     if (!tournament?.teams_for_elimination) return [];
     
     const totalTeams = tournament.teams_for_elimination;
-    // Use bracket size (next power of 2) for structure
     const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
     const numberOfByes = bracketSize - totalTeams;
     const totalRounds = Math.log2(bracketSize);
     const structure: any[][] = [];
 
-    // Build standard seeding order for proper bye placement
+    // Check if there are preliminary matches (round 0)
+    const preliminaryMatches = matches
+      .filter(m => m.round_number === 0 && !m.is_third_place_match)
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+    if (preliminaryMatches.length > 0 || numberOfByes > 0) {
+      // Add preliminary round to structure
+      if (preliminaryMatches.length > 0) {
+        structure.push(preliminaryMatches);
+      }
+    }
+
+    // Build standard seeding order
     const buildSeedOrder = (size: number): number[] => {
       let order = [1, 2];
       for (let current = 2; current < size; current *= 2) {
@@ -988,10 +1048,9 @@ export const EliminationBracket = ({
     const seedOrder = buildSeedOrder(bracketSize);
 
     for (let round = 1; round <= totalRounds; round++) {
-      // Filter and sort matches of this round (exclude 3rd place match)
       const roundMatchesSorted = matches
         .filter(m => m.round_number === round && !m.is_third_place_match)
-        .sort((a, b) => a.id.localeCompare(b.id)); // Stable sort by ID
+        .sort((a, b) => a.id.localeCompare(b.id));
       
       if (round === 1) {
         // For round 1: ALWAYS show full bracket structure for proper alignment
