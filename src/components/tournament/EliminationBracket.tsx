@@ -115,6 +115,12 @@ export const EliminationBracket = ({
   const [stationDialogOpen, setStationDialogOpen] = useState(false);
   const [stationMatch, setStationMatch] = useState<{ id: string; label: string } | null>(null);
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
+  const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: {
+    durationSeconds: number;
+    startedAt: string | null;
+    pausedAt: string | null;
+    elapsedWhenPaused: number;
+  }}>({});
   const [pendingFinalMatches, setPendingFinalMatches] = useState<{
     finale: any;
     thirdPlace: any;
@@ -170,7 +176,7 @@ export const EliminationBracket = ({
     };
   }, [tournamentId]);
 
-  // Live broadcast subscription for real-time score updates (before save)
+  // Live broadcast subscription for real-time score updates (before save) and timer updates
   useEffect(() => {
     console.log('Setting up live broadcast subscription for tournament:', tournamentId);
     
@@ -215,6 +221,47 @@ export const EliminationBracket = ({
               return match;
             })
           );
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'timer_update' },
+        (payload) => {
+          console.log('Timer update broadcast received:', payload);
+          
+          const { matchId, action, timer_started_at, timer_paused_at, timer_elapsed_when_paused } = payload.payload;
+          
+          // Mark match as live when timer is running
+          if (action === 'start' || action === 'resume') {
+            setLiveMatches(prev => new Set(prev).add(matchId));
+          }
+          
+          // Update timer state
+          setMatchTimers(prev => ({
+            ...prev,
+            [matchId]: {
+              ...prev[matchId],
+              startedAt: timer_started_at,
+              pausedAt: timer_paused_at,
+              elapsedWhenPaused: timer_elapsed_when_paused ?? prev[matchId]?.elapsedWhenPaused ?? 0
+            }
+          }));
+          
+          // If timer is reset, remove live status after a delay
+          if (action === 'reset') {
+            setTimeout(() => {
+              setLiveMatches(prev => {
+                const next = new Set(prev);
+                next.delete(matchId);
+                return next;
+              });
+              setMatchTimers(prev => {
+                const next = { ...prev };
+                delete next[matchId];
+                return next;
+              });
+            }, 2000);
+          }
         }
       )
       .subscribe((status) => {
@@ -892,6 +939,7 @@ export const EliminationBracket = ({
                             isCompleted={isMatchCompleted}
                             isCreator={isCreator}
                             isLive={liveMatches.has(match.id)}
+                            timerState={matchTimers[match.id] || null}
                             tournamentId={tournamentId}
                             onStartEdit={() => {
                               if (isLocked || isMatchCompleted) {
@@ -1008,6 +1056,7 @@ export const EliminationBracket = ({
                       isLocked={thirdPlaceLocked}
                       isCompleted={isThirdPlaceCompleted}
                       isLive={liveMatches.has(thirdPlaceMatch.id)}
+                      timerState={matchTimers[thirdPlaceMatch.id] || null}
                       onStartEdit={() => {
                         if (thirdPlaceLocked || isThirdPlaceCompleted) {
                           if (isThirdPlaceCompleted) {
