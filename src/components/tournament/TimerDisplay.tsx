@@ -18,9 +18,15 @@ export const TimerDisplay = ({
   elapsedWhenPaused,
   compact = false
 }: TimerDisplayProps) => {
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(durationSeconds);
+  const safeDuration = durationSeconds || 0;
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(safeDuration);
   const [isRunning, setIsRunning] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
+
+  // Don't render if no duration is set
+  if (!durationSeconds) {
+    return null;
+  }
 
   const calculateRemaining = useCallback(() => {
     if (!startedAt) {
