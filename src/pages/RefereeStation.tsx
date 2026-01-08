@@ -549,6 +549,7 @@ const RefereeStation = () => {
                 pausedAt={station.timer_paused_at}
                 elapsedWhenPaused={station.timer_elapsed_when_paused || 0}
                 canControl={true}
+                showMilliseconds={true}
               />
             )}
 
