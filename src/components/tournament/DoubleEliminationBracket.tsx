@@ -42,6 +42,13 @@ interface DoubleEliminationBracketProps {
   isCreator?: boolean;
 }
 
+interface TimerState {
+  durationSeconds: number;
+  startedAt: string | null;
+  pausedAt: string | null;
+  elapsedWhenPaused: number;
+}
+
 /**
  * Challonge-style Double Elimination Bracket
  * 
@@ -77,6 +84,10 @@ export const DoubleEliminationBracket = ({
   const [numberOfFields, setNumberOfFields] = useState(1);
   const [recapDialogOpen, setRecapDialogOpen] = useState(false);
   
+  // Real-time timer states
+  const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
+  const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: TimerState }>({});
+  
 
   // If not yet in elimination phase, show transition component
   if (currentPhase !== "double_elimination") {
@@ -92,6 +103,55 @@ export const DoubleEliminationBracket = ({
 
   useEffect(() => {
     fetchTournamentAndMatches();
+  }, [tournamentId]);
+
+  // Real-time subscription for timer updates
+  useEffect(() => {
+    const channel = supabase
+      .channel(`tournament-live-de-${tournamentId}`)
+      .on('broadcast', { event: 'live_score' }, (payload) => {
+        const { matchId } = payload.payload;
+        if (matchId) {
+          setLiveMatches(prev => new Set([...prev, matchId]));
+        }
+      })
+      .on('broadcast', { event: 'timer_update' }, (payload) => {
+        const { matchId, action, timerState } = payload.payload;
+        console.log('[DoubleElim] Timer update received:', { matchId, action, timerState });
+        
+        if (matchId && timerState) {
+          setMatchTimers(prev => ({
+            ...prev,
+            [matchId]: timerState
+          }));
+          
+          // Mark as live when timer starts/resumes
+          if (action === 'start' || action === 'resume') {
+            setLiveMatches(prev => new Set([...prev, matchId]));
+          }
+          
+          // Remove from live when timer is reset
+          if (action === 'reset') {
+            setTimeout(() => {
+              setLiveMatches(prev => {
+                const next = new Set(prev);
+                next.delete(matchId);
+                return next;
+              });
+              setMatchTimers(prev => {
+                const next = { ...prev };
+                delete next[matchId];
+                return next;
+              });
+            }, 1000);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [tournamentId]);
 
   const fetchTournamentAndMatches = async () => {
@@ -843,6 +903,8 @@ export const DoubleEliminationBracket = ({
                         isLocked={isLocked}
                         isCompleted={isMatchCompleted}
                         isCreator={isCreator}
+                        isLive={liveMatches.has(match.id)}
+                        timerState={matchTimers[match.id] || null}
                         onStartEdit={() => {
                           if (match.isPlaceholder) return;
                           if (isLocked || isMatchCompleted) {
