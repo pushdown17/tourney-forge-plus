@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScoreInput } from "@/components/ui/score-input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Trophy, Lock, Monitor, ClipboardEdit, Radio, Timer } from "lucide-react";
+import { Trophy, Lock, Monitor, ClipboardEdit, Radio, Timer, Award } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -55,6 +55,7 @@ interface BracketMatchProps {
   isLive?: boolean;
   timerState?: TimerState | null;
   tournamentId?: string;
+  byeTeamIds?: string[];
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveScore: () => void;
@@ -79,6 +80,7 @@ export const BracketMatch = ({
   isLive = false,
   timerState,
   tournamentId,
+  byeTeamIds = [],
   onStartEdit,
   onCancelEdit,
   onSaveScore,
@@ -91,6 +93,8 @@ export const BracketMatch = ({
   const isPlaceholder = match.isPlaceholder;
   const hasTeams = match.team1 && match.team2;
   const hasWinner = !!match.winner_id;
+  const team1HasBye = byeTeamIds.includes(match.team1_id);
+  const team2HasBye = byeTeamIds.includes(match.team2_id);
   // A match is locked if it is completed (has a winner) OR if the previous matches are not finished
   const isMatchLocked = isCompleted || isLocked;
   // Only show edit controls if user is the creator
@@ -179,6 +183,12 @@ export const BracketMatch = ({
                     #{match.team1.seed}
                   </span>
                 )}
+                {team1HasBye && (
+                  <span className="text-[10px] font-semibold text-primary bg-primary/15 px-1.5 py-0.5 rounded shrink-0 flex items-center gap-0.5">
+                    <Award className="h-2.5 w-2.5" />
+                    BYE
+                  </span>
+                )}
                 <span className={cn(
                   "text-sm truncate",
                   match.winner_id === match.team1_id && "font-semibold text-primary",
@@ -213,6 +223,12 @@ export const BracketMatch = ({
                 {match.team2?.seed && (
                   <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
                     #{match.team2.seed}
+                  </span>
+                )}
+                {team2HasBye && (
+                  <span className="text-[10px] font-semibold text-primary bg-primary/15 px-1.5 py-0.5 rounded shrink-0 flex items-center gap-0.5">
+                    <Award className="h-2.5 w-2.5" />
+                    BYE
                   </span>
                 )}
                 <span className={cn(
