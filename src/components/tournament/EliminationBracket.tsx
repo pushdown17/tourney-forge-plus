@@ -1150,27 +1150,6 @@ export const EliminationBracket = ({
         </p>
       </div>
 
-      {/* Byes section - Teams qualified directly */}
-      {byeTeams.length > 0 && (
-        <div className="mb-6 p-4 rounded-lg border-2 border-primary bg-primary/10">
-          <div className="flex items-center gap-2 mb-2">
-            <Medal className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold text-foreground">
-              Équipes qualifiées directement
-            </h3>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {byeTeams.map(team => (
-              <div
-                key={team.id}
-                className="px-4 py-2 rounded-lg border-2 border-primary bg-background text-sm font-semibold text-foreground shadow-sm"
-              >
-                {team.seed ? `#${team.seed} ` : ""}{team.name}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       {matches.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No matches generated</p>
