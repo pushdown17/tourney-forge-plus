@@ -276,14 +276,21 @@ export const EliminationBracket = ({
             clearTimeout(liveTimeouts[matchId]);
           }
           
-          // Set timeout to remove live status after 10 seconds of inactivity
-          liveTimeouts[matchId] = setTimeout(() => {
-            setLiveMatches(prev => {
-              const next = new Set(prev);
-              next.delete(matchId);
-              return next;
-            });
-          }, 10000);
+          // Only set timeout to remove live status if there's no active timer for this match
+          // Check if match has a timer - if so, don't auto-remove live status
+          setMatchTimers(currentTimers => {
+            if (!currentTimers[matchId]) {
+              // No timer, set timeout to remove live status after 10 seconds
+              liveTimeouts[matchId] = setTimeout(() => {
+                setLiveMatches(prev => {
+                  const next = new Set(prev);
+                  next.delete(matchId);
+                  return next;
+                });
+              }, 10000);
+            }
+            return currentTimers;
+          });
           
           setMatches(prevMatches => 
             prevMatches.map(match => {
@@ -307,8 +314,8 @@ export const EliminationBracket = ({
           
           const { matchId, action, durationSeconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused } = payload.payload;
           
-          // Mark match as live when timer is running
-          if (action === 'start' || action === 'resume') {
+          // Mark match as live when it has a timer (regardless of action)
+          if (action !== 'reset') {
             setLiveMatches(prev => new Set(prev).add(matchId));
           }
           
