@@ -418,12 +418,29 @@ const RefereeStation = () => {
   };
 
   const validateMatch = async () => {
+    if (!match || !station?.tournament_id) return;
+    
     await saveStats();
 
-    // Clear the station's current match
+    // Broadcast match ended to bracket viewers
+    const channel = supabase.channel(`tournament-live-${station.tournament_id}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'match_ended',
+      payload: {
+        matchId: match.id
+      }
+    });
+
+    // Clear the station's current match and reset timer
     const { error } = await supabase
       .from("referee_stations")
-      .update({ current_match_id: null })
+      .update({ 
+        current_match_id: null,
+        timer_started_at: null,
+        timer_paused_at: null,
+        timer_elapsed_when_paused: 0
+      })
       .eq("id", stationId);
 
     if (error) {
