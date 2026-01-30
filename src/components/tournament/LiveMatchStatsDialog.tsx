@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { Target, Users, AlertTriangle, Radio } from "lucide-react";
+import { TimerDisplay } from "./TimerDisplay";
 
 interface LiveMatchStatsDialogProps {
   matchId: string;
@@ -50,6 +51,12 @@ export const LiveMatchStatsDialog = ({
   const [team1Score, setTeam1Score] = useState(initialTeam1Score);
   const [team2Score, setTeam2Score] = useState(initialTeam2Score);
   const [playerToTeam, setPlayerToTeam] = useState<Record<string, string>>({});
+  const [timerData, setTimerData] = useState<{
+    durationSeconds: number;
+    startedAt: string | null;
+    pausedAt: string | null;
+    elapsedWhenPaused: number;
+  } | null>(null);
 
   // Update scores when props change
   useEffect(() => {
@@ -61,8 +68,32 @@ export const LiveMatchStatsDialog = ({
   useEffect(() => {
     if (open && matchId) {
       fetchMatchStats();
+      fetchTimerData();
     }
   }, [open, matchId]);
+
+  const fetchTimerData = async () => {
+    try {
+      const { data: stationData } = await supabase
+        .from("referee_stations")
+        .select("timer_duration_seconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused")
+        .eq("tournament_id", tournamentId)
+        .eq("current_match_id", matchId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (stationData && stationData.timer_duration_seconds) {
+        setTimerData({
+          durationSeconds: stationData.timer_duration_seconds,
+          startedAt: stationData.timer_started_at,
+          pausedAt: stationData.timer_paused_at,
+          elapsedWhenPaused: stationData.timer_elapsed_when_paused || 0,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching timer data:", error);
+    }
+  };
 
   // Real-time subscription for live updates
   useEffect(() => {
@@ -82,6 +113,31 @@ export const LiveMatchStatsDialog = ({
         (payload) => {
           console.log('Player stats update received:', payload);
           fetchMatchStats();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to referee_stations for timer updates
+    const stationChannel = supabase
+      .channel(`live-match-station-${matchId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'referee_stations',
+          filter: `current_match_id=eq.${matchId}`
+        },
+        (payload) => {
+          const newData = payload.new as any;
+          if (newData.timer_duration_seconds) {
+            setTimerData({
+              durationSeconds: newData.timer_duration_seconds,
+              startedAt: newData.timer_started_at,
+              pausedAt: newData.timer_paused_at,
+              elapsedWhenPaused: newData.timer_elapsed_when_paused || 0,
+            });
+          }
         }
       )
       .subscribe();
@@ -109,10 +165,25 @@ export const LiveMatchStatsDialog = ({
           }
         }
       )
+      .on(
+        'broadcast',
+        { event: 'timer_update' },
+        (payload) => {
+          if (payload.payload.matchId === matchId) {
+            setTimerData({
+              durationSeconds: payload.payload.durationSeconds,
+              startedAt: payload.payload.startedAt,
+              pausedAt: payload.payload.pausedAt,
+              elapsedWhenPaused: payload.payload.elapsedWhenPaused || 0,
+            });
+          }
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(statsChannel);
+      supabase.removeChannel(stationChannel);
       supabase.removeChannel(liveChannel);
     };
   }, [open, matchId, tournamentId]);
@@ -221,7 +292,22 @@ export const LiveMatchStatsDialog = ({
               </Badge>
             )}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Match statistics and timer display
+          </DialogDescription>
         </DialogHeader>
+
+        {/* Timer Display */}
+        {isLive && timerData && (
+          <div className="flex justify-center mb-4">
+            <TimerDisplay
+              durationSeconds={timerData.durationSeconds}
+              startedAt={timerData.startedAt}
+              pausedAt={timerData.pausedAt}
+              elapsedWhenPaused={timerData.elapsedWhenPaused}
+            />
+          </div>
+        )}
 
         {/* Score */}
         <Card className={`p-4 bg-gradient-to-r from-primary/10 via-transparent to-primary/10 ${isLive ? 'ring-2 ring-destructive/50' : ''}`}>
