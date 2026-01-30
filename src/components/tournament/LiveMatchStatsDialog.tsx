@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,9 @@ export const LiveMatchStatsDialog = ({
     elapsedWhenPaused: number;
   } | null>(null);
 
+  // Avoid applying out-of-order station timer updates (multiple stations / network jitter).
+  const lastTimerUpdatedAtRef = useRef<string | null>(null);
+
   // Update scores when props change
   useEffect(() => {
     setTeam1Score(initialTeam1Score);
@@ -74,15 +77,20 @@ export const LiveMatchStatsDialog = ({
 
   const fetchTimerData = async () => {
     try {
-      const { data: stationData } = await supabase
+      const { data: stations } = await supabase
         .from("referee_stations")
-        .select("timer_duration_seconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused")
+        .select("timer_duration_seconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused, updated_at")
         .eq("tournament_id", tournamentId)
         .eq("current_match_id", matchId)
         .eq("is_active", true)
-        .maybeSingle();
 
+        // If there are multiple stations (or stale rows), take the most recently updated one.
+        .order("updated_at", { ascending: false })
+        .limit(1);
+
+      const stationData = stations?.[0];
       if (stationData && stationData.timer_duration_seconds) {
+        lastTimerUpdatedAtRef.current = stationData.updated_at ?? null;
         setTimerData({
           durationSeconds: stationData.timer_duration_seconds,
           startedAt: stationData.timer_started_at,
@@ -130,14 +138,21 @@ export const LiveMatchStatsDialog = ({
         },
         (payload) => {
           const newData = payload.new as any;
-          if (newData.timer_duration_seconds) {
-            setTimerData({
-              durationSeconds: newData.timer_duration_seconds,
-              startedAt: newData.timer_started_at,
-              pausedAt: newData.timer_paused_at,
-              elapsedWhenPaused: newData.timer_elapsed_when_paused || 0,
-            });
-          }
+          if (!newData) return;
+          if (newData.tournament_id && newData.tournament_id !== tournamentId) return;
+          if (!newData.timer_duration_seconds) return;
+
+          const nextUpdatedAt: string | null = newData.updated_at ?? null;
+          const prevUpdatedAt = lastTimerUpdatedAtRef.current;
+          if (nextUpdatedAt && prevUpdatedAt && nextUpdatedAt < prevUpdatedAt) return;
+
+          lastTimerUpdatedAtRef.current = nextUpdatedAt ?? prevUpdatedAt;
+          setTimerData({
+            durationSeconds: newData.timer_duration_seconds,
+            startedAt: newData.timer_started_at ?? null,
+            pausedAt: newData.timer_paused_at ?? null,
+            elapsedWhenPaused: newData.timer_elapsed_when_paused || 0,
+          });
         }
       )
       .subscribe();
@@ -162,22 +177,6 @@ export const LiveMatchStatsDialog = ({
         (payload) => {
           if (payload.payload.matchId === matchId) {
             fetchMatchStats();
-          }
-        }
-      )
-      .on(
-        'broadcast',
-        { event: 'timer_update' },
-        (payload) => {
-          if (payload.payload.matchId === matchId) {
-            const p = payload.payload as any;
-            setTimerData({
-              durationSeconds: p.durationSeconds,
-              // MatchTimer broadcasts timer_* keys; keep fallbacks for older payloads.
-              startedAt: p.timer_started_at ?? p.startedAt ?? null,
-              pausedAt: p.timer_paused_at ?? p.pausedAt ?? null,
-              elapsedWhenPaused: p.timer_elapsed_when_paused ?? p.elapsedWhenPaused ?? 0,
-            });
           }
         }
       )
