@@ -49,17 +49,31 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
     elapsedWhenPaused: number;
   }}>({});
 
-  // Fetch matches currently on referee stations
+  // Fetch matches currently on referee stations with timer data
   const fetchActiveStationMatches = async () => {
     const { data, error } = await supabase
       .from("referee_stations")
-      .select("current_match_id")
+      .select("current_match_id, timer_duration_seconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused")
       .eq("tournament_id", tournamentId)
       .eq("is_active", true)
       .not("current_match_id", "is", null);
 
     if (!error && data) {
       setActiveStationMatches(new Set(data.map(s => s.current_match_id).filter(Boolean)));
+      
+      // Also populate timer state from database
+      const timers: typeof matchTimers = {};
+      data.forEach(station => {
+        if (station.current_match_id && station.timer_duration_seconds) {
+          timers[station.current_match_id] = {
+            durationSeconds: station.timer_duration_seconds,
+            startedAt: station.timer_started_at,
+            pausedAt: station.timer_paused_at,
+            elapsedWhenPaused: station.timer_elapsed_when_paused ?? 0
+          };
+        }
+      });
+      setMatchTimers(prev => ({ ...prev, ...timers }));
     }
   };
 
@@ -175,7 +189,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
         'broadcast',
         { event: 'timer_update' },
         (payload) => {
-          const { matchId, action, timer_started_at, timer_paused_at, timer_elapsed_when_paused } = payload.payload;
+          const { matchId, action, durationSeconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused } = payload.payload;
           
           if (action === 'start' || action === 'resume') {
             setLiveMatches(prev => new Set(prev).add(matchId));
@@ -184,7 +198,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           setMatchTimers(prev => ({
             ...prev,
             [matchId]: {
-              ...prev[matchId],
+              durationSeconds: durationSeconds ?? prev[matchId]?.durationSeconds ?? 0,
               startedAt: timer_started_at,
               pausedAt: timer_paused_at,
               elapsedWhenPaused: timer_elapsed_when_paused ?? prev[matchId]?.elapsedWhenPaused ?? 0

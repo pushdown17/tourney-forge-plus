@@ -103,7 +103,37 @@ export const DoubleEliminationBracket = ({
 
   useEffect(() => {
     fetchTournamentAndMatches();
+    fetchActiveTimers();
   }, [tournamentId]);
+
+  // Fetch active timers from referee stations
+  const fetchActiveTimers = async () => {
+    const { data: stations, error } = await supabase
+      .from('referee_stations')
+      .select('current_match_id, timer_duration_seconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused')
+      .eq('tournament_id', tournamentId)
+      .not('current_match_id', 'is', null);
+    
+    if (error || !stations) return;
+    
+    const timers: { [matchId: string]: TimerState } = {};
+    const liveMatchIds: string[] = [];
+    
+    stations.forEach((station: any) => {
+      if (station.current_match_id && station.timer_duration_seconds) {
+        timers[station.current_match_id] = {
+          durationSeconds: station.timer_duration_seconds,
+          startedAt: station.timer_started_at,
+          pausedAt: station.timer_paused_at,
+          elapsedWhenPaused: station.timer_elapsed_when_paused || 0
+        };
+        liveMatchIds.push(station.current_match_id);
+      }
+    });
+    
+    setMatchTimers(timers);
+    setLiveMatches(new Set(liveMatchIds));
+  };
 
   // Real-time subscription for timer updates
   useEffect(() => {
@@ -116,13 +146,19 @@ export const DoubleEliminationBracket = ({
         }
       })
       .on('broadcast', { event: 'timer_update' }, (payload) => {
-        const { matchId, action, timerState } = payload.payload;
-        console.log('[DoubleElim] Timer update received:', { matchId, action, timerState });
+        const { matchId, action, durationSeconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused } = payload.payload;
+        console.log('[DoubleElim] Timer update received:', { matchId, action, durationSeconds });
         
-        if (matchId && timerState) {
+        if (matchId) {
+          // Update timer state
           setMatchTimers(prev => ({
             ...prev,
-            [matchId]: timerState
+            [matchId]: {
+              durationSeconds: durationSeconds ?? prev[matchId]?.durationSeconds ?? 0,
+              startedAt: timer_started_at,
+              pausedAt: timer_paused_at,
+              elapsedWhenPaused: timer_elapsed_when_paused ?? prev[matchId]?.elapsedWhenPaused ?? 0
+            }
           }));
           
           // Mark as live when timer starts/resumes
@@ -147,6 +183,18 @@ export const DoubleEliminationBracket = ({
           }
         }
       })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'referee_stations',
+          filter: `tournament_id=eq.${tournamentId}`
+        },
+        () => {
+          fetchActiveTimers();
+        }
+      )
       .subscribe();
 
     return () => {
