@@ -24,6 +24,7 @@ import { GoalRemoverDialog } from "./GoalRemoverDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
 import { MatchStatsRecap } from "./MatchStatsRecap";
 import { MatchStatsViewDialog } from "./MatchStatsViewDialog";
+import { LiveMatchStatsDialog } from "./LiveMatchStatsDialog";
 import { SendToStationDialog } from "./SendToStationDialog";
 import { TimerDisplay } from "./TimerDisplay";
 
@@ -40,6 +41,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
+  const [selectedLiveMatch, setSelectedLiveMatch] = useState<any | null>(null);
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: {
@@ -484,6 +486,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                 isOnRefereeStation={activeStationMatches.has(match.id)}
                 isLive={liveMatches.has(match.id)}
                 timerState={matchTimers[match.id] || null}
+                onViewLiveStats={!isCreator ? () => setSelectedLiveMatch(match) : undefined}
               />
             ))}
           </div>
@@ -555,7 +558,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         )}
       </Card>
 
-      {/* Match Stats Dialog */}
+      {/* Match Stats Dialog for completed matches */}
       {selectedMatch && (
         <MatchStatsViewDialog
           matchId={selectedMatch.id}
@@ -568,6 +571,23 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
           tournamentId={tournamentId}
           open={!!selectedMatch}
           onOpenChange={(open) => !open && setSelectedMatch(null)}
+        />
+      )}
+
+      {/* Live Match Stats Dialog for ongoing matches (visitors) */}
+      {selectedLiveMatch && (
+        <LiveMatchStatsDialog
+          matchId={selectedLiveMatch.id}
+          team1Id={selectedLiveMatch.team1_id}
+          team2Id={selectedLiveMatch.team2_id}
+          team1Name={selectedLiveMatch.team1?.name || ""}
+          team2Name={selectedLiveMatch.team2?.name || ""}
+          team1Score={selectedLiveMatch.team1_score}
+          team2Score={selectedLiveMatch.team2_score}
+          tournamentId={tournamentId}
+          open={!!selectedLiveMatch}
+          onOpenChange={(open) => !open && setSelectedLiveMatch(null)}
+          isLive={liveMatches.has(selectedLiveMatch.id)}
         />
       )}
     </div>
@@ -590,9 +610,10 @@ interface MatchCardProps {
     pausedAt: string | null;
     elapsedWhenPaused: number;
   } | null;
+  onViewLiveStats?: () => void;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, timerState }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, timerState, onViewLiveStats }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -903,6 +924,21 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             <span className="font-medium">{match.team2?.name || "Team 2"}</span>
           </div>
         </div>
+
+        {/* Button for visitors to view live stats */}
+        {!isCreator && onViewLiveStats && (
+          <div className="flex justify-center mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewLiveStats}
+              className="text-xs gap-1"
+            >
+              <Target className="h-3 w-3" />
+              View Live Stats
+            </Button>
+          </div>
+        )}
 
         {/* Onglets stats rapides */}
         {isCreator && (

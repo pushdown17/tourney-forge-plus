@@ -25,6 +25,7 @@ import { QuickStatDialog } from "./QuickStatDialog";
 import { MatchStatsRecap } from "./MatchStatsRecap";
 import { SendToStationDialog } from "./SendToStationDialog";
 import { TimerDisplay } from "./TimerDisplay";
+import { LiveMatchStatsDialog } from "./LiveMatchStatsDialog";
 
 interface SwissManagerProps {
   tournamentId: string;
@@ -42,6 +43,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
   const [numberOfFields, setNumberOfFields] = useState(1);
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
+  const [selectedLiveMatch, setSelectedLiveMatch] = useState<any | null>(null);
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: {
     durationSeconds: number;
     startedAt: string | null;
@@ -588,6 +590,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
                     isOnRefereeStation={activeStationMatches.has(match.id)}
                     isLive={liveMatches.has(match.id)}
                     timerState={matchTimers[match.id] || null}
+                    onViewLiveStats={!isCreator ? () => setSelectedLiveMatch(match) : undefined}
                   />
                 );
               })}
@@ -613,6 +616,23 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           )}
         </div>
       </Card>
+
+      {/* Live Match Stats Dialog for visitors */}
+      {selectedLiveMatch && (
+        <LiveMatchStatsDialog
+          matchId={selectedLiveMatch.id}
+          team1Id={selectedLiveMatch.team1_id}
+          team2Id={selectedLiveMatch.team2_id}
+          team1Name={selectedLiveMatch.team1?.name || ""}
+          team2Name={selectedLiveMatch.team2?.name || ""}
+          team1Score={selectedLiveMatch.team1_score}
+          team2Score={selectedLiveMatch.team2_score}
+          tournamentId={tournamentId}
+          open={!!selectedLiveMatch}
+          onOpenChange={(open) => !open && setSelectedLiveMatch(null)}
+          isLive={liveMatches.has(selectedLiveMatch.id)}
+        />
+      )}
     </div>
   );
 };
@@ -632,9 +652,10 @@ interface MatchCardProps {
     pausedAt: string | null;
     elapsedWhenPaused: number;
   } | null;
+  onViewLiveStats?: () => void;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLockedByPreviousMatch = false, isCreator = false, isOnRefereeStation = false, isLive = false, timerState }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLockedByPreviousMatch = false, isCreator = false, isOnRefereeStation = false, isLive = false, timerState, onViewLiveStats }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -964,6 +985,21 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
             <span className="font-medium flex-1 text-right">{match.team2?.name || "Team 2"}</span>
           </div>
         </div>
+
+        {/* Button for visitors to view live stats */}
+        {!isCreator && onViewLiveStats && (
+          <div className="flex justify-center mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewLiveStats}
+              className="text-xs gap-1"
+            >
+              <Target className="h-3 w-3" />
+              View Live Stats
+            </Button>
+          </div>
+        )}
 
         {/* Quick stats tabs */}
         {isCreator && (
