@@ -178,6 +178,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
         'broadcast',
         { event: 'live_score' },
         (payload) => {
+          console.log('Live score received in Swiss:', payload);
           const { matchId, team1_score, team2_score } = payload.payload;
           
           setLiveMatches(prev => new Set(prev).add(matchId));

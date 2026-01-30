@@ -250,12 +250,37 @@ const RefereeStation = () => {
     };
   }, [stationId, user, fetchStation]);
 
+  // Persistent broadcast channel reference
+  const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Setup broadcast channel when tournament is loaded
+  useEffect(() => {
+    if (!station?.tournament_id) return;
+
+    // Create and subscribe to the broadcast channel
+    const channel = supabase
+      .channel(`tournament-live-${station.tournament_id}`)
+      .subscribe((status) => {
+        console.log('Broadcast channel status:', status);
+      });
+
+    broadcastChannelRef.current = channel;
+
+    return () => {
+      if (broadcastChannelRef.current) {
+        supabase.removeChannel(broadcastChannelRef.current);
+        broadcastChannelRef.current = null;
+      }
+    };
+  }, [station?.tournament_id]);
+
   // Broadcast live score to viewers
   const broadcastLiveScore = useCallback((newTeam1Score: number, newTeam2Score: number) => {
-    if (!match || !station?.tournament_id) return;
+    if (!match || !broadcastChannelRef.current) return;
     
-    const channel = supabase.channel(`tournament-live-${station.tournament_id}`);
-    channel.send({
+    console.log('Broadcasting live score:', newTeam1Score, '-', newTeam2Score, 'for match', match.id);
+    
+    broadcastChannelRef.current.send({
       type: 'broadcast',
       event: 'live_score',
       payload: {
@@ -264,7 +289,7 @@ const RefereeStation = () => {
         team2_score: newTeam2Score
       }
     });
-  }, [match, station?.tournament_id]);
+  }, [match]);
 
   // Auto-save debounce ref
   const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);

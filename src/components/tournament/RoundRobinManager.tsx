@@ -163,6 +163,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         'broadcast',
         { event: 'live_score' },
         (payload) => {
+          console.log('Live score received in RoundRobin:', payload);
           const { matchId, team1_score, team2_score } = payload.payload;
           
           setLiveMatches(prev => new Set(prev).add(matchId));
