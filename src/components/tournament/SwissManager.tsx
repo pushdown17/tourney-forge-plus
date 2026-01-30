@@ -652,6 +652,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
   const [isEditing, setIsEditing] = useState(false);
   const [sendToStationOpen, setSendToStationOpen] = useState(false);
 
+  // Keep local score inputs in sync with live updates (broadcast/DB)
+  // but don't override while the user is actively editing.
+  useEffect(() => {
+    if (isEditing) return;
+    setTeam1Score(match.team1_score ?? 0);
+    setTeam2Score(match.team2_score ?? 0);
+  }, [isEditing, match.team1_score, match.team2_score]);
+
   // Load players on mount to calculate scores
   useEffect(() => {
     fetchPlayers();
