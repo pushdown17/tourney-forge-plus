@@ -558,17 +558,18 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
         )}
 
         <div className="space-y-4">
-          {matches.filter(m => m.team1_score === null || m.team2_score === null).length > 0 && (
+          {/* Ongoing matches - includes matches without scores OR matches on a referee station */}
+          {matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)).length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-3">Ongoing Matches</h3>
-              {matches.filter(m => m.team1_score === null || m.team2_score === null).map((match) => {
+              {matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)).map((match) => {
                 // Check if this match is the next to play on its field
                 const matchesOnSameField = matches
                   .filter(m => m.field_number === match.field_number)
                   .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
                 
                 const firstUnfinishedOnField = matchesOnSameField.find(
-                  m => m.team1_score === null || m.team2_score === null
+                  m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)
                 );
                 
                 const isLockedByPreviousMatch = firstUnfinishedOnField?.id !== match.id;
@@ -591,11 +592,12 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
             </div>
           )}
           
-          {matches.filter(m => m.team1_score !== null && m.team2_score !== null).length > 0 && (
+          {/* Completed matches - only matches with scores AND not on a referee station */}
+          {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-3 text-muted-foreground">Completed Matches</h3>
               <div className="space-y-2 opacity-60">
-                {matches.filter(m => m.team1_score !== null && m.team2_score !== null).map((match) => (
+                {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).map((match) => (
                   <CompletedMatchCard key={match.id} match={match} />
                 ))}
               </div>

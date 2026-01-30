@@ -465,11 +465,11 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
           </div>
         )}
 
-        {/* Matchs en cours */}
-        {matches.filter(m => m.team1_score === null || m.team2_score === null).length > 0 && (
+        {/* Matchs en cours - includes matches without scores OR matches on a referee station */}
+        {matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)).length > 0 && (
           <div className="space-y-4 mb-6">
             <h3 className="text-lg font-semibold text-muted-foreground">Ongoing Matches</h3>
-            {matches.filter(m => m.team1_score === null || m.team2_score === null).map((match) => (
+            {matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)).map((match) => (
               <MatchCard
                 key={match.id}
                 match={match}
@@ -487,14 +487,14 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
           </div>
         )}
 
-        {/* Matchs terminés */}
-        {matches.filter(m => m.team1_score !== null && m.team2_score !== null).length > 0 && (
+        {/* Matchs terminés - only matches with scores AND not on a referee station */}
+        {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).length > 0 && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
               <Trophy className="h-4 w-4" />
               Completed Matches
             </h3>
-            {matches.filter(m => m.team1_score !== null && m.team2_score !== null).map((match) => {
+            {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).map((match) => {
               const highlighted = isMatchHighlighted(match);
               return (
                 <Card 
