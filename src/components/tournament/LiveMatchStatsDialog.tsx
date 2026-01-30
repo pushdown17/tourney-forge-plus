@@ -170,11 +170,13 @@ export const LiveMatchStatsDialog = ({
         { event: 'timer_update' },
         (payload) => {
           if (payload.payload.matchId === matchId) {
+            const p = payload.payload as any;
             setTimerData({
-              durationSeconds: payload.payload.durationSeconds,
-              startedAt: payload.payload.startedAt,
-              pausedAt: payload.payload.pausedAt,
-              elapsedWhenPaused: payload.payload.elapsedWhenPaused || 0,
+              durationSeconds: p.durationSeconds,
+              // MatchTimer broadcasts timer_* keys; keep fallbacks for older payloads.
+              startedAt: p.timer_started_at ?? p.startedAt ?? null,
+              pausedAt: p.timer_paused_at ?? p.pausedAt ?? null,
+              elapsedWhenPaused: p.timer_elapsed_when_paused ?? p.elapsedWhenPaused ?? 0,
             });
           }
         }
@@ -223,10 +225,15 @@ export const LiveMatchStatsDialog = ({
         tournamentTeams = tournamentTeamsById || [];
       }
 
-      const teamMapping = tournamentTeams?.reduce((acc, tt) => {
+      const tournamentTeamIdToTeamId = tournamentTeams?.reduce((acc, tt) => {
         acc[tt.id] = tt.team_id;
         return acc;
       }, {} as Record<string, string>) || {};
+
+      // Normalize team1Id/team2Id to ALWAYS be teams.id for comparisons.
+      // If the dialog was opened with tournament_teams.id, map it back to team_id.
+      const resolvedTeam1Id = tournamentTeamIdToTeamId[team1Id] || team1Id;
+      const resolvedTeam2Id = tournamentTeamIdToTeamId[team2Id] || team2Id;
 
       // Get tournament_team_players to map players to teams
       const tournamentTeamIds = tournamentTeams?.map(tt => tt.id) || [];
@@ -242,7 +249,7 @@ export const LiveMatchStatsDialog = ({
 
       const newPlayerToTeam =
         tournamentPlayers?.reduce((acc, tp) => {
-          acc[tp.player_id] = teamMapping[tp.tournament_team_id];
+          acc[tp.player_id] = tournamentTeamIdToTeamId[tp.tournament_team_id];
           return acc;
         }, {} as Record<string, string>) || {};
 
@@ -250,7 +257,7 @@ export const LiveMatchStatsDialog = ({
       // tournament_team_player_id but *without* player_id.
       const tournamentTeamPlayerIdToTeamId =
         tournamentPlayers?.reduce((acc, tp) => {
-          acc[tp.id] = teamMapping[tp.tournament_team_id];
+          acc[tp.id] = tournamentTeamIdToTeamId[tp.tournament_team_id];
           return acc;
         }, {} as Record<string, string>) || {};
 
@@ -308,10 +315,10 @@ export const LiveMatchStatsDialog = ({
             : undefined) ||
           newPlayerToTeam[resolvedPlayer.id];
 
-        if (teamId === team1Id) {
+        if (teamId === resolvedTeam1Id) {
           playerStat.team_name = team1Name;
           team1StatsArr.push(playerStat);
-        } else if (teamId === team2Id) {
+        } else if (teamId === resolvedTeam2Id) {
           playerStat.team_name = team2Name;
           team2StatsArr.push(playerStat);
         }
