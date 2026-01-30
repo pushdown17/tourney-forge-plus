@@ -7,6 +7,8 @@ import { Target, Users, AlertTriangle } from "lucide-react";
 
 interface MatchStatsViewDialogProps {
   matchId: string;
+  team1Id: string;
+  team2Id: string;
   team1Name: string;
   team2Name: string;
   team1Score: number | null;
@@ -17,6 +19,7 @@ interface MatchStatsViewDialogProps {
 }
 
 interface PlayerMatchStat {
+  player_id: string;
   player_name: string;
   team_name: string;
   goals: number;
@@ -29,6 +32,8 @@ interface PlayerMatchStat {
 
 export const MatchStatsViewDialog = ({
   matchId,
+  team1Id,
+  team2Id,
   team1Name,
   team2Name,
   team1Score,
@@ -37,7 +42,8 @@ export const MatchStatsViewDialog = ({
   open,
   onOpenChange,
 }: MatchStatsViewDialogProps) => {
-  const [stats, setStats] = useState<PlayerMatchStat[]>([]);
+  const [team1Stats, setTeam1Stats] = useState<PlayerMatchStat[]>([]);
+  const [team2Stats, setTeam2Stats] = useState<PlayerMatchStat[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,44 +55,88 @@ export const MatchStatsViewDialog = ({
   const fetchMatchStats = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Get all player stats for this match
+      const { data: stats, error } = await supabase
         .from("player_stats")
         .select(`
-          goals, assists, fouls, penalty_30s, penalty_1m, penalty_2m,
-          player:player_id(name),
-          tournament_team_player:tournament_team_player_id(
-            tournament_team:tournament_team_id(
-              team:team_id(name)
-            )
-          )
+          *,
+          player:players(id, name)
         `)
         .eq("match_id", matchId);
 
       if (error) throw error;
 
-      const formattedStats: PlayerMatchStat[] = (data || [])
-        .filter((s: any) => s.goals > 0 || s.assists > 0 || s.fouls > 0 || s.penalty_30s > 0 || s.penalty_1m > 0 || s.penalty_2m > 0)
-        .map((s: any) => ({
-          player_name: s.player?.name || "Unknown player",
-          team_name: s.tournament_team_player?.tournament_team?.team?.name || "",
-          goals: s.goals || 0,
-          assists: s.assists || 0,
-          fouls: s.fouls || 0,
-          penalty_30s: s.penalty_30s || 0,
-          penalty_1m: s.penalty_1m || 0,
-          penalty_2m: s.penalty_2m || 0,
-        }));
+      // Get tournament_teams to know which player belongs to which team
+      const { data: tournamentTeams } = await supabase
+        .from("tournament_teams")
+        .select("id, team_id")
+        .eq("tournament_id", tournamentId)
+        .in("team_id", [team1Id, team2Id]);
 
-      setStats(formattedStats);
+      const teamMapping = tournamentTeams?.reduce((acc, tt) => {
+        acc[tt.id] = tt.team_id;
+        return acc;
+      }, {} as Record<string, string>) || {};
+
+      // Get tournament_team_players to map players to teams
+      const tournamentTeamIds = tournamentTeams?.map(tt => tt.id) || [];
+      const { data: tournamentPlayers } = await supabase
+        .from("tournament_team_players")
+        .select("id, player_id, tournament_team_id")
+        .in("tournament_team_id", tournamentTeamIds);
+
+      const playerToTeam = tournamentPlayers?.reduce((acc, tp) => {
+        acc[tp.player_id] = teamMapping[tp.tournament_team_id];
+        return acc;
+      }, {} as Record<string, string>) || {};
+
+      // Separate stats by team
+      const team1StatsArr: PlayerMatchStat[] = [];
+      const team2StatsArr: PlayerMatchStat[] = [];
+
+      stats?.forEach(stat => {
+        if (!stat.player) return;
+        
+        // Only include players with actual stats
+        if (stat.goals === 0 && stat.assists === 0 && stat.fouls === 0 && 
+            stat.penalty_30s === 0 && stat.penalty_1m === 0 && stat.penalty_2m === 0) {
+          return;
+        }
+        
+        const playerStat: PlayerMatchStat = {
+          player_id: stat.player.id,
+          player_name: stat.player.name,
+          team_name: "",
+          goals: stat.goals || 0,
+          assists: stat.assists || 0,
+          fouls: stat.fouls || 0,
+          penalty_30s: stat.penalty_30s || 0,
+          penalty_1m: stat.penalty_1m || 0,
+          penalty_2m: stat.penalty_2m || 0,
+        };
+
+        const teamId = playerToTeam[stat.player_id];
+        if (teamId === team1Id) {
+          playerStat.team_name = team1Name;
+          team1StatsArr.push(playerStat);
+        } else if (teamId === team2Id) {
+          playerStat.team_name = team2Name;
+          team2StatsArr.push(playerStat);
+        }
+      });
+
+      // Sort by goals descending
+      team1StatsArr.sort((a, b) => b.goals - a.goals || b.assists - a.assists);
+      team2StatsArr.sort((a, b) => b.goals - a.goals || b.assists - a.assists);
+
+      setTeam1Stats(team1StatsArr);
+      setTeam2Stats(team2StatsArr);
     } catch (error) {
       console.error("Error fetching match stats:", error);
     } finally {
       setLoading(false);
     }
   };
-
-  const team1Stats = stats.filter((s) => s.team_name === team1Name);
-  const team2Stats = stats.filter((s) => s.team_name === team2Name);
 
   const scorers1 = team1Stats.filter((s) => s.goals > 0).sort((a, b) => b.goals - a.goals);
   const scorers2 = team2Stats.filter((s) => s.goals > 0).sort((a, b) => b.goals - a.goals);
@@ -95,7 +145,7 @@ export const MatchStatsViewDialog = ({
   const foulers1 = team1Stats.filter((s) => s.fouls > 0 || s.penalty_30s > 0 || s.penalty_1m > 0 || s.penalty_2m > 0);
   const foulers2 = team2Stats.filter((s) => s.fouls > 0 || s.penalty_30s > 0 || s.penalty_1m > 0 || s.penalty_2m > 0);
 
-  const hasAnyStats = stats.length > 0;
+  const hasAnyStats = team1Stats.length > 0 || team2Stats.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

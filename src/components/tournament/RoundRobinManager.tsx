@@ -559,6 +559,8 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       {selectedMatch && (
         <MatchStatsViewDialog
           matchId={selectedMatch.id}
+          team1Id={selectedMatch.team1_id}
+          team2Id={selectedMatch.team2_id}
           team1Name={selectedMatch.team1?.name || ""}
           team2Name={selectedMatch.team2?.name || ""}
           team1Score={selectedMatch.team1_score}

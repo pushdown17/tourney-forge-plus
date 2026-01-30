@@ -27,6 +27,8 @@ interface Match {
   id: string;
   round_number: number;
   phase: string;
+  team1_id: string;
+  team2_id: string;
   team1_name: string;
   team2_name: string;
   team1_score: number | null;
@@ -97,7 +99,7 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
       const { data: matchesData } = await supabase
         .from("matches")
         .select(`
-          id, round_number, phase, team1_score, team2_score, is_third_place_match,
+          id, round_number, phase, team1_id, team2_id, team1_score, team2_score, is_third_place_match,
           team1:team1_id(name),
           team2:team2_id(name)
         `)
@@ -110,6 +112,8 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
         id: m.id,
         round_number: m.round_number,
         phase: m.phase,
+        team1_id: m.team1_id,
+        team2_id: m.team2_id,
         team1_name: m.team1?.name || "TBD",
         team2_name: m.team2?.name || "TBD",
         team1_score: m.team1_score,
@@ -492,6 +496,8 @@ export const ClosedTournamentSummary = ({ tournament }: ClosedTournamentSummaryP
       {selectedMatch && (
         <MatchStatsViewDialog
           matchId={selectedMatch.id}
+          team1Id={selectedMatch.team1_id}
+          team2Id={selectedMatch.team2_id}
           team1Name={selectedMatch.team1_name}
           team2Name={selectedMatch.team2_name}
           team1Score={selectedMatch.team1_score}
