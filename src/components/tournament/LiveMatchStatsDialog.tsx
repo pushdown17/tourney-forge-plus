@@ -202,12 +202,26 @@ export const LiveMatchStatsDialog = ({
 
       if (error) throw error;
 
-      // Get tournament_teams to know which player belongs to which team
-      const { data: tournamentTeams } = await supabase
+      // Get tournament_teams to know which player belongs to which team.
+      // Note: depending on where the dialog is opened from, team1Id/team2Id might be either:
+      // - teams.id (common case)
+      // - tournament_teams.id (some bracket/format variants)
+      const { data: tournamentTeamsByTeamId } = await supabase
         .from("tournament_teams")
         .select("id, team_id")
         .eq("tournament_id", tournamentId)
         .in("team_id", [team1Id, team2Id]);
+
+      let tournamentTeams = tournamentTeamsByTeamId;
+      if (!tournamentTeams || tournamentTeams.length === 0) {
+        const { data: tournamentTeamsById } = await supabase
+          .from("tournament_teams")
+          .select("id, team_id")
+          .eq("tournament_id", tournamentId)
+          .in("id", [team1Id, team2Id]);
+
+        tournamentTeams = tournamentTeamsById || [];
+      }
 
       const teamMapping = tournamentTeams?.reduce((acc, tt) => {
         acc[tt.id] = tt.team_id;
@@ -218,13 +232,35 @@ export const LiveMatchStatsDialog = ({
       const tournamentTeamIds = tournamentTeams?.map(tt => tt.id) || [];
       const { data: tournamentPlayers } = await supabase
         .from("tournament_team_players")
-        .select("id, player_id, tournament_team_id")
+        .select(`
+          id,
+          player_id,
+          tournament_team_id,
+          player:players(id, name)
+        `)
         .in("tournament_team_id", tournamentTeamIds);
 
-      const newPlayerToTeam = tournamentPlayers?.reduce((acc, tp) => {
-        acc[tp.player_id] = teamMapping[tp.tournament_team_id];
-        return acc;
-      }, {} as Record<string, string>) || {};
+      const newPlayerToTeam =
+        tournamentPlayers?.reduce((acc, tp) => {
+          acc[tp.player_id] = teamMapping[tp.tournament_team_id];
+          return acc;
+        }, {} as Record<string, string>) || {};
+
+      // Also keep mapping by tournament_team_player_id, because some stat rows are stored with
+      // tournament_team_player_id but *without* player_id.
+      const tournamentTeamPlayerIdToTeamId =
+        tournamentPlayers?.reduce((acc, tp) => {
+          acc[tp.id] = teamMapping[tp.tournament_team_id];
+          return acc;
+        }, {} as Record<string, string>) || {};
+
+      const tournamentTeamPlayerIdToPlayer =
+        tournamentPlayers?.reduce((acc, tp) => {
+          if (tp.player) {
+            acc[tp.id] = { id: tp.player.id, name: tp.player.name };
+          }
+          return acc;
+        }, {} as Record<string, { id: string; name: string }>) || {};
       
       setPlayerToTeam(newPlayerToTeam);
 
@@ -233,21 +269,45 @@ export const LiveMatchStatsDialog = ({
       const team2StatsArr: PlayerMatchStat[] = [];
 
       stats?.forEach(stat => {
-        if (!stat.player) return;
+        const resolvedPlayer =
+          stat.player ||
+          (stat.tournament_team_player_id
+            ? tournamentTeamPlayerIdToPlayer[stat.tournament_team_player_id]
+            : null);
+
+        if (!resolvedPlayer) return;
+
+        const goals = stat.goals || 0;
+        const assists = stat.assists || 0;
+        const fouls = stat.fouls || 0;
+        const penalty30 = stat.penalty_30s || 0;
+        const penalty1m = stat.penalty_1m || 0;
+        const penalty2m = stat.penalty_2m || 0;
+
+        // Live dialog: only show players that actually have events
+        if (goals === 0 && assists === 0 && fouls === 0 && penalty30 === 0 && penalty1m === 0 && penalty2m === 0) {
+          return;
+        }
         
         const playerStat: PlayerMatchStat = {
-          player_id: stat.player.id,
-          player_name: stat.player.name,
+          player_id: resolvedPlayer.id,
+          player_name: resolvedPlayer.name,
           team_name: "",
-          goals: stat.goals || 0,
-          assists: stat.assists || 0,
-          fouls: stat.fouls || 0,
-          penalty_30s: stat.penalty_30s || 0,
-          penalty_1m: stat.penalty_1m || 0,
-          penalty_2m: stat.penalty_2m || 0,
+          goals,
+          assists,
+          fouls,
+          penalty_30s: penalty30,
+          penalty_1m: penalty1m,
+          penalty_2m: penalty2m,
         };
 
-        const teamId = newPlayerToTeam[stat.player_id];
+        const teamId =
+          (stat.player_id ? newPlayerToTeam[stat.player_id] : undefined) ||
+          (stat.tournament_team_player_id
+            ? tournamentTeamPlayerIdToTeamId[stat.tournament_team_player_id]
+            : undefined) ||
+          newPlayerToTeam[resolvedPlayer.id];
+
         if (teamId === team1Id) {
           playerStat.team_name = team1Name;
           team1StatsArr.push(playerStat);
