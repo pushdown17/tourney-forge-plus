@@ -127,7 +127,11 @@ export const DoubleEliminationBracket = ({
           pausedAt: station.timer_paused_at,
           elapsedWhenPaused: station.timer_elapsed_when_paused || 0
         };
-        liveMatchIds.push(station.current_match_id);
+        
+        // Only mark as live if timer has been started
+        if (station.timer_started_at) {
+          liveMatchIds.push(station.current_match_id);
+        }
       }
     });
     

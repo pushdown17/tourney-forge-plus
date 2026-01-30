@@ -59,10 +59,13 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       .not("current_match_id", "is", null);
 
     if (!error && data) {
-      setActiveStationMatches(new Set(data.map(s => s.current_match_id).filter(Boolean)));
+      const activeMatchIds = data.map(s => s.current_match_id).filter(Boolean);
+      setActiveStationMatches(new Set(activeMatchIds));
       
-      // Also populate timer state from database
+      // Also populate timer state from database and mark as live if timer started
       const timers: typeof matchTimers = {};
+      const liveMatchIds: string[] = [];
+      
       data.forEach(station => {
         if (station.current_match_id && station.timer_duration_seconds) {
           timers[station.current_match_id] = {
@@ -71,9 +74,24 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
             pausedAt: station.timer_paused_at,
             elapsedWhenPaused: station.timer_elapsed_when_paused ?? 0
           };
+          
+          // If timer has been started, mark match as live
+          if (station.timer_started_at) {
+            liveMatchIds.push(station.current_match_id);
+          }
         }
       });
+      
       setMatchTimers(prev => ({ ...prev, ...timers }));
+      
+      // Set matches with running timers as live
+      if (liveMatchIds.length > 0) {
+        setLiveMatches(prev => {
+          const next = new Set(prev);
+          liveMatchIds.forEach(id => next.add(id));
+          return next;
+        });
+      }
     }
   };
 
