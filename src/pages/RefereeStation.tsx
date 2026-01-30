@@ -246,6 +246,7 @@ const RefereeStation = () => {
         (payload) => {
           console.log('Station update received:', payload);
           const next = payload.new as any;
+          const hasCurrentMatchIdInPayload = Object.prototype.hasOwnProperty.call(next ?? {}, 'current_match_id');
 
           // Update station timer fields locally to keep timer UI in sync,
           // but avoid re-fetching the whole match/teams on each update.
@@ -254,15 +255,21 @@ const RefereeStation = () => {
             return {
               ...prev,
               ...next,
+              // Some realtime payloads may omit unchanged columns; never overwrite the current match id unless provided.
+              current_match_id: hasCurrentMatchIdInPayload ? (next?.current_match_id ?? null) : prev.current_match_id,
               // Keep the embedded tournament object from the initial fetch.
               tournament: prev.tournament,
             };
           });
 
-          const prevMatchId = stationMatchIdRef.current;
-          const nextMatchId = next?.current_match_id ?? null;
-          if (prevMatchId !== nextMatchId) {
-            fetchStation();
+          // Only refetch station/match when the payload *explicitly* includes a match reassignment.
+          // Otherwise timer updates can accidentally trigger a refetch that resets in-progress local UI values.
+          if (hasCurrentMatchIdInPayload) {
+            const prevMatchId = stationMatchIdRef.current;
+            const nextMatchId = next?.current_match_id ?? null;
+            if (prevMatchId !== nextMatchId) {
+              fetchStation();
+            }
           }
         }
       )
