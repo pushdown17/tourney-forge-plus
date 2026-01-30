@@ -156,8 +156,9 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
   useEffect(() => {
     const liveTimeouts: { [matchId: string]: NodeJS.Timeout } = {};
     
+    // Use the shared tournament broadcast channel (same as referee station)
     const channel = supabase
-      .channel(`tournament-live-rr-${tournamentId}`)
+      .channel(`tournament-live-${tournamentId}`)
       .on(
         'broadcast',
         { event: 'live_score' },
