@@ -68,6 +68,13 @@ const RefereeStation = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
 
+  // Keep last known match assignment to avoid refetching (and resetting local unsaved stats)
+  // on every timer tick/update.
+  const stationMatchIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    stationMatchIdRef.current = station?.current_match_id ?? null;
+  }, [station?.current_match_id]);
+
   // Check authentication
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -238,7 +245,25 @@ const RefereeStation = () => {
         },
         (payload) => {
           console.log('Station update received:', payload);
-          fetchStation();
+          const next = payload.new as any;
+
+          // Update station timer fields locally to keep timer UI in sync,
+          // but avoid re-fetching the whole match/teams on each update.
+          setStation((prev: any) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              ...next,
+              // Keep the embedded tournament object from the initial fetch.
+              tournament: prev.tournament,
+            };
+          });
+
+          const prevMatchId = stationMatchIdRef.current;
+          const nextMatchId = next?.current_match_id ?? null;
+          if (prevMatchId !== nextMatchId) {
+            fetchStation();
+          }
         }
       )
       .subscribe((status) => {
@@ -293,6 +318,111 @@ const RefereeStation = () => {
 
   // Auto-save debounce ref
   const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-save player stats (debounced per player)
+  const playerStatSaveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
+
+  const setPlayerStatRowId = useCallback((playerId: string, rowId: string) => {
+    setTeam1((prev) =>
+      prev
+        ? {
+            ...prev,
+            players: prev.players.map((p) => (p.player_id === playerId ? { ...p, id: rowId } : p)),
+          }
+        : prev
+    );
+    setTeam2((prev) =>
+      prev
+        ? {
+            ...prev,
+            players: prev.players.map((p) => (p.player_id === playerId ? { ...p, id: rowId } : p)),
+          }
+        : prev
+    );
+  }, []);
+
+  const persistPlayerStat = useCallback(
+    async (player: PlayerStat) => {
+      if (!match || !station) return;
+
+      const statData = {
+        player_id: player.player_id,
+        tournament_id: station.tournament_id,
+        match_id: match.id,
+        goals: player.goals,
+        assists: player.assists,
+        fouls: player.fouls,
+        penalty_30s: player.penalty_30s,
+        penalty_1m: player.penalty_1m,
+        penalty_2m: player.penalty_2m,
+        tournament_team_player_id: player.tournament_team_player_id,
+      };
+
+      try {
+        // Prefer updating by id when available.
+        if (player.id) {
+          const { error } = await supabase.from("player_stats").update(statData).eq("id", player.id);
+          if (error) throw error;
+        } else {
+          // Otherwise, find/create the row for this player+match.
+          const { data: existing } = await supabase
+            .from("player_stats")
+            .select("id")
+            .eq("match_id", match.id)
+            .eq("tournament_team_player_id", player.tournament_team_player_id)
+            .maybeSingle();
+
+          if (existing?.id) {
+            const { error } = await supabase.from("player_stats").update(statData).eq("id", existing.id);
+            if (error) throw error;
+            setPlayerStatRowId(player.player_id, existing.id);
+          } else {
+            const { data: inserted, error } = await supabase
+              .from("player_stats")
+              .insert(statData)
+              .select("id")
+              .single();
+            if (error) throw error;
+            if (inserted?.id) {
+              setPlayerStatRowId(player.player_id, inserted.id);
+            }
+          }
+        }
+
+        // Ensure viewers refresh instantly (realtime can lag 200-500ms).
+        broadcastChannelRef.current?.send({
+          type: "broadcast",
+          event: "player_stat_update",
+          payload: { matchId: match.id },
+        });
+      } catch (error) {
+        console.error("Error auto-saving player stat:", error);
+      }
+    },
+    [match, station, setPlayerStatRowId]
+  );
+
+  const schedulePersistPlayerStat = useCallback(
+    (player: PlayerStat) => {
+      const key = player.tournament_team_player_id || player.player_id;
+      if (!key) return;
+
+      if (playerStatSaveTimeouts.current[key]) {
+        clearTimeout(playerStatSaveTimeouts.current[key]);
+      }
+
+      playerStatSaveTimeouts.current[key] = setTimeout(() => {
+        persistPlayerStat(player);
+      }, 500);
+    },
+    [persistPlayerStat]
+  );
+
+  useEffect(() => {
+    // Clear pending player-stat saves when switching match.
+    Object.values(playerStatSaveTimeouts.current).forEach((t) => clearTimeout(t));
+    playerStatSaveTimeouts.current = {};
+  }, [match?.id]);
 
   // Auto-save scores to database
   const autoSaveScores = useCallback(async (t1Score: number, t2Score: number) => {
@@ -372,10 +502,14 @@ const RefereeStation = () => {
       const updated = updateTeam(team1);
       setTeam1(updated);
       newTeam1Score = updated.score;
+      const updatedPlayer = updated.players.find((p) => p.player_id === playerId);
+      if (updatedPlayer) schedulePersistPlayerStat(updatedPlayer);
     } else if (teamNumber === 2 && team2) {
       const updated = updateTeam(team2);
       setTeam2(updated);
       newTeam2Score = updated.score;
+      const updatedPlayer = updated.players.find((p) => p.player_id === playerId);
+      if (updatedPlayer) schedulePersistPlayerStat(updatedPlayer);
     }
 
     // Broadcast live score when goals change
