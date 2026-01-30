@@ -171,8 +171,9 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
   useEffect(() => {
     const liveTimeouts: { [matchId: string]: NodeJS.Timeout } = {};
     
+    // Use the shared tournament broadcast channel (same as referee station)
     const channel = supabase
-      .channel(`tournament-live-swiss-${tournamentId}`)
+      .channel(`tournament-live-${tournamentId}`)
       .on(
         'broadcast',
         { event: 'live_score' },
