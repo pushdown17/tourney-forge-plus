@@ -127,6 +127,7 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
       toast.error("Error deleting station");
     } else {
       toast.success("Station deleted");
+      fetchStations();
     }
   };
 
