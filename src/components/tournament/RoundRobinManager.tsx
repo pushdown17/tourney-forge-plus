@@ -470,32 +470,44 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         )}
 
         {/* Matchs en cours - includes matches without scores OR matches on a referee station */}
-        {matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)).length > 0 && (
-          <div className="space-y-4 mb-6">
-            <h3 className="text-lg font-semibold text-muted-foreground">Ongoing Matches</h3>
-            {matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)).sort((a, b) => {
-              // Live matches first, then station matches, then others
+        {(() => {
+          const ongoingMatches = matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
+          // "On Deck" = first ongoing match not currently on a station
+          const onDeckMatch = ongoingMatches
+            .sort((a, b) => {
               const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
               const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
               return aLive - bLive;
-            }).map((match) => (
-              <MatchCard
-                key={match.id}
-                match={match}
-                tournamentId={tournamentId}
-                onScoreUpdate={updateScore}
-                editingMatchId={editingMatchId}
-                setEditingMatchId={setEditingMatchId}
-                isClosed={isClosed}
-                isCreator={isCreator}
-                isOnRefereeStation={activeStationMatches.has(match.id)}
-                isLive={liveMatches.has(match.id)}
-                timerState={matchTimers[match.id] || null}
-                onViewLiveStats={!isCreator ? () => setSelectedLiveMatch(match) : undefined}
-              />
-            ))}
-          </div>
-        )}
+            })
+            .find(m => !activeStationMatches.has(m.id));
+
+          return ongoingMatches.length > 0 && (
+            <div className="space-y-4 mb-6">
+              <h3 className="text-lg font-semibold text-muted-foreground">Ongoing Matches</h3>
+              {ongoingMatches.sort((a, b) => {
+                const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
+                const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
+                return aLive - bLive;
+              }).map((match) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  tournamentId={tournamentId}
+                  onScoreUpdate={updateScore}
+                  editingMatchId={editingMatchId}
+                  setEditingMatchId={setEditingMatchId}
+                  isClosed={isClosed}
+                  isCreator={isCreator}
+                  isOnRefereeStation={activeStationMatches.has(match.id)}
+                  isLive={liveMatches.has(match.id)}
+                  isOnDeck={onDeckMatch?.id === match.id}
+                  timerState={matchTimers[match.id] || null}
+                  onViewLiveStats={!isCreator ? () => setSelectedLiveMatch(match) : undefined}
+                />
+              ))}
+            </div>
+          );
+        })()}
 
         {/* Matchs terminés - only matches with scores AND not on a referee station */}
         {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).length > 0 && (
@@ -609,6 +621,7 @@ interface MatchCardProps {
   isCreator?: boolean;
   isOnRefereeStation?: boolean;
   isLive?: boolean;
+  isOnDeck?: boolean;
   timerState?: {
     durationSeconds: number;
     startedAt: string | null;
@@ -618,7 +631,7 @@ interface MatchCardProps {
   onViewLiveStats?: () => void;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, timerState, onViewLiveStats }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, isOnDeck = false, timerState, onViewLiveStats }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -879,6 +892,12 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           {isOnRefereeStation && !isLive && !timerState && (
             <Badge className="text-xs animate-pulse bg-primary">
               <Monitor className="h-3 w-3" />
+            </Badge>
+          )}
+          {isOnDeck && !isOnRefereeStation && !isLive && (
+            <Badge variant="outline" className="text-xs gap-1 border-amber-500 text-amber-500">
+              <Clock className="h-3 w-3" />
+              On Deck
             </Badge>
           )}
         </div>
