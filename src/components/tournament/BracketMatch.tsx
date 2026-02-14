@@ -112,7 +112,7 @@ export const BracketMatch = ({
             C{match.field_number}
           </span>
         )}
-        {isLive && timerState && (
+        {isLive && timerState?.startedAt && (
           <TimerDisplay
             durationSeconds={timerState.durationSeconds}
             startedAt={timerState.startedAt}
@@ -121,10 +121,10 @@ export const BracketMatch = ({
             compact
           />
         )}
-        {isLive && !timerState && (
-          <Badge variant="destructive" className="h-4 px-1.5 text-[10px] font-bold gap-1 animate-pulse">
+        {isLive && (!timerState || !timerState.startedAt) && (
+          <Badge variant="outline" className="h-4 px-1.5 text-[10px] font-bold gap-1 border-primary text-primary">
             <Radio className="h-2.5 w-2.5" />
-            LIVE
+            On Court
           </Badge>
         )}
         {isFinal && (
