@@ -888,10 +888,10 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             🔒 Please validate the current match before modifying this one
           </div>
         )}
-        <div className="flex items-center gap-4">
-          <div className="flex-1 flex flex-col">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">{match.team1?.name || "Team 1"}</span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-sm sm:text-base truncate">{match.team1?.name || "Team 1"}</span>
               <ScoreInput
                 value={team1Score}
                 onChange={(value) => {
@@ -910,14 +910,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               />
             </div>
             {team1Players.length > 0 && (
-              <span className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+              <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">
                 {team1Players.map(p => p.name).join(", ")}
               </span>
             )}
           </div>
-          <span className="text-muted-foreground">vs</span>
-          <div className="flex-1 flex flex-col">
-            <div className="flex items-center justify-between">
+          <span className="text-muted-foreground text-center text-xs sm:text-base">vs</span>
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex items-center justify-between gap-2">
               <ScoreInput
                 value={team2Score}
                 onChange={(value) => {
@@ -934,10 +934,10 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                 }}
                 disabled={isLocked || isClosed || !isCreator}
               />
-              <span className="font-medium">{match.team2?.name || "Team 2"}</span>
+              <span className="font-medium text-sm sm:text-base truncate text-right">{match.team2?.name || "Team 2"}</span>
             </div>
             {team2Players.length > 0 && (
-              <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 text-right">
+              <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 text-right truncate">
                 {team2Players.map(p => p.name).join(", ")}
               </span>
             )}
