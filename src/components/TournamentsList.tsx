@@ -153,8 +153,13 @@ const TournamentSection = ({
         <Badge variant={badgeVariant} className="text-sm">{tournaments.length}</Badge>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {visible.map((tournament) => (
-          <Link key={tournament.id} to={`/tournament/${tournament.id}`}>
+        {visible.map((tournament, index) => (
+          <Link
+            key={tournament.id}
+            to={`/tournament/${tournament.id}`}
+            className={index >= (initialLimit || Infinity) ? "animate-fade-in" : ""}
+            style={index >= (initialLimit || Infinity) ? { animationDelay: `${(index - (initialLimit || 0)) * 75}ms`, animationFillMode: "backwards" } : undefined}
+          >
             <Card className="glass-card p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-pointer h-full group">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 min-w-0">
