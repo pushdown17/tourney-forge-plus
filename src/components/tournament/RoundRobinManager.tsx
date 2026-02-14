@@ -473,7 +473,12 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         {matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)).length > 0 && (
           <div className="space-y-4 mb-6">
             <h3 className="text-lg font-semibold text-muted-foreground">Ongoing Matches</h3>
-            {matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)).map((match) => (
+            {matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)).sort((a, b) => {
+              // Live matches first, then station matches, then others
+              const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
+              const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
+              return aLive - bLive;
+            }).map((match) => (
               <MatchCard
                 key={match.id}
                 match={match}
