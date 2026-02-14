@@ -888,61 +888,87 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             🔒 Please validate the current match before modifying this one
           </div>
         )}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="flex items-center justify-between gap-2">
+        {isCreator ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-sm sm:text-base truncate">{match.team1?.name || "Team 1"}</span>
+                <ScoreInput
+                  value={team1Score}
+                  onChange={(value) => {
+                    setTeam1Score(value);
+                    if (!isEditing) setEditingMatchId(match.id);
+                  }}
+                  onIncrement={() => {
+                    setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
+                    setGoalScorerDialogOpen(true);
+                  }}
+                  onDecrement={() => {
+                    setRemovingTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
+                    setGoalRemoverDialogOpen(true);
+                  }}
+                  disabled={isLocked || isClosed}
+                />
+              </div>
+              {team1Players.length > 0 && (
+                <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">
+                  {team1Players.map(p => p.name).join(", ")}
+                </span>
+              )}
+            </div>
+            <span className="text-muted-foreground text-center text-xs sm:text-base">vs</span>
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <ScoreInput
+                  value={team2Score}
+                  onChange={(value) => {
+                    setTeam2Score(value);
+                    if (!isEditing) setEditingMatchId(match.id);
+                  }}
+                  onIncrement={() => {
+                    setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
+                    setGoalScorerDialogOpen(true);
+                  }}
+                  onDecrement={() => {
+                    setRemovingTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
+                    setGoalRemoverDialogOpen(true);
+                  }}
+                  disabled={isLocked || isClosed}
+                />
+                <span className="font-medium text-sm sm:text-base truncate text-right">{match.team2?.name || "Team 2"}</span>
+              </div>
+              {team2Players.length > 0 && (
+                <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 text-right truncate">
+                  {team2Players.map(p => p.name).join(", ")}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="flex-1 flex flex-col min-w-0 text-right">
               <span className="font-medium text-sm sm:text-base truncate">{match.team1?.name || "Team 1"}</span>
-              <ScoreInput
-                value={team1Score}
-                onChange={(value) => {
-                  setTeam1Score(value);
-                  if (!isEditing) setEditingMatchId(match.id);
-                }}
-                onIncrement={() => {
-                  setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
-                  setGoalScorerDialogOpen(true);
-                }}
-                onDecrement={() => {
-                  setRemovingTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
-                  setGoalRemoverDialogOpen(true);
-                }}
-                disabled={isLocked || isClosed || !isCreator}
-              />
+              {team1Players.length > 0 && (
+                <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">
+                  {team1Players.map(p => p.name).join(", ")}
+                </span>
+              )}
             </div>
-            {team1Players.length > 0 && (
-              <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">
-                {team1Players.map(p => p.name).join(", ")}
-              </span>
-            )}
-          </div>
-          <span className="text-muted-foreground text-center text-xs sm:text-base">vs</span>
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <ScoreInput
-                value={team2Score}
-                onChange={(value) => {
-                  setTeam2Score(value);
-                  if (!isEditing) setEditingMatchId(match.id);
-                }}
-                onIncrement={() => {
-                  setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
-                  setGoalScorerDialogOpen(true);
-                }}
-                onDecrement={() => {
-                  setRemovingTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
-                  setGoalRemoverDialogOpen(true);
-                }}
-                disabled={isLocked || isClosed || !isCreator}
-              />
-              <span className="font-medium text-sm sm:text-base truncate text-right">{match.team2?.name || "Team 2"}</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="font-bold text-lg sm:text-xl w-6 text-center">{team1Score}</span>
+              <span className="text-muted-foreground text-sm">-</span>
+              <span className="font-bold text-lg sm:text-xl w-6 text-center">{team2Score}</span>
             </div>
-            {team2Players.length > 0 && (
-              <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 text-right truncate">
-                {team2Players.map(p => p.name).join(", ")}
-              </span>
-            )}
+            <div className="flex-1 flex flex-col min-w-0">
+              <span className="font-medium text-sm sm:text-base truncate">{match.team2?.name || "Team 2"}</span>
+              {team2Players.length > 0 && (
+                <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">
+                  {team2Players.map(p => p.name).join(", ")}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Button for visitors to view live stats */}
         {!isCreator && onViewLiveStats && (
