@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Trophy, MapPin } from "lucide-react";
+import { Calendar, Trophy, MapPin, Zap, Clock, Archive } from "lucide-react";
 
 export const TournamentsList = () => {
   const [tournaments, setTournaments] = useState<any[]>([]);
@@ -19,24 +19,10 @@ export const TournamentsList = () => {
       const { data, error } = await supabase
         .from("tournaments")
         .select("*")
-        .order("created_at", { ascending: false })
-        .limit(6);
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      
-      // Sort: In Progress first, then Upcoming, then Completed
-      const now = new Date();
-      const sorted = (data || []).sort((a, b) => {
-        const getOrder = (t: any) => {
-          if (t.is_closed) return 2; // Completed
-          if (new Date(t.start_date) > now) return 1; // Upcoming
-          return 0; // In Progress
-        };
-        const diff = getOrder(a) - getOrder(b);
-        if (diff !== 0) return diff;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
-      setTournaments(sorted);
+      setTournaments(data || []);
     } catch (error) {
       console.error("Error fetching tournaments:", error);
     } finally {
@@ -88,27 +74,90 @@ export const TournamentsList = () => {
     );
   }
 
+  const now = new Date();
+  const live = tournaments.filter(t => !t.is_closed && new Date(t.start_date) <= now);
+  const upcoming = tournaments.filter(t => !t.is_closed && new Date(t.start_date) > now);
+  const past = tournaments.filter(t => t.is_closed);
+
   return (
+    <div className="space-y-12">
+      {live.length > 0 && (
+        <TournamentSection
+          icon={<Zap className="h-6 w-6 text-green-400" />}
+          title="Live Tournaments"
+          tournaments={live}
+          badgeVariant="default"
+          badgeLabel="In Progress"
+          getPhaseLabel={getPhaseLabel}
+          formatDate={formatDate}
+        />
+      )}
+
+      {upcoming.length > 0 && (
+        <TournamentSection
+          icon={<Clock className="h-6 w-6 text-primary" />}
+          title="Next Tournaments"
+          tournaments={upcoming}
+          badgeVariant="outline"
+          badgeLabel="Upcoming"
+          getPhaseLabel={getPhaseLabel}
+          formatDate={formatDate}
+        />
+      )}
+
+      {past.length > 0 && (
+        <TournamentSection
+          icon={<Archive className="h-6 w-6 text-muted-foreground" />}
+          title="Past Tournaments"
+          tournaments={past}
+          badgeVariant="secondary"
+          badgeLabel="Completed"
+          getPhaseLabel={getPhaseLabel}
+          formatDate={formatDate}
+        />
+      )}
+    </div>
+  );
+};
+
+const TournamentSection = ({
+  icon,
+  title,
+  tournaments,
+  badgeVariant,
+  badgeLabel,
+  getPhaseLabel,
+  formatDate,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  tournaments: any[];
+  badgeVariant: "default" | "outline" | "secondary";
+  badgeLabel: string;
+  getPhaseLabel: (phase: string) => string;
+  formatDate: (date: string) => string;
+}) => (
+  <div>
+    <div className="flex items-center gap-3 mb-6">
+      {icon}
+      <h3 className="text-2xl md:text-3xl font-bold glow-text-primary">{title}</h3>
+      <Badge variant={badgeVariant} className="text-sm">{tournaments.length}</Badge>
+    </div>
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {tournaments.map((tournament) => (
         <Link key={tournament.id} to={`/tournament/${tournament.id}`}>
           <Card className="glass-card p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-pointer h-full group">
-            {/* Header with status */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1 min-w-0">
                 <h3 className="text-xl font-bold truncate group-hover:text-primary transition-colors">
                   {tournament.name}
                 </h3>
               </div>
-              <Badge 
-                variant={tournament.is_closed ? "secondary" : new Date(tournament.start_date) > new Date() ? "outline" : "default"}
-                className="ml-2 shrink-0"
-              >
-                {tournament.is_closed ? "Completed" : new Date(tournament.start_date) > new Date() ? "Upcoming" : "In Progress"}
+              <Badge variant={badgeVariant} className="ml-2 shrink-0">
+                {badgeLabel}
               </Badge>
             </div>
-            
-            {/* Tournament info */}
+
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Calendar className="h-4 w-4 shrink-0 text-primary/70" />
@@ -116,7 +165,7 @@ export const TournamentsList = () => {
                   {formatDate(tournament.start_date)} — {formatDate(tournament.end_date)}
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Trophy className="h-4 w-4 shrink-0 text-primary/70" />
                 <div className="flex flex-wrap gap-1.5">
@@ -130,7 +179,7 @@ export const TournamentsList = () => {
                   )}
                 </div>
               </div>
-              
+
               {tournament.number_of_fields && (
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
@@ -138,10 +187,9 @@ export const TournamentsList = () => {
                 </div>
               )}
             </div>
-            
           </Card>
         </Link>
       ))}
     </div>
-  );
-};
+  </div>
+);
