@@ -114,6 +114,7 @@ export const TournamentsList = () => {
           badgeLabel="Completed"
           getPhaseLabel={getPhaseLabel}
           formatDate={formatDate}
+          initialLimit={6}
         />
       )}
     </div>
@@ -128,6 +129,7 @@ const TournamentSection = ({
   badgeLabel,
   getPhaseLabel,
   formatDate,
+  initialLimit,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -136,60 +138,75 @@ const TournamentSection = ({
   badgeLabel: string;
   getPhaseLabel: (phase: string) => string;
   formatDate: (date: string) => string;
-}) => (
-  <div>
-    <div className="flex items-center gap-3 mb-6">
-      {icon}
-      <h3 className="text-2xl md:text-3xl font-bold glow-text-primary">{title}</h3>
-      <Badge variant={badgeVariant} className="text-sm">{tournaments.length}</Badge>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {tournaments.map((tournament) => (
-        <Link key={tournament.id} to={`/tournament/${tournament.id}`}>
-          <Card className="glass-card p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-pointer h-full group">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1 min-w-0">
-                <h3 className="text-xl font-bold truncate group-hover:text-primary transition-colors">
-                  {tournament.name}
-                </h3>
-              </div>
-              <Badge variant={badgeVariant} className="ml-2 shrink-0">
-                {badgeLabel}
-              </Badge>
-            </div>
+  initialLimit?: number;
+}) => {
+  const [showAll, setShowAll] = useState(false);
+  const limit = initialLimit && !showAll ? initialLimit : undefined;
+  const visible = limit ? tournaments.slice(0, limit) : tournaments;
+  const hasMore = initialLimit ? tournaments.length > initialLimit : false;
 
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Calendar className="h-4 w-4 shrink-0 text-primary/70" />
-                <span>
-                  {formatDate(tournament.start_date)} — {formatDate(tournament.end_date)}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Trophy className="h-4 w-4 shrink-0 text-primary/70" />
-                <div className="flex flex-wrap gap-1.5">
-                  <Badge variant="outline" className="text-xs">
-                    {getPhaseLabel(tournament.initial_phase)}
-                  </Badge>
-                  {tournament.elimination_type && (
-                    <Badge variant="outline" className="text-xs">
-                      {tournament.elimination_type === "single" ? "Single" : "Double"} Elim.
-                    </Badge>
-                  )}
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        {icon}
+        <h3 className="text-2xl md:text-3xl font-bold glow-text-primary">{title}</h3>
+        <Badge variant={badgeVariant} className="text-sm">{tournaments.length}</Badge>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {visible.map((tournament) => (
+          <Link key={tournament.id} to={`/tournament/${tournament.id}`}>
+            <Card className="glass-card p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-pointer h-full group">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xl font-bold truncate group-hover:text-primary transition-colors">
+                    {tournament.name}
+                  </h3>
                 </div>
+                <Badge variant={badgeVariant} className="ml-2 shrink-0">
+                  {badgeLabel}
+                </Badge>
               </div>
 
-              {tournament.number_of_fields && (
+              <div className="space-y-3 text-sm">
                 <div className="flex items-center gap-3 text-muted-foreground">
-                  <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
-                  <span>{tournament.number_of_fields} court{tournament.number_of_fields > 1 ? 's' : ''}</span>
+                  <Calendar className="h-4 w-4 shrink-0 text-primary/70" />
+                  <span>
+                    {formatDate(tournament.start_date)} — {formatDate(tournament.end_date)}
+                  </span>
                 </div>
-              )}
-            </div>
-          </Card>
-        </Link>
-      ))}
+
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Trophy className="h-4 w-4 shrink-0 text-primary/70" />
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant="outline" className="text-xs">
+                      {getPhaseLabel(tournament.initial_phase)}
+                    </Badge>
+                    {tournament.elimination_type && (
+                      <Badge variant="outline" className="text-xs">
+                        {tournament.elimination_type === "single" ? "Single" : "Double"} Elim.
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {tournament.number_of_fields && (
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
+                    <span>{tournament.number_of_fields} court{tournament.number_of_fields > 1 ? 's' : ''}</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </Link>
+        ))}
+      </div>
+      {hasMore && !showAll && (
+        <div className="text-center mt-6">
+          <Button variant="outline" onClick={() => setShowAll(true)}>
+            Voir plus ({tournaments.length - initialLimit!} restants)
+          </Button>
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
