@@ -931,10 +931,9 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
               LIVE
             </Badge>
           )}
-          {isOnRefereeStation && !isLive && (
+          {isOnRefereeStation && !isLive && !timerState && (
             <Badge className="text-xs animate-pulse bg-primary">
-              <Monitor className="h-3 w-3 mr-1" />
-              En arbitrage
+              <Monitor className="h-3 w-3" />
             </Badge>
           )}
         </div>
