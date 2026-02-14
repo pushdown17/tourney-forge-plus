@@ -123,7 +123,7 @@ export const StandingsTable = ({ tournamentId }: StandingsTableProps) => {
   return (
     <Card className="glass-card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Overall Standings</h2>
+        <h2 className="text-2xl font-bold">Overall Ranking</h2>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
           <span>Real-time updates</span>
