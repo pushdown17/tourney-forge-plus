@@ -499,7 +499,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                   isOnDeck={onDeckMatch?.id === match.id}
                   isInTheHole={inTheHoleMatch?.id === match.id}
                   timerState={matchTimers[match.id] || null}
-                  onViewLiveStats={!isCreator ? () => setSelectedLiveMatch(match) : undefined}
+                  onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
                 />
               ))}
             </div>
