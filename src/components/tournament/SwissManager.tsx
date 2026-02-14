@@ -565,8 +565,9 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           {/* Ongoing matches - includes matches without scores OR matches on a referee station */}
           {(() => {
             const ongoingMatches = matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
-            // "On Deck" = first ongoing match not currently on a station
-            const onDeckMatch = ongoingMatches.find(m => !activeStationMatches.has(m.id));
+            const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id));
+            const onDeckMatch = waitingMatches[0];
+            const inTheHoleMatch = waitingMatches[1];
 
             return ongoingMatches.length > 0 && (
               <div>
@@ -594,6 +595,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
                       isOnRefereeStation={activeStationMatches.has(match.id)}
                       isLive={liveMatches.has(match.id)}
                       isOnDeck={onDeckMatch?.id === match.id}
+                      isInTheHole={inTheHoleMatch?.id === match.id}
                       timerState={matchTimers[match.id] || null}
                       onViewLiveStats={!isCreator ? () => setSelectedLiveMatch(match) : undefined}
                     />
@@ -653,6 +655,7 @@ interface MatchCardProps {
   isOnRefereeStation?: boolean;
   isLive?: boolean;
   isOnDeck?: boolean;
+  isInTheHole?: boolean;
   timerState?: {
     durationSeconds: number;
     startedAt: string | null;
@@ -662,7 +665,7 @@ interface MatchCardProps {
   onViewLiveStats?: () => void;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLockedByPreviousMatch = false, isCreator = false, isOnRefereeStation = false, isLive = false, isOnDeck = false, timerState, onViewLiveStats }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLockedByPreviousMatch = false, isCreator = false, isOnRefereeStation = false, isLive = false, isOnDeck = false, isInTheHole = false, timerState, onViewLiveStats }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -947,6 +950,12 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
             <Badge variant="outline" className="text-xs gap-1 border-amber-500 text-amber-500">
               <Clock className="h-3 w-3" />
               On Deck
+            </Badge>
+          )}
+          {isInTheHole && !isOnRefereeStation && !isLive && (
+            <Badge variant="outline" className="text-xs gap-1 border-muted-foreground text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              In the Hole
             </Badge>
           )}
         </div>
