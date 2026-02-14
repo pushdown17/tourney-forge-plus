@@ -86,6 +86,7 @@ export const DoubleEliminationBracket = ({
   
   // Real-time timer states
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
+  const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: TimerState }>({});
   
 
@@ -118,25 +119,30 @@ export const DoubleEliminationBracket = ({
     
     const timers: { [matchId: string]: TimerState } = {};
     const liveMatchIds: string[] = [];
+    const stationMatchIds: string[] = [];
     
     stations.forEach((station: any) => {
-      if (station.current_match_id && station.timer_duration_seconds) {
-        timers[station.current_match_id] = {
-          durationSeconds: station.timer_duration_seconds,
-          startedAt: station.timer_started_at,
-          pausedAt: station.timer_paused_at,
-          elapsedWhenPaused: station.timer_elapsed_when_paused || 0
-        };
-        
-        // Only mark as live if timer has been started
-        if (station.timer_started_at) {
-          liveMatchIds.push(station.current_match_id);
+      if (station.current_match_id) {
+        stationMatchIds.push(station.current_match_id);
+        if (station.timer_duration_seconds) {
+          timers[station.current_match_id] = {
+            durationSeconds: station.timer_duration_seconds,
+            startedAt: station.timer_started_at,
+            pausedAt: station.timer_paused_at,
+            elapsedWhenPaused: station.timer_elapsed_when_paused || 0
+          };
+          
+          // Only mark as live if timer has been started
+          if (station.timer_started_at) {
+            liveMatchIds.push(station.current_match_id);
+          }
         }
       }
     });
     
     setMatchTimers(timers);
     setLiveMatches(new Set(liveMatchIds));
+    setActiveStationMatches(new Set(stationMatchIds));
   };
 
   // Real-time subscription for timer updates
@@ -844,6 +850,13 @@ export const DoubleEliminationBracket = ({
     return previousRoundMatches.every(m => m.winner_id !== null);
   };
 
+  // Compute On Deck and In the Hole matches across all brackets
+  const waitingMatches = matches
+    .filter(m => !m.winner_id && !activeStationMatches.has(m.id) && m.team1 && m.team2 && !m.isPlaceholder)
+    .sort((a, b) => a.round_number - b.round_number);
+  const onDeckMatchId = waitingMatches[0]?.id;
+  const inTheHoleMatchId = waitingMatches[1]?.id;
+
   const renderBracket = (bracketMatches: Match[], isLosers: boolean) => {
     const structure = generateBracketStructure(bracketMatches, isLosers);
     const totalTeams = tournament?.teams_for_elimination || 8;
@@ -956,6 +969,8 @@ export const DoubleEliminationBracket = ({
                         isCompleted={isMatchCompleted}
                         isCreator={isCreator}
                         isLive={liveMatches.has(match.id)}
+                        isOnDeck={onDeckMatchId === match.id}
+                        isInTheHole={inTheHoleMatchId === match.id}
                         timerState={matchTimers[match.id] || null}
                         onStartEdit={() => {
                           if (match.isPlaceholder) return;
@@ -1132,6 +1147,10 @@ export const DoubleEliminationBracket = ({
                         isLocked={resetLocked}
                         isCompleted={!!gf.winner_id}
                         isCreator={isCreator}
+                        isLive={liveMatches.has(gf.id)}
+                        isOnDeck={onDeckMatchId === gf.id}
+                        isInTheHole={inTheHoleMatchId === gf.id}
+                        timerState={matchTimers[gf.id] || null}
                         onStartEdit={() => {
                           if (gf.isPlaceholder) return;
                           if (resetLocked) {
