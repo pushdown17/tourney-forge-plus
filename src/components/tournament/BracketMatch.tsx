@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScoreInput } from "@/components/ui/score-input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Trophy, Lock, Monitor, ClipboardEdit, Radio } from "lucide-react";
+import { Trophy, Lock, Monitor, ClipboardEdit, Radio, Clock } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -53,6 +53,8 @@ interface BracketMatchProps {
   isCompleted?: boolean;
   isCreator?: boolean;
   isLive?: boolean;
+  isOnDeck?: boolean;
+  isInTheHole?: boolean;
   timerState?: TimerState | null;
   tournamentId?: string;
   onStartEdit: () => void;
@@ -77,6 +79,8 @@ export const BracketMatch = ({
   isCompleted = false,
   isCreator = false,
   isLive = false,
+  isOnDeck = false,
+  isInTheHole = false,
   timerState,
   tournamentId,
   onStartEdit,
@@ -133,6 +137,18 @@ export const BracketMatch = ({
           <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
             Completed
           </span>
+        )}
+        {isOnDeck && !isLive && !isCompleted && (
+          <Badge variant="outline" className="h-4 px-1.5 text-[10px] gap-0.5 border-amber-500 text-amber-500">
+            <Clock className="h-2.5 w-2.5" />
+            On Deck
+          </Badge>
+        )}
+        {isInTheHole && !isLive && !isCompleted && (
+          <Badge variant="outline" className="h-4 px-1.5 text-[10px] gap-0.5 border-muted-foreground text-muted-foreground">
+            <Clock className="h-2.5 w-2.5" />
+            In the Hole
+          </Badge>
         )}
       </div>
 
