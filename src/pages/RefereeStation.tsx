@@ -598,14 +598,45 @@ const RefereeStation = () => {
       }
     });
 
-    // Clear the station's current match and reset timer
+    // Find the next waiting match ("On Deck") before clearing the station
+    // Get all matches without a winner and with both teams assigned
+    const { data: allMatches } = await supabase
+      .from("matches")
+      .select("id, team1_id, team2_id, winner_id")
+      .eq("tournament_id", station.tournament_id)
+      .is("winner_id", null)
+      .neq("id", match.id)
+      .order("round_number")
+      .order("created_at");
+
+    // Get all active station match assignments (except current station)
+    const { data: activeStations } = await supabase
+      .from("referee_stations")
+      .select("current_match_id")
+      .eq("tournament_id", station.tournament_id)
+      .eq("is_active", true)
+      .not("current_match_id", "is", null)
+      .neq("id", stationId!);
+
+    const activeMatchIds = new Set(
+      (activeStations || []).map(s => s.current_match_id).filter(Boolean)
+    );
+
+    // First waiting match not already on a station
+    const nextMatch = (allMatches || []).find(
+      m => m.team1_id && m.team2_id && !activeMatchIds.has(m.id)
+    );
+
+    // Update station: assign next match or clear
+    const timerDuration = station.timer_duration_seconds;
     const { error } = await supabase
       .from("referee_stations")
       .update({ 
-        current_match_id: null,
+        current_match_id: nextMatch?.id || null,
         timer_started_at: null,
         timer_paused_at: null,
-        timer_elapsed_when_paused: 0
+        timer_elapsed_when_paused: 0,
+        timer_duration_seconds: nextMatch ? timerDuration : null
       })
       .eq("id", stationId);
 
@@ -614,11 +645,17 @@ const RefereeStation = () => {
       return;
     }
 
-    toast.success("Match validated and sent!");
+    if (nextMatch) {
+      toast.success("Match validé ! Prochain match chargé automatiquement.");
+    } else {
+      toast.success("Match validé !");
+    }
     setConfirmDialogOpen(false);
-    setMatch(null);
-    setTeam1(null);
-    setTeam2(null);
+    if (!nextMatch) {
+      setMatch(null);
+      setTeam1(null);
+      setTeam2(null);
+    }
   };
 
   // Show loading while checking auth
