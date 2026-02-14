@@ -88,10 +88,10 @@ export const TournamentsList = () => {
                 </h3>
               </div>
               <Badge 
-                variant={tournament.is_closed ? "secondary" : "default"}
+                variant={tournament.is_closed ? "secondary" : new Date(tournament.start_date) > new Date() ? "outline" : "default"}
                 className="ml-2 shrink-0"
               >
-                {tournament.is_closed ? "Completed" : "In Progress"}
+                {tournament.is_closed ? "Completed" : new Date(tournament.start_date) > new Date() ? "To Come" : "In Progress"}
               </Badge>
             </div>
             
