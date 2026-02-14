@@ -23,7 +23,20 @@ export const TournamentsList = () => {
         .limit(6);
 
       if (error) throw error;
-      setTournaments(data || []);
+      
+      // Sort: In Progress first, then Upcoming, then Completed
+      const now = new Date();
+      const sorted = (data || []).sort((a, b) => {
+        const getOrder = (t: any) => {
+          if (t.is_closed) return 2; // Completed
+          if (new Date(t.start_date) > now) return 1; // Upcoming
+          return 0; // In Progress
+        };
+        const diff = getOrder(a) - getOrder(b);
+        if (diff !== 0) return diff;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+      setTournaments(sorted);
     } catch (error) {
       console.error("Error fetching tournaments:", error);
     } finally {
