@@ -333,7 +333,7 @@ const Tournament = () => {
                 value="standings" 
                 className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
               >
-                Standings
+                Ranking
               </TabsTrigger>
               <TabsTrigger 
                 value="stats" 
