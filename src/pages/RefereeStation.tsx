@@ -67,6 +67,7 @@ const RefereeStation = () => {
   const [saving, setSaving] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const [autoLoadBanner, setAutoLoadBanner] = useState(false);
 
   // Keep last known match assignment to avoid refetching (and resetting local unsaved stats)
   // on every timer tick/update.
@@ -647,6 +648,8 @@ const RefereeStation = () => {
 
     if (nextMatch) {
       toast.success("Match validé ! Prochain match chargé automatiquement.");
+      setAutoLoadBanner(true);
+      setTimeout(() => setAutoLoadBanner(false), 5000);
     } else {
       toast.success("Match validé !");
     }
@@ -738,6 +741,29 @@ const RefereeStation = () => {
           </Badge>
         </div>
       </header>
+
+      {/* Auto-load notification banner */}
+      {autoLoadBanner && (
+        <div className="mx-4 mt-3 animate-fade-in">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/15 border border-primary/30 text-primary">
+            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <Trophy className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">Nouveau match chargé !</p>
+              <p className="text-xs opacity-80">Le prochain match a été automatiquement assigné à cette station.</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 text-primary hover:text-primary"
+              onClick={() => setAutoLoadBanner(false)}
+            >
+              OK
+            </Button>
+          </div>
+        </div>
+      )}
 
       <main className="p-4 pb-24">
         {!match ? (
