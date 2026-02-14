@@ -90,6 +90,7 @@ export const TournamentsList = () => {
           badgeLabel="In Progress"
           getPhaseLabel={getPhaseLabel}
           formatDate={formatDate}
+          initialLimit={6}
         />
       )}
 
@@ -102,6 +103,7 @@ export const TournamentsList = () => {
           badgeLabel="Upcoming"
           getPhaseLabel={getPhaseLabel}
           formatDate={formatDate}
+          initialLimit={6}
         />
       )}
 
