@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Trophy, LogOut, Menu, X } from "lucide-react";
+import { Trophy, LogOut, Menu, X, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -49,6 +49,12 @@ export const Navigation = () => {
               <Link to="/create-tournament">
                 <Button variant="hero">Create Tournament</Button>
               </Link>
+              <Link to="/my-account">
+                <Button variant="ghost">
+                  <User className="h-4 w-4 mr-2" />
+                  Mon Compte
+                </Button>
+              </Link>
               <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
@@ -80,6 +86,12 @@ export const Navigation = () => {
                   <Link to="/create-tournament" onClick={() => setIsOpen(false)}>
                     <Button variant="hero" className="w-full justify-start text-lg">
                       Create Tournament
+                    </Button>
+                  </Link>
+                  <Link to="/my-account" onClick={() => setIsOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start text-lg">
+                      <User className="h-5 w-5 mr-2" />
+                      Mon Compte
                     </Button>
                   </Link>
                   <Button 
