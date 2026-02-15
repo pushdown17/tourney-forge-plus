@@ -1,0 +1,1 @@
+ALTER TABLE public.referee_stations ALTER COLUMN timer_elapsed_when_paused TYPE numeric USING timer_elapsed_when_paused::numeric;
