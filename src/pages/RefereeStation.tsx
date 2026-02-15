@@ -6,8 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { PlayerActionPopover } from "@/components/tournament/PlayerActionPopover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,7 +65,7 @@ const RefereeStation = () => {
   const [connected, setConnected] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<{ teamNumber: 1 | 2; playerId: string } | null>(null);
   const [autoLoadBanner, setAutoLoadBanner] = useState(false);
 
   // Keep last known match assignment to avoid refetching (and resetting local unsaved stats)
@@ -857,57 +856,95 @@ const RefereeStation = () => {
               </div>
             </Card>
 
-            {/* Team 1 Players */}
-            {team1 && (
-              <Collapsible 
-                open={expandedTeam === 'team1'} 
-                onOpenChange={(open) => setExpandedTeam(open ? 'team1' : null)}
-              >
-                <Card>
-                  <CollapsibleTrigger className="w-full p-4 flex items-center justify-between">
-                    <span className="font-semibold">{team1.name} - Players</span>
-                    {expandedTeam === 'team1' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="border-t divide-y">
-                      {team1.players.map(player => (
-                        <PlayerStatRow 
+            {/* Players - always visible */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Team 1 Players */}
+              {team1 && (
+                <Card className="p-3">
+                  <p className="font-semibold text-sm mb-2 text-center truncate">{team1.name}</p>
+                  <div className="space-y-1.5">
+                    {team1.players.map(player => {
+                      const hasStats = player.goals > 0 || player.assists > 0 || player.fouls > 0 || player.penalty_30s > 0 || player.penalty_1m > 0 || player.penalty_2m > 0;
+                      return (
+                        <button
                           key={player.player_id}
-                          player={player}
-                          onStatChange={(stat, delta) => updatePlayerStat(1, player.player_id, stat, delta)}
-                        />
-                      ))}
-                    </div>
-                  </CollapsibleContent>
+                          className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors active:scale-[0.98] ${
+                            hasStats 
+                              ? "bg-primary/10 border-primary/30 font-medium" 
+                              : "bg-card hover:bg-muted border-border"
+                          }`}
+                          onClick={() => setSelectedPlayer({ teamNumber: 1, playerId: player.player_id })}
+                        >
+                          <span className="truncate block">{player.player_name}</span>
+                          {hasStats && (
+                            <span className="text-xs text-muted-foreground flex gap-1.5 mt-0.5">
+                              {player.goals > 0 && <span>⚽{player.goals}</span>}
+                              {player.assists > 0 && <span>🅰️{player.assists}</span>}
+                              {player.fouls > 0 && <span>🟡{player.fouls}</span>}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </Card>
-              </Collapsible>
-            )}
+              )}
 
-            {/* Team 2 Players */}
-            {team2 && (
-              <Collapsible 
-                open={expandedTeam === 'team2'} 
-                onOpenChange={(open) => setExpandedTeam(open ? 'team2' : null)}
-              >
-                <Card>
-                  <CollapsibleTrigger className="w-full p-4 flex items-center justify-between">
-                    <span className="font-semibold">{team2.name} - Players</span>
-                    {expandedTeam === 'team2' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="border-t divide-y">
-                      {team2.players.map(player => (
-                        <PlayerStatRow 
+              {/* Team 2 Players */}
+              {team2 && (
+                <Card className="p-3">
+                  <p className="font-semibold text-sm mb-2 text-center truncate">{team2.name}</p>
+                  <div className="space-y-1.5">
+                    {team2.players.map(player => {
+                      const hasStats = player.goals > 0 || player.assists > 0 || player.fouls > 0 || player.penalty_30s > 0 || player.penalty_1m > 0 || player.penalty_2m > 0;
+                      return (
+                        <button
                           key={player.player_id}
-                          player={player}
-                          onStatChange={(stat, delta) => updatePlayerStat(2, player.player_id, stat, delta)}
-                        />
-                      ))}
-                    </div>
-                  </CollapsibleContent>
+                          className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors active:scale-[0.98] ${
+                            hasStats 
+                              ? "bg-primary/10 border-primary/30 font-medium" 
+                              : "bg-card hover:bg-muted border-border"
+                          }`}
+                          onClick={() => setSelectedPlayer({ teamNumber: 2, playerId: player.player_id })}
+                        >
+                          <span className="truncate block">{player.player_name}</span>
+                          {hasStats && (
+                            <span className="text-xs text-muted-foreground flex gap-1.5 mt-0.5">
+                              {player.goals > 0 && <span>⚽{player.goals}</span>}
+                              {player.assists > 0 && <span>🅰️{player.assists}</span>}
+                              {player.fouls > 0 && <span>🟡{player.fouls}</span>}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </Card>
-              </Collapsible>
-            )}
+              )}
+            </div>
+
+            {/* Player action popup */}
+            {selectedPlayer && (() => {
+              const team = selectedPlayer.teamNumber === 1 ? team1 : team2;
+              const player = team?.players.find(p => p.player_id === selectedPlayer.playerId);
+              if (!player) return null;
+              return (
+                <PlayerActionPopover
+                  playerName={player.player_name}
+                  open={true}
+                  onOpenChange={(open) => { if (!open) setSelectedPlayer(null); }}
+                  stats={{
+                    goals: player.goals,
+                    assists: player.assists,
+                    fouls: player.fouls,
+                    penalty_30s: player.penalty_30s,
+                    penalty_1m: player.penalty_1m,
+                    penalty_2m: player.penalty_2m,
+                  }}
+                  onStatChange={(stat, delta) => updatePlayerStat(selectedPlayer.teamNumber, player.player_id, stat as any, delta)}
+                />
+              );
+            })()}
           </div>
         )}
       </main>
@@ -956,106 +993,5 @@ const RefereeStation = () => {
     </div>
   );
 };
-
-interface PlayerStatRowProps {
-  player: PlayerStat;
-  onStatChange: (stat: keyof Omit<PlayerStat, 'id' | 'player_id' | 'player_name' | 'tournament_team_player_id'>, delta: number) => void;
-}
-
-const PlayerStatRow = ({ player, onStatChange }: PlayerStatRowProps) => {
-  return (
-    <div className="p-4">
-      <p className="font-medium mb-3">{player.player_name}</p>
-      <div className="grid grid-cols-3 gap-3">
-        {/* Goals */}
-        <StatCounter 
-          icon={<Target className="h-4 w-4" />}
-          label="Goals"
-          value={player.goals}
-          onIncrement={() => onStatChange('goals', 1)}
-          onDecrement={() => onStatChange('goals', -1)}
-        />
-        
-        {/* Assists */}
-        <StatCounter 
-          icon={<Trophy className="h-4 w-4" />}
-          label="Assists"
-          value={player.assists}
-          onIncrement={() => onStatChange('assists', 1)}
-          onDecrement={() => onStatChange('assists', -1)}
-        />
-        
-        {/* Fouls */}
-        <StatCounter 
-          icon={<Ban className="h-4 w-4" />}
-          label="Fouls"
-          value={player.fouls}
-          onIncrement={() => onStatChange('fouls', 1)}
-          onDecrement={() => onStatChange('fouls', -1)}
-        />
-      </div>
-      
-      {/* Penalties */}
-      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-        <span>Penalties:</span>
-        <button 
-          className={`px-2 py-1 rounded ${player.penalty_30s > 0 ? 'bg-yellow-500/20 text-yellow-500' : 'bg-muted'}`}
-          onClick={() => onStatChange('penalty_30s', player.penalty_30s > 0 ? -1 : 1)}
-        >
-          30s: {player.penalty_30s}
-        </button>
-        <button 
-          className={`px-2 py-1 rounded ${player.penalty_1m > 0 ? 'bg-orange-500/20 text-orange-500' : 'bg-muted'}`}
-          onClick={() => onStatChange('penalty_1m', player.penalty_1m > 0 ? -1 : 1)}
-        >
-          1m: {player.penalty_1m}
-        </button>
-        <button 
-          className={`px-2 py-1 rounded ${player.penalty_2m > 0 ? 'bg-red-500/20 text-red-500' : 'bg-muted'}`}
-          onClick={() => onStatChange('penalty_2m', player.penalty_2m > 0 ? -1 : 1)}
-        >
-          2m: {player.penalty_2m}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-interface StatCounterProps {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  onIncrement: () => void;
-  onDecrement: () => void;
-}
-
-const StatCounter = ({ icon, label, value, onIncrement, onDecrement }: StatCounterProps) => (
-  <div className="flex flex-col items-center gap-1">
-    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-      {icon}
-      <span>{label}</span>
-    </div>
-    <div className="flex items-center gap-2">
-      <Button 
-        size="icon" 
-        variant="ghost" 
-        className="h-8 w-8"
-        onClick={onDecrement}
-        disabled={value === 0}
-      >
-        <Minus className="h-3 w-3" />
-      </Button>
-      <span className="text-lg font-bold tabular-nums w-6 text-center">{value}</span>
-      <Button 
-        size="icon" 
-        variant="ghost" 
-        className="h-8 w-8"
-        onClick={onIncrement}
-      >
-        <Plus className="h-3 w-3" />
-      </Button>
-    </div>
-  </div>
-);
 
 export default RefereeStation;
