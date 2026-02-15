@@ -31,6 +31,8 @@ interface Match {
   team1?: Team;
   team2?: Team;
   isPlaceholder?: boolean;
+  hasAdvancedTeam1?: boolean;
+  hasAdvancedTeam2?: boolean;
 }
 
 interface TimerState {
@@ -184,12 +186,16 @@ export const BracketMatch = ({
                 "flex items-center justify-between px-3 py-2 border-b border-border/30",
                 "transition-all duration-500",
                 match.winner_id === match.team1_id && "bg-primary/15",
-                advancedTeamId === match.team1_id && "bg-primary/30 animate-[pulse_0.5s_ease-in-out_3]"
+                advancedTeamId === match.team1_id && "bg-primary/30 animate-[pulse_0.5s_ease-in-out_3]",
+                match.hasAdvancedTeam1 && "bg-primary/5"
               )}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 {match.winner_id === match.team1_id && (
                   <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                )}
+                {match.hasAdvancedTeam1 && !match.winner_id && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 animate-[pulse_2s_ease-in-out_infinite]" />
                 )}
                 {match.team1?.seed && (
                   <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
@@ -199,6 +205,7 @@ export const BracketMatch = ({
                 <span className={cn(
                   "text-sm truncate",
                   match.winner_id === match.team1_id && "font-semibold text-primary",
+                  match.hasAdvancedTeam1 && !match.winner_id && "font-medium text-primary animate-fade-in",
                   !match.team1?.name && "text-muted-foreground italic"
                 )}>
                   {match.team1?.name || "TBD"}
@@ -220,12 +227,16 @@ export const BracketMatch = ({
                 "flex items-center justify-between px-3 py-2",
                 "transition-all duration-500",
                 match.winner_id === match.team2_id && "bg-primary/15",
-                advancedTeamId === match.team2_id && "bg-primary/30 animate-[pulse_0.5s_ease-in-out_3]"
+                advancedTeamId === match.team2_id && "bg-primary/30 animate-[pulse_0.5s_ease-in-out_3]",
+                match.hasAdvancedTeam2 && "bg-primary/5"
               )}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 {!isBye && match.winner_id === match.team2_id && (
                   <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                )}
+                {match.hasAdvancedTeam2 && !match.winner_id && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 animate-[pulse_2s_ease-in-out_infinite]" />
                 )}
                 {!isBye && match.team2?.seed && (
                   <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
@@ -235,6 +246,7 @@ export const BracketMatch = ({
                 <span className={cn(
                   "text-sm truncate",
                   !isBye && match.winner_id === match.team2_id && "font-semibold text-primary",
+                  match.hasAdvancedTeam2 && !match.winner_id && "font-medium text-primary animate-fade-in",
                   isBye ? "text-muted-foreground italic" : (!match.team2?.name && "text-muted-foreground italic")
                 )}>
                   {isBye ? "BYE" : (match.team2?.name || "TBD")}
