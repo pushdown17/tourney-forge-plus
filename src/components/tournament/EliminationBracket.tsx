@@ -204,9 +204,15 @@ export const EliminationBracket = ({
             );
 
             // If a winner was just set (match completed), auto-generate next round
-            if (updatedMatch.winner_id && (!oldMatch || !oldMatch.winner_id)) {
+            // Only attempt if current user is the creator (RLS requires it)
+            if (updatedMatch.winner_id && (!oldMatch || !oldMatch.winner_id) && isCreator) {
               console.log('Match completed via realtime, checking next round generation for round', updatedMatch.round_number);
               checkAndGenerateNextRound(updatedMatch.round_number);
+            }
+            
+            // Always refresh to show newly created matches (from station or other clients)
+            if (updatedMatch.winner_id && (!oldMatch || !oldMatch.winner_id)) {
+              setTimeout(() => fetchTournamentAndMatches(), 2000);
             }
             
             // If match was inserted (new match created externally), refresh
