@@ -4,10 +4,11 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PlayerAutocomplete } from "@/components/ui/player-autocomplete";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Users, GripVertical } from "lucide-react";
+import { Plus, Trash2, Users, GripVertical, AlertTriangle } from "lucide-react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useSensor, useSensors, PointerSensor, closestCenter } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 
@@ -24,6 +25,10 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
   const [playerName, setPlayerName] = useState("");
   const [loading, setLoading] = useState(false);
   const [activePlayer, setActivePlayer] = useState<any>(null);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [similarPlayers, setSimilarPlayers] = useState<{ id: string; name: string }[]>([]);
+  const [pendingPlayerName, setPendingPlayerName] = useState("");
+  const [pendingTeamId, setPendingTeamId] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -169,6 +174,26 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
           return;
         }
       } else {
+        // Check for similar names before creating
+        const { data: similarData } = await supabase
+          .from("players")
+          .select("id, name")
+          .ilike("name", `%${validation.data.name.split(" ")[0]}%`)
+          .limit(10);
+
+        const similar = (similarData || []).filter(
+          (p) => p.name.toLowerCase() !== validation.data.name.toLowerCase()
+        );
+
+        if (similar.length > 0) {
+          setSimilarPlayers(similar);
+          setPendingPlayerName(validation.data.name);
+          setPendingTeamId(tournamentTeamId);
+          setDuplicateDialogOpen(true);
+          setLoading(false);
+          return;
+        }
+
         // Create new global player
         const { data: newPlayer, error: playerError } = await supabase
           .from("players")
@@ -305,6 +330,72 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
     }
   };
 
+  const forceCreatePlayer = async () => {
+    setDuplicateDialogOpen(false);
+    if (!pendingPlayerName || !pendingTeamId) return;
+    setLoading(true);
+    try {
+      const { data: newPlayer, error: playerError } = await supabase
+        .from("players")
+        .insert({ name: pendingPlayerName, team_id: null })
+        .select("id")
+        .single();
+
+      if (playerError) throw playerError;
+
+      const { error: linkError } = await supabase
+        .from("tournament_team_players")
+        .insert({ tournament_team_id: pendingTeamId, player_id: newPlayer.id });
+
+      if (linkError) throw linkError;
+
+      toast.success("Player added!");
+      setPlayerName("");
+      fetchPlayers();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+      setPendingPlayerName("");
+      setPendingTeamId("");
+    }
+  };
+
+  const useSimilarPlayer = async (playerId: string) => {
+    setDuplicateDialogOpen(false);
+    if (!pendingTeamId) return;
+    setLoading(true);
+    try {
+      const { data: existingLink } = await supabase
+        .from("tournament_team_players")
+        .select("id")
+        .eq("tournament_team_id", pendingTeamId)
+        .eq("player_id", playerId)
+        .maybeSingle();
+
+      if (existingLink) {
+        toast.error("This player already exists in this team");
+        return;
+      }
+
+      const { error: linkError } = await supabase
+        .from("tournament_team_players")
+        .insert({ tournament_team_id: pendingTeamId, player_id: playerId });
+
+      if (linkError) throw linkError;
+
+      toast.success("Player added!");
+      setPlayerName("");
+      fetchPlayers();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+      setPendingPlayerName("");
+      setPendingTeamId("");
+    }
+  };
+
   if (teams.length === 0) {
     return (
       <Card className="glass-card p-8 text-center">
@@ -398,6 +489,40 @@ export const PlayersManager = ({ tournamentId, isClosed = false, isCreator = fal
           </div>
         ) : null}
       </DragOverlay>
+
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Similar players found
+            </DialogTitle>
+            <DialogDescription>
+              The name "<span className="font-semibold">{pendingPlayerName}</span>" is similar to existing players. Do you want to use one of them or create a new player?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-48 overflow-y-auto space-y-1">
+            {similarPlayers.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => useSimilarPlayer(p.id)}
+                className="w-full flex items-center gap-3 p-3 rounded-md hover:bg-primary/10 transition-colors text-left"
+              >
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{p.name}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-between pt-2 border-t">
+            <Button variant="ghost" onClick={() => setDuplicateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="outline" onClick={forceCreatePlayer}>
+              Create "{pendingPlayerName}" anyway
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DndContext>
   );
 };
