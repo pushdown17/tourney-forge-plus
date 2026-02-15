@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, RotateCcw, Timer, Plus, Minus } from "lucide-react";
+import { Play, Pause, RotateCcw, Timer, Plus, Minus, Settings2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getSyncedNowMs } from "@/lib/serverTime";
@@ -314,28 +314,9 @@ export const MatchTimer = ({
       
       {canControl && (
         <div className="flex flex-col items-center gap-2">
-          {/* Time adjustment buttons */}
+          {/* Time adjustment - hidden behind a toggle to prevent accidental taps */}
           {startedAt && !hasEnded && (
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={() => adjustTime(-10)}
-                variant="ghost"
-                size="sm"
-                className="text-xs gap-1 h-7"
-              >
-                <Minus className="h-3 w-3" />
-                10s
-              </Button>
-              <Button
-                onClick={() => adjustTime(10)}
-                variant="ghost"
-                size="sm"
-                className="text-xs gap-1 h-7"
-              >
-                <Plus className="h-3 w-3" />
-                10s
-              </Button>
-            </div>
+            <AdjustTimeToggle onAdjust={adjustTime} />
           )}
 
           <div className="flex gap-2">
@@ -368,6 +349,50 @@ export const MatchTimer = ({
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+};
+
+/** Small toggle that reveals -10s / +10s buttons only after tapping a gear icon */
+const AdjustTimeToggle = ({ onAdjust }: { onAdjust: (delta: number) => void }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        onClick={() => setOpen((v) => !v)}
+        variant="ghost"
+        size="sm"
+        className={cn(
+          "text-xs gap-1 h-7 px-2 transition-colors",
+          open ? "text-primary" : "text-muted-foreground"
+        )}
+      >
+        <Settings2 className="h-3.5 w-3.5" />
+        {!open && <span>Ajuster</span>}
+      </Button>
+      {open && (
+        <Fragment>
+          <Button
+            onClick={() => onAdjust(-10)}
+            variant="outline"
+            size="sm"
+            className="text-xs gap-1 h-7 border-destructive/40 text-destructive hover:bg-destructive/10"
+          >
+            <Minus className="h-3 w-3" />
+            10s
+          </Button>
+          <Button
+            onClick={() => onAdjust(10)}
+            variant="outline"
+            size="sm"
+            className="text-xs gap-1 h-7 border-primary/40 text-primary hover:bg-primary/10"
+          >
+            <Plus className="h-3 w-3" />
+            10s
+          </Button>
+        </Fragment>
       )}
     </div>
   );
