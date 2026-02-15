@@ -52,7 +52,7 @@ export const Navigation = () => {
               <Link to="/my-account">
                 <Button variant="ghost">
                   <User className="h-4 w-4 mr-2" />
-                  Mon Compte
+                  My Account
                 </Button>
               </Link>
               <Button variant="ghost" onClick={handleLogout}>
@@ -91,7 +91,7 @@ export const Navigation = () => {
                   <Link to="/my-account" onClick={() => setIsOpen(false)}>
                     <Button variant="ghost" className="w-full justify-start text-lg">
                       <User className="h-5 w-5 mr-2" />
-                      Mon Compte
+                      My Account
                     </Button>
                   </Link>
                   <Button 
