@@ -995,7 +995,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             <div className="flex-1 flex flex-col min-w-0 text-right">
               <button
                 onClick={() => onTeamClick?.(match.team1?.name)}
-                className={`font-medium text-sm sm:text-base truncate hover:text-primary hover:underline transition-colors cursor-pointer ${
+                className={`font-medium text-sm sm:text-base truncate text-right hover:text-primary hover:underline transition-colors cursor-pointer ${
                   match.team1?.name === selectedTeam ? "text-primary font-bold underline" : ""
                 }`}
               >
@@ -1015,7 +1015,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             <div className="flex-1 flex flex-col min-w-0">
               <button
                 onClick={() => onTeamClick?.(match.team2?.name)}
-                className={`font-medium text-sm sm:text-base truncate hover:text-primary hover:underline transition-colors cursor-pointer ${
+                className={`font-medium text-sm sm:text-base truncate text-left hover:text-primary hover:underline transition-colors cursor-pointer ${
                   match.team2?.name === selectedTeam ? "text-primary font-bold underline" : ""
                 }`}
               >
