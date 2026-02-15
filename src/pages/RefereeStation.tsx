@@ -606,36 +606,7 @@ const RefereeStation = () => {
       }
     });
 
-    // Find the next waiting match ("On Deck") before clearing the station
-    // IMPORTANT: filter by same phase to avoid picking up old round robin matches
     const currentPhase = match.phase as any;
-    const { data: allMatches } = await supabase
-      .from("matches")
-      .select("id, team1_id, team2_id, winner_id")
-      .eq("tournament_id", station.tournament_id)
-      .eq("phase", currentPhase)
-      .is("winner_id", null)
-      .neq("id", match.id)
-      .order("round_number")
-      .order("created_at");
-
-    // Get all active station match assignments (except current station)
-    const { data: activeStations } = await supabase
-      .from("referee_stations")
-      .select("current_match_id")
-      .eq("tournament_id", station.tournament_id)
-      .eq("is_active", true)
-      .not("current_match_id", "is", null)
-      .neq("id", stationId!);
-
-    const activeMatchIds = new Set(
-      (activeStations || []).map(s => s.current_match_id).filter(Boolean)
-    );
-
-    // First waiting match not already on a station (must have both teams, not a bye)
-    const nextMatch = (allMatches || []).find(
-      m => m.team1_id && m.team2_id && m.team1_id !== m.team2_id && !activeMatchIds.has(m.id)
-    );
 
     // For elimination phases, generate next round matches if needed
     if (currentPhase === 'single_elimination' || currentPhase === 'double_elimination') {
@@ -667,12 +638,14 @@ const RefereeStation = () => {
             const m2 = roundMatches[i + 1];
             if (!m1.winner_id || !m2.winner_id) continue;
 
-            // Check if already exists
+            // Check if final already exists
             const exists = existingNextRound?.some(ex =>
               !ex.is_third_place_match &&
               ((ex.team1_id === m1.winner_id && ex.team2_id === m2.winner_id) ||
                (ex.team1_id === m2.winner_id && ex.team2_id === m1.winner_id))
             );
+            // Check if 3rd place match already exists
+            const thirdPlaceExists = existingNextRound?.some(ex => ex.is_third_place_match);
             if (exists) continue;
 
             const { data: tournamentData } = await supabase
@@ -697,15 +670,17 @@ const RefereeStation = () => {
                 is_third_place_match: false,
                 field_number: 1,
               });
-              matchesToCreate.push({
-                tournament_id: station.tournament_id,
-                phase: currentPhase,
-                round_number: match.round_number + 1,
-                team1_id: loser1,
-                team2_id: loser2,
-                is_third_place_match: true,
-                field_number: Math.min(2, numFields),
-              });
+              if (!thirdPlaceExists) {
+                matchesToCreate.push({
+                  tournament_id: station.tournament_id,
+                  phase: currentPhase,
+                  round_number: match.round_number + 1,
+                  team1_id: loser1,
+                  team2_id: loser2,
+                  is_third_place_match: true,
+                  field_number: Math.min(2, numFields),
+                });
+              }
             } else {
               matchesToCreate.push({
                 tournament_id: station.tournament_id,
@@ -734,6 +709,36 @@ const RefereeStation = () => {
         console.error("Error in next round generation from station:", err);
       }
     }
+
+    // Find the next waiting match AFTER generating next round matches
+    // so newly created matches (including 3rd place) are picked up
+    const { data: allMatches } = await supabase
+      .from("matches")
+      .select("id, team1_id, team2_id, winner_id")
+      .eq("tournament_id", station.tournament_id)
+      .eq("phase", currentPhase)
+      .is("winner_id", null)
+      .neq("id", match.id)
+      .order("round_number")
+      .order("created_at");
+
+    // Get all active station match assignments (except current station)
+    const { data: activeStations } = await supabase
+      .from("referee_stations")
+      .select("current_match_id")
+      .eq("tournament_id", station.tournament_id)
+      .eq("is_active", true)
+      .not("current_match_id", "is", null)
+      .neq("id", stationId!);
+
+    const activeMatchIds = new Set(
+      (activeStations || []).map(s => s.current_match_id).filter(Boolean)
+    );
+
+    // First waiting match not already on a station (must have both teams, not a bye)
+    const nextMatch = (allMatches || []).find(
+      m => m.team1_id && m.team2_id && m.team1_id !== m.team2_id && !activeMatchIds.has(m.id)
+    );
 
     // Update station: assign next match or clear
     const timerDuration = station.timer_duration_seconds;
