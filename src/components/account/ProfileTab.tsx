@@ -149,7 +149,11 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
     }
 
     if (error) {
-      toast.error("Erreur lors de la liaison");
+      if (error.code === "23505") {
+        toast.error("Ce joueur est déjà lié à un autre compte");
+      } else {
+        toast.error("Erreur lors de la liaison");
+      }
       console.error(error);
     } else {
       setLinkedPlayerName(playerName);
