@@ -490,58 +490,65 @@ export const EliminationBracket = ({
         return;
       }
 
-      // Calculate bracket size (next power of 2)
-      const bracketSize = Math.pow(2, Math.ceil(Math.log2(teamsCount)));
-      const numberOfByes = bracketSize - teamsCount;
+      // Calculate bracket size: nearest lower power of 2
+      // e.g. 10 teams → bracket of 8, 14 teams → bracket of 8, 9 teams → bracket of 8
+      const bracketSize = Math.pow(2, Math.floor(Math.log2(teamsCount)));
+      const numPreliminaryMatches = teamsCount - bracketSize;
       
-      console.log(`Generating bracket: ${teamsCount} teams, bracket size ${bracketSize}, ${numberOfByes} byes`);
+      console.log(`Generating bracket: ${teamsCount} teams, bracket size ${bracketSize}, ${numPreliminaryMatches} preliminary matches`);
       
-      // FORMAT: 
-      // - If there are byes needed: ONE preliminary match between 2 lowest seeds
-      // - Winner of preliminary faces #1 in Round 1
-      // - All other teams (#2 to #12 for 14 teams) play Round 1 with standard seeding
+      // FORMAT:
+      // - Preliminary round: lowest seeds play to reduce to bracketSize teams
+      //   e.g. 10 teams → 2 prelim matches (#7v#10, #8v#9), winners join QF
+      // - Round 1 (QF for 10 teams): top seeds face prelim winners + direct pairings
+      //   e.g. #1 vs W(#8v#9), #2 vs W(#7v#10), #3 vs #6, #4 vs #5
       
       const matchesToInsert: any[] = [];
       let matchIndex = 0;
       
-      if (numberOfByes > 0) {
-        // Create ONE preliminary match: #13 vs #14 (for 14 teams)
-        const lastSeedTeam = standings[teamsCount - 1];     // #14
-        const secondLastTeam = standings[teamsCount - 2];   // #13
+      if (numPreliminaryMatches > 0) {
+        // Create preliminary matches pairing lowest seeds
+        // For 10 teams: prelim seeds are #7,#8,#9,#10
+        // Pairs: #7v#10, #8v#9 (crossed seeding)
+        const prelimTeams = standings.slice(bracketSize - numPreliminaryMatches, teamsCount);
+        // prelimTeams has 2*numPreliminaryMatches entries
         
-        if (lastSeedTeam && secondLastTeam) {
-          matchesToInsert.push({
-            tournament_id: tournamentId,
-            phase: currentPhase,
-            round_number: 0, // Preliminary round
-            team1_id: secondLastTeam.team_id, // #13
-            team2_id: lastSeedTeam.team_id,   // #14
-            field_number: 1,
-          });
+        for (let i = 0; i < numPreliminaryMatches; i++) {
+          const highSeed = prelimTeams[i];
+          const lowSeed = prelimTeams[prelimTeams.length - 1 - i];
           
-          console.log(`Preliminary: #${teamsCount - 1} ${secondLastTeam.team?.name} vs #${teamsCount} ${lastSeedTeam.team?.name}`);
+          if (highSeed && lowSeed) {
+            matchesToInsert.push({
+              tournament_id: tournamentId,
+              phase: currentPhase,
+              round_number: 0,
+              team1_id: highSeed.team_id,
+              team2_id: lowSeed.team_id,
+              field_number: (matchIndex % numberOfFields) + 1,
+            });
+            matchIndex++;
+            
+            const seed1 = standings.indexOf(highSeed) + 1;
+            const seed2 = standings.indexOf(lowSeed) + 1;
+            console.log(`Preliminary: #${seed1} ${highSeed.team?.name} vs #${seed2} ${lowSeed.team?.name}`);
+          }
         }
       }
       
-      // Create Round 1 matches
-      // Teams for R1: #2 to #(teamsCount - 2) = seeds 2 to 12 for 14 teams
-      // #1 waits for preliminary winner (match created when preliminary ends)
-      // #13 and #14 are in preliminary
+      // Create Round 1 matches for directly qualified teams
+      // Direct teams: seeds that don't play preliminary
+      // For 10 teams with 2 prelim: direct seeds are #1..#6, but #1 and #2 wait for prelim winners
+      // Direct pairings (crossed): #3v#6, #4v#5
+      const numDirectTeams = bracketSize - numPreliminaryMatches; // teams going directly to R1 without prelim
+      // But numPreliminaryMatches of these will face prelim winners (created after prelim ends)
+      // So direct R1 matches = (numDirectTeams - numPreliminaryMatches) / 2
       
-      // Get teams for R1: indices 1 to (teamsCount - 3) inclusive
-      const r1Teams = standings.slice(1, teamsCount - 2); // Seeds 2 to 12
-      
-      console.log(`R1 teams: ${r1Teams.length} teams (seeds 2 to ${teamsCount - 2})`);
-      
-      // Pair teams with standard seeding: highest vs lowest
-      // #2 vs #12, #3 vs #11, #4 vs #10, #5 vs #9, #6 vs #8
-      // If odd number, middle seed (#7) will face #1 in next round or get paired differently
-      
-      const numR1Matches = Math.floor(r1Teams.length / 2);
+      const directR1Teams = standings.slice(numPreliminaryMatches, bracketSize - numPreliminaryMatches);
+      const numR1Matches = Math.floor(directR1Teams.length / 2);
       
       for (let i = 0; i < numR1Matches; i++) {
-        const highSeed = r1Teams[i];                           // #2, #3, #4...
-        const lowSeed = r1Teams[r1Teams.length - 1 - i];       // #12, #11, #10...
+        const highSeed = directR1Teams[i];
+        const lowSeed = directR1Teams[directR1Teams.length - 1 - i];
         
         if (highSeed && lowSeed && highSeed.team_id !== lowSeed.team_id) {
           const fieldNumber = (matchIndex % numberOfFields) + 1;
@@ -575,7 +582,7 @@ export const EliminationBracket = ({
       const r1Count = matchesToInsert.filter(m => m.round_number === 1).length;
       
       if (prelimCount > 0) {
-        toast.success(`Bracket généré! Tour préliminaire + ${r1Count} matchs en 8èmes`);
+        toast.success(`Bracket généré! ${prelimCount} préliminaire(s) + ${r1Count} match(s) en R1`);
       } else {
         toast.success(`Bracket généré! ${r1Count} matchs`);
       }
@@ -685,8 +692,8 @@ export const EliminationBracket = ({
       }
 
       const teamsCount = tournament?.teams_for_elimination || 0;
-      const bracketSize = Math.pow(2, Math.ceil(Math.log2(teamsCount)));
-      const numberOfByes = bracketSize - teamsCount;
+      const bracketSize = Math.pow(2, Math.floor(Math.log2(teamsCount)));
+      const numPreliminaryMatches = teamsCount - bracketSize;
 
       // Check which next round matches already exist
       const { data: existingNextRoundMatches, error: existingError } = await supabase
@@ -724,11 +731,17 @@ export const EliminationBracket = ({
 
         if (standingsError) throw standingsError;
 
-        // Create R1 matches: top seeds vs preliminary winners
-        // Seed 1 vs prelim winner 1, Seed 2 vs prelim winner 2, etc.
-        for (let i = 0; i < prelimWinners.length; i++) {
+        // Create R1 matches: top seeds vs preliminary winners (reversed order)
+        // For 10 teams: #1 vs W(#8v#9), #2 vs W(#7v#10)
+        // Prelim matches are ordered by creation: M1=#7v#10, M2=#8v#9
+        // So prelim winner index 0 = W(#7v#10), index 1 = W(#8v#9)
+        // Top seed #1 should face the winner of the lowest-seed match → W(#8v#9) = last prelim winner
+        // Top seed #2 should face W(#7v#10) = first prelim winner
+        const reversedPrelimWinners = [...prelimWinners].reverse();
+        
+        for (let i = 0; i < reversedPrelimWinners.length; i++) {
           const topSeed = standings?.[i];
-          const prelimWinner = prelimWinners[i];
+          const prelimWinner = reversedPrelimWinners[i];
 
           if (topSeed && prelimWinner) {
             // Check if match already exists
@@ -749,7 +762,7 @@ export const EliminationBracket = ({
                 field_number: fieldNumber,
               });
               
-              console.log(`R1 created: Seed ${i + 1} vs Prelim winner ${i + 1}`);
+              console.log(`R1 created: Seed ${i + 1} vs Prelim winner`);
             }
           }
         }
@@ -931,18 +944,18 @@ export const EliminationBracket = ({
 
   const getRoundName = (roundNumber: number, totalTeams: number) => {
     // Preliminary round
-    if (roundNumber === 0) return "Tour préliminaire";
+    if (roundNumber === 0) return "Preliminary Round";
     
-    // Use bracket size (next power of 2) for proper round naming
-    const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
+    // Use bracket size (nearest lower power of 2) for proper round naming
+    const bracketSize = Math.pow(2, Math.floor(Math.log2(totalTeams)));
     const totalRounds = Math.log2(bracketSize);
     const roundsRemaining = totalRounds - roundNumber + 1;
     
-    if (roundsRemaining === 1) return "Finale";
-    if (roundsRemaining === 2) return "Demi-finales";
-    if (roundsRemaining === 3) return "Quarts de finale";
-    if (roundsRemaining === 4) return "8èmes de finale";
-    return `Tour ${roundNumber}`;
+    if (roundsRemaining === 1) return "Final";
+    if (roundsRemaining === 2) return "Semi-finals";
+    if (roundsRemaining === 3) return "Quarter-finals";
+    if (roundsRemaining === 4) return "Round of 16";
+    return `Round ${roundNumber}`;
   };
 
   // Generate complete bracket structure (all rounds)
@@ -950,7 +963,7 @@ export const EliminationBracket = ({
     if (!tournament?.teams_for_elimination) return [];
 
     const totalTeams = tournament.teams_for_elimination;
-    const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
+    const bracketSize = Math.pow(2, Math.floor(Math.log2(totalTeams)));
     const totalRounds = Math.log2(bracketSize);
 
     const structure: any[][] = [];
@@ -1018,8 +1031,7 @@ export const EliminationBracket = ({
   // Check if semi-finals are completed (for 3rd place match)
   const areSemiFinalsCompleted = (): boolean => {
     const totalTeams = tournament?.teams_for_elimination || 8;
-    // Use bracket size (next power of 2)
-    const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
+    const bracketSize = Math.pow(2, Math.floor(Math.log2(totalTeams)));
     const totalRounds = Math.log2(bracketSize);
     const semiFinalsRound = totalRounds - 1; // Second to last round
     
@@ -1109,7 +1121,7 @@ export const EliminationBracket = ({
                 const topOffset = unit * (Math.pow(2, roundIndex) - 1) / 2;
                 
                 // Match number (stable integers, supports preliminary round)
-                const bracketSize = Math.pow(2, Math.ceil(Math.log2(totalTeams)));
+                const bracketSize = Math.pow(2, Math.floor(Math.log2(totalTeams)));
                 const preliminaryCount =
                   bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0
                     ? bracketStructure[0].length
