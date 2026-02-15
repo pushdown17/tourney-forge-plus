@@ -607,11 +607,13 @@ const RefereeStation = () => {
     });
 
     // Find the next waiting match ("On Deck") before clearing the station
-    // Get all matches without a winner and with both teams assigned
+    // IMPORTANT: filter by same phase to avoid picking up old round robin matches
+    const currentPhase = match.phase as any;
     const { data: allMatches } = await supabase
       .from("matches")
       .select("id, team1_id, team2_id, winner_id")
       .eq("tournament_id", station.tournament_id)
+      .eq("phase", currentPhase)
       .is("winner_id", null)
       .neq("id", match.id)
       .order("round_number")
@@ -630,10 +632,108 @@ const RefereeStation = () => {
       (activeStations || []).map(s => s.current_match_id).filter(Boolean)
     );
 
-    // First waiting match not already on a station
+    // First waiting match not already on a station (must have both teams, not a bye)
     const nextMatch = (allMatches || []).find(
-      m => m.team1_id && m.team2_id && !activeMatchIds.has(m.id)
+      m => m.team1_id && m.team2_id && m.team1_id !== m.team2_id && !activeMatchIds.has(m.id)
     );
+
+    // For elimination phases, generate next round matches if needed
+    if (currentPhase === 'single_elimination' || currentPhase === 'double_elimination') {
+      try {
+        // Get all matches from the completed match's round
+        const { data: roundMatches } = await supabase
+          .from("matches")
+          .select("*")
+          .eq("tournament_id", station.tournament_id)
+          .eq("phase", currentPhase)
+          .eq("round_number", match.round_number)
+          .eq("is_third_place_match", false)
+          .order("created_at", { ascending: true });
+
+        if (roundMatches && roundMatches.length > 0) {
+          // Check existing next round matches
+          const { data: existingNextRound } = await supabase
+            .from("matches")
+            .select("*")
+            .eq("tournament_id", station.tournament_id)
+            .eq("phase", currentPhase)
+            .eq("round_number", match.round_number + 1);
+
+          const matchesToCreate: any[] = [];
+
+          for (let i = 0; i < roundMatches.length; i += 2) {
+            if (i + 1 >= roundMatches.length) break;
+            const m1 = roundMatches[i];
+            const m2 = roundMatches[i + 1];
+            if (!m1.winner_id || !m2.winner_id) continue;
+
+            // Check if already exists
+            const exists = existingNextRound?.some(ex =>
+              !ex.is_third_place_match &&
+              ((ex.team1_id === m1.winner_id && ex.team2_id === m2.winner_id) ||
+               (ex.team1_id === m2.winner_id && ex.team2_id === m1.winner_id))
+            );
+            if (exists) continue;
+
+            const { data: tournamentData } = await supabase
+              .from("tournaments")
+              .select("number_of_fields")
+              .eq("id", station.tournament_id)
+              .single();
+
+            const numFields = tournamentData?.number_of_fields || 1;
+
+            if (roundMatches.length === 2 && i === 0) {
+              // Semi-finals → create final + 3rd place
+              const loser1 = m1.winner_id === m1.team1_id ? m1.team2_id : m1.team1_id;
+              const loser2 = m2.winner_id === m2.team1_id ? m2.team2_id : m2.team1_id;
+
+              matchesToCreate.push({
+                tournament_id: station.tournament_id,
+                phase: currentPhase,
+                round_number: match.round_number + 1,
+                team1_id: m1.winner_id,
+                team2_id: m2.winner_id,
+                is_third_place_match: false,
+                field_number: 1,
+              });
+              matchesToCreate.push({
+                tournament_id: station.tournament_id,
+                phase: currentPhase,
+                round_number: match.round_number + 1,
+                team1_id: loser1,
+                team2_id: loser2,
+                is_third_place_match: true,
+                field_number: Math.min(2, numFields),
+              });
+            } else {
+              matchesToCreate.push({
+                tournament_id: station.tournament_id,
+                phase: currentPhase,
+                round_number: match.round_number + 1,
+                team1_id: m1.winner_id,
+                team2_id: m2.winner_id,
+                is_third_place_match: false,
+                field_number: (matchesToCreate.length % numFields) + 1,
+              });
+            }
+          }
+
+          if (matchesToCreate.length > 0) {
+            const { error: insertErr } = await supabase
+              .from("matches")
+              .insert(matchesToCreate);
+            if (insertErr) {
+              console.error("Error creating next round matches from station:", insertErr);
+            } else {
+              console.log(`Created ${matchesToCreate.length} next round match(es) from station`);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error in next round generation from station:", err);
+      }
+    }
 
     // Update station: assign next match or clear
     const timerDuration = station.timer_duration_seconds;
