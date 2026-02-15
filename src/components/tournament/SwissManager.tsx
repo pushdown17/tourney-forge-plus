@@ -582,7 +582,9 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
                     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
                   
                   const firstUnfinishedOnField = matchesOnSameField.find(
-                    m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)
+                    m => activeStationMatches.has(m.id)
+                  ) || matchesOnSameField.find(
+                    m => m.team1_score === null || m.team2_score === null
                   );
                   
                   const isLockedByPreviousMatch = !activeStationMatches.has(match.id) && firstUnfinishedOnField?.id !== match.id;
