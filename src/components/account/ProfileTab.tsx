@@ -286,7 +286,7 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
         )}
       </Card>
 
-      <ChangePasswordCard />
+      <ChangePasswordCard userEmail={userEmail} />
 
       <PlayerSearchDialog
         open={showPlayerSearch}
