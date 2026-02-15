@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, RotateCcw, Timer } from "lucide-react";
+import { Play, Pause, RotateCcw, Timer, Plus, Minus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getSyncedNowMs } from "@/lib/serverTime";
@@ -237,6 +237,27 @@ export const MatchTimer = ({
     }
   };
 
+  const adjustTime = async (deltaSeconds: number) => {
+    if (!durationSeconds) return;
+
+    const newDuration = Math.max(10, durationSeconds + deltaSeconds);
+
+    const { error } = await supabase
+      .from('referee_stations')
+      .update({ timer_duration_seconds: newDuration } as any)
+      .eq('id', stationId);
+
+    if (!error) {
+      broadcastTimerUpdate({
+        action: 'adjust',
+        durationSeconds: newDuration,
+        timer_started_at: startedAt,
+        timer_paused_at: pausedAt,
+        timer_elapsed_when_paused: elapsedWhenPaused
+      });
+    }
+  };
+
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
     const mins = Math.floor(totalSeconds / 60);
@@ -292,34 +313,60 @@ export const MatchTimer = ({
       </div>
       
       {canControl && (
-        <div className="flex gap-2">
-          {isNotStarted && (
-            <Button onClick={startTimer} size="lg" className="gap-2">
-              <Play className="h-5 w-5" />
-              Démarrer
-            </Button>
+        <div className="flex flex-col items-center gap-2">
+          {/* Time adjustment buttons */}
+          {startedAt && !hasEnded && (
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => adjustTime(-10)}
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1 h-7"
+              >
+                <Minus className="h-3 w-3" />
+                10s
+              </Button>
+              <Button
+                onClick={() => adjustTime(10)}
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1 h-7"
+              >
+                <Plus className="h-3 w-3" />
+                10s
+              </Button>
+            </div>
           )}
-          
-          {isRunning && !hasEnded && (
-            <Button onClick={pauseTimer} variant="outline" size="lg" className="gap-2">
-              <Pause className="h-5 w-5" />
-              Pause
-            </Button>
-          )}
-          
-          {isPaused && !hasEnded && (
-            <Button onClick={resumeTimer} size="lg" className="gap-2">
-              <Play className="h-5 w-5" />
-              Reprendre
-            </Button>
-          )}
-          
-          {(isPaused || hasEnded) && (
-            <Button onClick={resetTimer} variant="secondary" size="lg" className="gap-2">
-              <RotateCcw className="h-5 w-5" />
-              Reset
-            </Button>
-          )}
+
+          <div className="flex gap-2">
+            {isNotStarted && (
+              <Button onClick={startTimer} size="lg" className="gap-2">
+                <Play className="h-5 w-5" />
+                Démarrer
+              </Button>
+            )}
+            
+            {isRunning && !hasEnded && (
+              <Button onClick={pauseTimer} variant="outline" size="lg" className="gap-2">
+                <Pause className="h-5 w-5" />
+                Pause
+              </Button>
+            )}
+            
+            {isPaused && !hasEnded && (
+              <Button onClick={resumeTimer} size="lg" className="gap-2">
+                <Play className="h-5 w-5" />
+                Reprendre
+              </Button>
+            )}
+            
+            {(isPaused || hasEnded) && (
+              <Button onClick={resetTimer} variant="secondary" size="lg" className="gap-2">
+                <RotateCcw className="h-5 w-5" />
+                Reset
+              </Button>
+            )}
+          </div>
         </div>
       )}
     </div>
