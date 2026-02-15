@@ -186,20 +186,33 @@ export const EliminationBracket = ({
           // Only process updates for this tournament
           if (payload.new && (payload.new as any).tournament_id === tournamentId) {
             console.log('Match updated in realtime:', payload.new);
+            const updatedMatch = payload.new as any;
+            const oldMatch = payload.old as any;
             
             setMatches(prevMatches => 
               prevMatches.map(match => {
-                if (match.id === (payload.new as any).id) {
+                if (match.id === updatedMatch.id) {
                   return {
                     ...match,
-                    team1_score: (payload.new as any).team1_score,
-                    team2_score: (payload.new as any).team2_score,
-                    winner_id: (payload.new as any).winner_id,
+                    team1_score: updatedMatch.team1_score,
+                    team2_score: updatedMatch.team2_score,
+                    winner_id: updatedMatch.winner_id,
                   };
                 }
                 return match;
               })
             );
+
+            // If a winner was just set (match completed), auto-generate next round
+            if (updatedMatch.winner_id && (!oldMatch || !oldMatch.winner_id)) {
+              console.log('Match completed via realtime, checking next round generation for round', updatedMatch.round_number);
+              checkAndGenerateNextRound(updatedMatch.round_number);
+            }
+            
+            // If match was inserted (new match created externally), refresh
+            if (payload.eventType === 'INSERT') {
+              fetchTournamentAndMatches();
+            }
           }
         }
       )
