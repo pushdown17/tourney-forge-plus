@@ -572,7 +572,11 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
             return ongoingMatches.length > 0 && (
               <div>
                 <h3 className="text-lg font-semibold mb-3">Ongoing Matches</h3>
-                {ongoingMatches.map((match) => {
+                {ongoingMatches.sort((a, b) => {
+                  const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
+                  const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
+                  return aLive - bLive;
+                }).map((match) => {
                   const matchesOnSameField = matches
                     .filter(m => m.field_number === match.field_number)
                     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
