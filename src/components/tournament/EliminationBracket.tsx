@@ -1391,7 +1391,7 @@ export const EliminationBracket = ({
                               }
                               if (!match.isPlaceholder) {
                                 setSelectedMatch(match);
-                                if (isMatchCompleted) {
+                                if (isMatchCompleted || !isCreator) {
                                   setRecapDialogOpen(true);
                                 } else {
                                   setStatsDialogOpen(true);
@@ -1507,7 +1507,7 @@ export const EliminationBracket = ({
                           return;
                         }
                         setSelectedMatch(thirdPlaceMatch);
-                        if (isThirdPlaceCompleted) {
+                        if (isThirdPlaceCompleted || !isCreator) {
                           setRecapDialogOpen(true);
                         } else {
                           setStatsDialogOpen(true);
