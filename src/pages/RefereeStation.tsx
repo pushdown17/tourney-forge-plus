@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn, User as UserIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn, User as UserIcon, Timer } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -897,7 +898,7 @@ const RefereeStation = () => {
             </Card>
 
             {/* Timer */}
-            {station.timer_duration_seconds && (
+            {station.timer_duration_seconds ? (
               <MatchTimer
                 stationId={stationId!}
                 tournamentId={station.tournament_id}
@@ -909,6 +910,10 @@ const RefereeStation = () => {
                 canControl={true}
                 showMilliseconds={true}
               />
+            ) : (
+              <Card className="p-4">
+                <TimerSetup stationId={stationId!} onTimerSet={fetchStation} />
+              </Card>
             )}
 
             {/* Scoreboard */}
@@ -1195,3 +1200,49 @@ const RefereeStation = () => {
 };
 
 export default RefereeStation;
+
+const TimerSetup = ({ stationId, onTimerSet }: { stationId: string; onTimerSet: () => void }) => {
+  const [minutes, setMinutes] = useState("10");
+  const [saving, setSaving] = useState(false);
+
+  const handleSetTimer = async () => {
+    const mins = parseInt(minutes);
+    if (!mins || mins < 1 || mins > 60) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("referee_stations")
+      .update({ timer_duration_seconds: mins * 60 } as any)
+      .eq("id", stationId);
+
+    if (error) {
+      toast.error("Error setting timer");
+    } else {
+      toast.success(`Timer set to ${mins} minutes`);
+      onTimerSet();
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Timer className="h-5 w-5" />
+        <span className="font-medium">No timer configured</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          min="1"
+          max="60"
+          value={minutes}
+          onChange={(e) => setMinutes(e.target.value)}
+          className="w-20 h-9"
+        />
+        <span className="text-sm text-muted-foreground">min</span>
+        <Button onClick={handleSetTimer} disabled={saving} size="sm">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Set Timer"}
+        </Button>
+      </div>
+    </div>
+  );
+};
