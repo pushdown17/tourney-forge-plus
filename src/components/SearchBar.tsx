@@ -54,14 +54,43 @@ export const SearchBar = () => {
 
       if (tournamentsError) throw tournamentsError;
 
-      // Search players by name (players are now independent of teams/tournaments)
-      const { data: playersData, error: playersError } = await supabase
+      // Search players by name
+      const { data: playersByName, error: playersError } = await supabase
         .from("players")
         .select("id, name")
         .ilike("name", `%${searchQuery}%`)
         .limit(5);
 
       if (playersError) throw playersError;
+
+      // Search players by nickname (via profiles table)
+      const { data: profilesByNickname } = await supabase
+        .from("profiles")
+        .select("linked_player_id, nickname")
+        .not("linked_player_id", "is", null)
+        .ilike("nickname", `%${searchQuery}%`)
+        .limit(5);
+
+      // Fetch player info for nickname matches
+      const nicknamePlayerIds = (profilesByNickname || [])
+        .map((p) => p.linked_player_id)
+        .filter(Boolean) as string[];
+      
+      let playersByNickname: { id: string; name: string }[] = [];
+      if (nicknamePlayerIds.length > 0) {
+        const { data } = await supabase
+          .from("players")
+          .select("id, name")
+          .in("id", nicknamePlayerIds);
+        playersByNickname = data || [];
+      }
+
+      // Merge and deduplicate by player id
+      const allPlayersMap = new Map<string, { id: string; name: string }>();
+      for (const p of [...(playersByName || []), ...playersByNickname]) {
+        if (!allPlayersMap.has(p.id)) allPlayersMap.set(p.id, p);
+      }
+      const playersData = Array.from(allPlayersMap.values());
 
       // Get player stats and group by name
       const playersMap = new Map<string, PlayerResult>();
