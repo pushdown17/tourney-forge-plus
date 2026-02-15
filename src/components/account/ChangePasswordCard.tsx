@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
 
-export function ChangePasswordCard() {
+export function ChangePasswordCard({ userEmail }: { userEmail: string }) {
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -23,12 +24,26 @@ export function ChangePasswordCard() {
     }
 
     setSaving(true);
+
+    // Verify current password by signing in
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: userEmail,
+      password: currentPassword,
+    });
+
+    if (signInError) {
+      toast.error("Mot de passe actuel incorrect");
+      setSaving(false);
+      return;
+    }
+
     const { error } = await supabase.auth.updateUser({ password: newPassword });
 
     if (error) {
       toast.error(error.message);
     } else {
       toast.success("Mot de passe mis à jour !");
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     }
@@ -42,6 +57,16 @@ export function ChangePasswordCard() {
         Change Password
       </h3>
       <div className="space-y-4 max-w-md">
+        <div className="space-y-2">
+          <Label htmlFor="currentPassword">Current Password</Label>
+          <Input
+            id="currentPassword"
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="••••••••"
+          />
+        </div>
         <div className="space-y-2">
           <Label htmlFor="newPassword">New Password</Label>
           <Input
@@ -64,7 +89,7 @@ export function ChangePasswordCard() {
             minLength={6}
           />
         </div>
-        <Button onClick={handleChangePassword} disabled={saving || !newPassword || !confirmPassword}>
+        <Button onClick={handleChangePassword} disabled={saving || !currentPassword || !newPassword || !confirmPassword}>
           {saving ? "Updating..." : "Update Password"}
         </Button>
       </div>
