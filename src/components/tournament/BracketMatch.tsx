@@ -93,6 +93,7 @@ export const BracketMatch = ({
 }: BracketMatchProps) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const isPlaceholder = match.isPlaceholder;
+  const isBye = match.team1_id === match.team2_id && match.team1_id !== '';
   const hasTeams = match.team1 && match.team2;
   const hasWinner = !!match.winner_id;
   // A match is locked if it is completed (has a winner) OR if the previous matches are not finished
@@ -107,7 +108,7 @@ export const BracketMatch = ({
         <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
           M{matchNumber}
         </span>
-        {match.field_number && (
+        {match.field_number && !isBye && (
           <span className="text-[10px] text-primary font-medium bg-primary/10 px-1.5 py-0.5 rounded">
             C{match.field_number}
           </span>
@@ -223,23 +224,23 @@ export const BracketMatch = ({
               )}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                {match.winner_id === match.team2_id && (
+                {!isBye && match.winner_id === match.team2_id && (
                   <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                 )}
-                {match.team2?.seed && (
+                {!isBye && match.team2?.seed && (
                   <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
                     #{match.team2.seed}
                   </span>
                 )}
                 <span className={cn(
                   "text-sm truncate",
-                  match.winner_id === match.team2_id && "font-semibold text-primary",
-                  !match.team2?.name && "text-muted-foreground italic"
+                  !isBye && match.winner_id === match.team2_id && "font-semibold text-primary",
+                  isBye ? "text-muted-foreground italic" : (!match.team2?.name && "text-muted-foreground italic")
                 )}>
-                  {match.team2?.name || "TBD"}
+                  {isBye ? "BYE" : (match.team2?.name || "TBD")}
                 </span>
               </div>
-              {match.team2_score !== null && (
+              {!isBye && match.team2_score !== null && (
                 <span className={cn(
                   "text-sm font-mono font-bold ml-2 min-w-[1.5rem] text-center",
                   match.winner_id === match.team2_id && "text-primary"
