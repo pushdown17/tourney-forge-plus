@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Save, Search, X, Link2, Unlink } from "lucide-react";
 import { toast } from "sonner";
 import { PlayerSearchDialog } from "./PlayerSearchDialog";
+import { ChangePasswordCard } from "./ChangePasswordCard";
 
 type Profile = {
   id: string;
@@ -284,6 +285,8 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
           </Button>
         )}
       </Card>
+
+      <ChangePasswordCard />
 
       <PlayerSearchDialog
         open={showPlayerSearch}
