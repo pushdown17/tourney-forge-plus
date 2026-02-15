@@ -41,6 +41,7 @@ interface Match {
   field_number?: number;
   team1?: Team;
   team2?: Team;
+  created_at?: string;
 }
 
 interface EliminationBracketProps {
@@ -468,6 +469,32 @@ export const EliminationBracket = ({
     }
   };
 
+  // Helper: compute bracket parameters for any team count
+  const computeBracketParams = (teamsCount: number) => {
+    if (teamsCount <= 1) return { bracketSize: 2, numPreliminaryMatches: 0, numByes: 2 - teamsCount };
+    const lowerBracket = Math.pow(2, Math.floor(Math.log2(teamsCount)));
+    if (lowerBracket === teamsCount) {
+      return { bracketSize: lowerBracket, numPreliminaryMatches: 0, numByes: 0 };
+    }
+    const numPrelim = teamsCount - lowerBracket;
+    if (numPrelim <= lowerBracket / 2) {
+      return { bracketSize: lowerBracket, numPreliminaryMatches: numPrelim, numByes: 0 };
+    }
+    return { bracketSize: lowerBracket * 2, numPreliminaryMatches: 0, numByes: lowerBracket * 2 - teamsCount };
+  };
+
+  // Helper: standard tournament seeding order (ensures #1 and #2 in opposite halves)
+  const getStandardSeeding = (size: number): number[] => {
+    if (size === 1) return [1];
+    const prev = getStandardSeeding(size / 2);
+    const result: number[] = [];
+    for (const seed of prev) {
+      result.push(seed);
+      result.push(size + 1 - seed);
+    }
+    return result;
+  };
+
   const generateBracket = async (teamsCount: number) => {
     setGenerating(true);
     try {
@@ -490,19 +517,54 @@ export const EliminationBracket = ({
         return;
       }
 
-      // Calculate bracket size: nearest lower power of 2
-      // e.g. 10 teams → bracket of 8, 14 teams → bracket of 8, 9 teams → bracket of 8
-      const bracketSize = Math.pow(2, Math.floor(Math.log2(teamsCount)));
-      const numPreliminaryMatches = teamsCount - bracketSize;
+      const { bracketSize, numPreliminaryMatches, numByes } = computeBracketParams(teamsCount);
       
-      console.log(`Generating bracket: ${teamsCount} teams, bracket size ${bracketSize}, ${numPreliminaryMatches} preliminary matches`);
+      console.log(`Generating bracket: ${teamsCount} teams, bracket size ${bracketSize}, ${numPreliminaryMatches} preliminary matches, ${numByes} byes`);
       
-      // FORMAT:
-      // - Preliminary round: lowest seeds play to reduce to bracketSize teams
-      //   e.g. 10 teams → 2 prelim matches (#7v#10, #8v#9), winners join QF
-      // - Round 1 (QF for 10 teams): top seeds face prelim winners + direct pairings
-      //   e.g. #1 vs W(#8v#9), #2 vs W(#7v#10), #3 vs #6, #4 vs #5
+      // BYE CASE: standard seeding, top seeds get byes (auto-advance)
+      if (numByes > 0) {
+        const seeding = getStandardSeeding(bracketSize);
+        let courtIndex = 0;
+        for (let i = 0; i < seeding.length; i += 2) {
+          const seed1 = seeding[i];
+          const seed2 = seeding[i + 1];
+          const team1 = standings[seed1 - 1];
+          
+          if (seed2 <= teamsCount) {
+            const team2 = standings[seed2 - 1];
+            const { error } = await supabase.from("matches").insert({
+              tournament_id: tournamentId,
+              phase: currentPhase,
+              round_number: 1,
+              team1_id: team1.team_id,
+              team2_id: team2.team_id,
+              field_number: (courtIndex % numberOfFields) + 1,
+            });
+            if (error) throw error;
+            courtIndex++;
+            console.log(`R1: #${seed1} ${team1.team?.name} vs #${seed2} ${team2.team?.name}`);
+          } else {
+            // Bye: team auto-advances (same team on both sides)
+            const { error } = await supabase.from("matches").insert({
+              tournament_id: tournamentId,
+              phase: currentPhase,
+              round_number: 1,
+              team1_id: team1.team_id,
+              team2_id: team1.team_id,
+              winner_id: team1.team_id,
+            });
+            if (error) throw error;
+            console.log(`R1 BYE: #${seed1} ${team1.team?.name}`);
+          }
+        }
+        
+        const realMatches = bracketSize / 2 - numByes;
+        toast.success(`Bracket généré! ${realMatches} match(s) + ${numByes} bye(s)`);
+        await fetchTournamentAndMatches();
+        return;
+      }
       
+      // PRELIM + DIRECT CASE
       const matchesToInsert: any[] = [];
       let matchIndex = 0;
       
@@ -692,8 +754,7 @@ export const EliminationBracket = ({
       }
 
       const teamsCount = tournament?.teams_for_elimination || 0;
-      const bracketSize = Math.pow(2, Math.floor(Math.log2(teamsCount)));
-      const numPreliminaryMatches = teamsCount - bracketSize;
+      const { bracketSize, numPreliminaryMatches } = computeBracketParams(teamsCount);
 
       // Check which next round matches already exist
       const { data: existingNextRoundMatches, error: existingError } = await supabase
@@ -946,8 +1007,7 @@ export const EliminationBracket = ({
     // Preliminary round
     if (roundNumber === 0) return "Preliminary Round";
     
-    // Use bracket size (nearest lower power of 2) for proper round naming
-    const bracketSize = Math.pow(2, Math.floor(Math.log2(totalTeams)));
+    const { bracketSize } = computeBracketParams(totalTeams);
     const totalRounds = Math.log2(bracketSize);
     const roundsRemaining = totalRounds - roundNumber + 1;
     
@@ -963,9 +1023,8 @@ export const EliminationBracket = ({
     if (!tournament?.teams_for_elimination) return [];
 
     const totalTeams = tournament.teams_for_elimination;
-    const bracketSize = Math.pow(2, Math.floor(Math.log2(totalTeams)));
+    const { bracketSize, numPreliminaryMatches, numByes } = computeBracketParams(totalTeams);
     const totalRounds = Math.log2(bracketSize);
-    const numPreliminaryMatches = totalTeams - bracketSize;
     const hasPreliminary = numPreliminaryMatches > 0;
     const r1ExpectedCount = bracketSize / 2;
 
@@ -1085,6 +1144,29 @@ export const EliminationBracket = ({
                 isPlaceholder: true,
               });
             }
+          }
+        }
+      } else if (round === 1 && numByes > 0) {
+        // Bye case: sort by creation order to maintain standard seeding
+        const sorted = [...roundMatchesSorted].sort((a, b) => 
+          (a.created_at || '').localeCompare(b.created_at || '')
+        );
+        for (let i = 0; i < expectedMatches; i++) {
+          if (i < sorted.length) {
+            roundMatches.push(sorted[i]);
+          } else {
+            roundMatches.push({
+              id: `placeholder-${round}-${i}`,
+              round_number: round,
+              team1_id: "",
+              team2_id: "",
+              team1: null,
+              team2: null,
+              team1_score: null,
+              team2_score: null,
+              winner_id: null,
+              isPlaceholder: true,
+            });
           }
         }
       } else {
@@ -1244,7 +1326,7 @@ export const EliminationBracket = ({
                 const topOffset = unit * (Math.pow(2, spacingLevel) - 1) / 2;
                 
                 // Match number calculation
-                const bracketSize = Math.pow(2, Math.floor(Math.log2(totalTeams)));
+                const { bracketSize } = computeBracketParams(totalTeams);
                 const actualPrelimCount = matches.filter(m => m.round_number === 0 && !m.is_third_place_match).length;
 
                 const matchNumberStart = (() => {
