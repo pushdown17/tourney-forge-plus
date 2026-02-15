@@ -585,7 +585,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
                     m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id)
                   );
                   
-                  const isLockedByPreviousMatch = firstUnfinishedOnField?.id !== match.id;
+                  const isLockedByPreviousMatch = !activeStationMatches.has(match.id) && firstUnfinishedOnField?.id !== match.id;
 
                   return (
                     <MatchCard
