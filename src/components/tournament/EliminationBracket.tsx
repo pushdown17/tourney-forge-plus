@@ -987,11 +987,11 @@ export const EliminationBracket = ({
     const prelimFeedSet = new Set(prelimFeedPositions);
 
     if (hasPreliminary) {
-      // Sort prelim matches: highest max-seed first (feeds top slot #1)
+      // Sort prelim matches: lowest max-seed first so #8v#9 feeds #1 slot and #7v#10 feeds #2 slot
       const sortedPrelim = [...preliminaryMatches].sort((a, b) => {
         const maxSeedA = Math.max(a.team1?.seed || 0, a.team2?.seed || 0);
         const maxSeedB = Math.max(b.team1?.seed || 0, b.team2?.seed || 0);
-        return maxSeedB - maxSeedA;
+        return maxSeedA - maxSeedB;
       });
 
       // Create padded preliminary array (same slot count as R1)
