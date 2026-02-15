@@ -965,45 +965,149 @@ export const EliminationBracket = ({
     const totalTeams = tournament.teams_for_elimination;
     const bracketSize = Math.pow(2, Math.floor(Math.log2(totalTeams)));
     const totalRounds = Math.log2(bracketSize);
+    const numPreliminaryMatches = totalTeams - bracketSize;
+    const hasPreliminary = numPreliminaryMatches > 0;
+    const r1ExpectedCount = bracketSize / 2;
 
     const structure: any[][] = [];
 
     // Preliminary round (round 0) if it exists
     const preliminaryMatches = matches
-      .filter((m) => m.round_number === 0 && !m.is_third_place_match)
-      .sort((a, b) => a.id.localeCompare(b.id));
+      .filter((m) => m.round_number === 0 && !m.is_third_place_match);
 
-    if (preliminaryMatches.length > 0) {
-      structure.push(preliminaryMatches);
+    // Determine prelim feed positions in R1 (edges: top for #1, bottom for #2)
+    const prelimFeedPositions: number[] = [];
+    for (let i = 0; i < numPreliminaryMatches; i++) {
+      if (i % 2 === 0) {
+        prelimFeedPositions.push(Math.floor(i / 2)); // 0, 1, 2...
+      } else {
+        prelimFeedPositions.push(r1ExpectedCount - 1 - Math.floor(i / 2)); // last, last-1...
+      }
+    }
+    const prelimFeedSet = new Set(prelimFeedPositions);
+
+    if (hasPreliminary) {
+      // Sort prelim matches: highest max-seed first (feeds top slot #1)
+      const sortedPrelim = [...preliminaryMatches].sort((a, b) => {
+        const maxSeedA = Math.max(a.team1?.seed || 0, a.team2?.seed || 0);
+        const maxSeedB = Math.max(b.team1?.seed || 0, b.team2?.seed || 0);
+        return maxSeedB - maxSeedA;
+      });
+
+      // Create padded preliminary array (same slot count as R1)
+      const paddedPrelim: any[] = Array.from({ length: r1ExpectedCount }, (_, i) => ({
+        id: `spacer-prelim-${i}`,
+        isSpacer: true,
+        round_number: 0,
+      }));
+
+      // Place prelim matches at their feed positions
+      for (let i = 0; i < sortedPrelim.length && i < prelimFeedPositions.length; i++) {
+        paddedPrelim[prelimFeedPositions[i]] = sortedPrelim[i];
+      }
+
+      structure.push(paddedPrelim);
     }
 
-    // Standard rounds 1..N (fill missing matches with placeholders for layout)
+    // Standard rounds 1..N
     for (let round = 1; round <= totalRounds; round++) {
       const expectedMatches = bracketSize / Math.pow(2, round);
 
       const roundMatchesSorted = matches
-        .filter((m) => m.round_number === round && !m.is_third_place_match)
-        .sort((a, b) => a.id.localeCompare(b.id));
+        .filter((m) => m.round_number === round && !m.is_third_place_match);
 
       const roundMatches: any[] = [];
 
-      for (let i = 0; i < expectedMatches; i++) {
-        const existingMatch = roundMatchesSorted[i];
-        if (existingMatch) {
-          roundMatches.push(existingMatch);
-        } else {
-          roundMatches.push({
-            id: `placeholder-${round}-${i}`,
-            round_number: round,
-            team1_id: "",
-            team2_id: "",
-            team1: null,
-            team2: null,
-            team1_score: null,
-            team2_score: null,
-            winner_id: null,
-            isPlaceholder: true,
-          });
+      if (round === 1 && hasPreliminary) {
+        // Separate matches: those involving a prelim winner vs direct matches
+        const prelimWinnerIds = new Set(
+          preliminaryMatches.filter(m => m.winner_id).map(m => m.winner_id)
+        );
+
+        const topSeedMatches = roundMatchesSorted.filter(m =>
+          prelimWinnerIds.has(m.team1_id) || prelimWinnerIds.has(m.team2_id) ||
+          (m.team1?.seed && m.team1.seed <= numPreliminaryMatches) ||
+          (m.team2?.seed && m.team2.seed <= numPreliminaryMatches)
+        );
+        const directMatches = roundMatchesSorted.filter(m =>
+          !topSeedMatches.includes(m)
+        );
+
+        // Sort direct matches: higher min-seed first (top half with #1)
+        directMatches.sort((a, b) => {
+          const minSeedA = Math.min(a.team1?.seed || 99, a.team2?.seed || 99);
+          const minSeedB = Math.min(b.team1?.seed || 99, b.team2?.seed || 99);
+          return minSeedB - minSeedA;
+        });
+
+        // Sort top-seed matches by their top seed
+        topSeedMatches.sort((a, b) => {
+          const minSeedA = Math.min(a.team1?.seed || 99, a.team2?.seed || 99);
+          const minSeedB = Math.min(b.team1?.seed || 99, b.team2?.seed || 99);
+          return minSeedA - minSeedB;
+        });
+
+        let directIdx = 0;
+        let topSeedIdx = 0;
+
+        for (let i = 0; i < expectedMatches; i++) {
+          if (prelimFeedSet.has(i)) {
+            if (topSeedIdx < topSeedMatches.length) {
+              roundMatches.push(topSeedMatches[topSeedIdx++]);
+            } else {
+              roundMatches.push({
+                id: `placeholder-${round}-${i}`,
+                round_number: round,
+                team1_id: "",
+                team2_id: "",
+                team1: null,
+                team2: null,
+                team1_score: null,
+                team2_score: null,
+                winner_id: null,
+                isPlaceholder: true,
+              });
+            }
+          } else {
+            if (directIdx < directMatches.length) {
+              roundMatches.push(directMatches[directIdx++]);
+            } else {
+              roundMatches.push({
+                id: `placeholder-${round}-${i}`,
+                round_number: round,
+                team1_id: "",
+                team2_id: "",
+                team1: null,
+                team2: null,
+                team1_score: null,
+                team2_score: null,
+                winner_id: null,
+                isPlaceholder: true,
+              });
+            }
+          }
+        }
+      } else {
+        // Standard round handling
+        const sorted = [...roundMatchesSorted].sort((a, b) => a.id.localeCompare(b.id));
+        for (let i = 0; i < expectedMatches; i++) {
+          const existingMatch = sorted[i];
+          if (existingMatch) {
+            roundMatches.push(existingMatch);
+          } else {
+            roundMatches.push({
+              id: `placeholder-${round}-${i}`,
+              round_number: round,
+              team1_id: "",
+              team2_id: "",
+              team1: null,
+              team2: null,
+              team1_score: null,
+              team2_score: null,
+              winner_id: null,
+              isPlaceholder: true,
+            });
+          }
         }
       }
 
@@ -1104,40 +1208,44 @@ export const EliminationBracket = ({
           <div className="overflow-x-auto pb-4">
             <div className="flex gap-8 min-w-max px-4">
               {bracketStructure.map((roundMatches, roundIndex) => {
-                const roundNumber = roundMatches[0]?.round_number || roundIndex + 1;
+                const roundNumber = roundMatches[0]?.round_number ?? roundIndex + 1;
                 const totalTeams = tournament?.teams_for_elimination || 8;
                 const isLastRound = roundIndex === bracketStructure.length - 1;
+                const hasPreliminaryRound = bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0;
+                const isPreliminaryRound = roundNumber === 0;
                 
-                // Dimensions - correct pyramid calculation
-                // Real height of a match: header(20) + card(68) + button(36) ≈ 124px
+                // Dimensions
                 const matchHeight = 124;
-                const baseGap = 12; // Gap between round 0 matches
-                const unit = matchHeight + baseGap; // 136px
+                const baseGap = 12;
+                const unit = matchHeight + baseGap;
                 
-                // Gap between matches of this round (doubles each round)
-                const verticalGap = unit * Math.pow(2, roundIndex) - matchHeight;
+                // When there's a preliminary round, both prelim and R1 share the same spacing level
+                // (they have the same number of slots). Subsequent rounds shift accordingly.
+                const spacingLevel = hasPreliminaryRound && roundIndex > 0 
+                  ? roundIndex - 1 
+                  : roundIndex;
                 
-                // First match offset to center between source matches
-                const topOffset = unit * (Math.pow(2, roundIndex) - 1) / 2;
+                const verticalGap = unit * Math.pow(2, spacingLevel) - matchHeight;
+                const topOffset = unit * (Math.pow(2, spacingLevel) - 1) / 2;
                 
-                // Match number (stable integers, supports preliminary round)
+                // Match number calculation
                 const bracketSize = Math.pow(2, Math.floor(Math.log2(totalTeams)));
-                const preliminaryCount =
-                  bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0
-                    ? bracketStructure[0].length
-                    : 0;
+                const actualPrelimCount = matches.filter(m => m.round_number === 0 && !m.is_third_place_match).length;
 
                 const matchNumberStart = (() => {
                   if (roundNumber === 0) return 0;
-                  let start = preliminaryCount;
+                  let start = actualPrelimCount;
                   for (let r = 1; r < roundNumber; r++) {
                     start += bracketSize / Math.pow(2, r);
                   }
                   return start;
                 })();
+
+                // Track non-spacer match index for numbering
+                let realMatchCount = 0;
                 
                 return (
-                  <div key={roundNumber} className="flex flex-col" style={{ minWidth: "180px" }}>
+                  <div key={`round-${roundIndex}`} className="flex flex-col" style={{ minWidth: "180px" }}>
                     {/* Round header */}
                     <div className={cn(
                       "text-center mb-4 py-2 px-4 rounded-lg",
@@ -1169,33 +1277,53 @@ export const EliminationBracket = ({
                             overflow: "visible",
                           }}
                         >
-                          {roundMatches.map((_, matchIndex) => {
-                            if (matchIndex % 2 !== 0) return null;
-                            if (matchIndex + 1 >= roundMatches.length) return null;
+                          {isPreliminaryRound ? (
+                            // Preliminary → R1: 1-to-1 horizontal lines (each prelim connects to its R1 slot)
+                            roundMatches.map((m, idx) => {
+                              if (m.isSpacer) return null;
+                              const totalSlotHeight = matchHeight + verticalGap;
+                              const y = idx * totalSlotHeight + matchHeight / 2;
+                              return (
+                                <g key={idx} className="animate-fade-in">
+                                  <line x1="0" y1={y} x2="32" y2={y} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                                </g>
+                              );
+                            })
+                          ) : (
+                            // Standard pairs merge connection lines
+                            roundMatches.map((_, matchIndex) => {
+                              if (matchIndex % 2 !== 0) return null;
+                              if (matchIndex + 1 >= roundMatches.length) return null;
 
-                            const totalHeight = matchHeight + verticalGap;
-                            const baseY = matchIndex * totalHeight;
-                            const y1 = baseY + matchHeight / 2;
-                            const y2 = baseY + totalHeight + matchHeight / 2;
-                            const yMid = (y1 + y2) / 2;
+                              const totalSlotHeight = matchHeight + verticalGap;
+                              const baseY = matchIndex * totalSlotHeight;
+                              const y1 = baseY + matchHeight / 2;
+                              const y2 = baseY + totalSlotHeight + matchHeight / 2;
+                              const yMid = (y1 + y2) / 2;
 
-                            return (
-                              <g key={matchIndex} className="animate-fade-in">
-                                <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
-                                <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
-                                <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
-                                <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
-                              </g>
-                            );
-                          })}
+                              return (
+                                <g key={matchIndex} className="animate-fade-in">
+                                  <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                                  <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                                  <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                                  <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                                </g>
+                              );
+                            })
+                          )}
                         </svg>
                       )}
                       
                       {roundMatches.map((match, matchIndex) => {
+                        // Spacer entries: render empty div to preserve vertical alignment
+                        if (match.isSpacer) {
+                          return <div key={match.id} style={{ height: `${matchHeight}px` }} />;
+                        }
+
                         const canAccessMatch = isPreviousRoundCompleted(roundNumber);
                         const isLocked = !canAccessMatch && !match.winner_id;
                         const isMatchCompleted = !!match.winner_id;
-                        const matchNumber = matchNumberStart + matchIndex + 1;
+                        const matchNumber = matchNumberStart + (++realMatchCount);
 
                         return (
                           <BracketMatch
@@ -1248,7 +1376,6 @@ export const EliminationBracket = ({
                               }
                               if (!match.isPlaceholder) {
                                 setSelectedMatch(match);
-                                // If match is finished, show recap, otherwise editing dialog
                                 if (isMatchCompleted) {
                                   setRecapDialogOpen(true);
                                 } else {
