@@ -5,7 +5,13 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn } from "lucide-react";
+import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn, User as UserIcon } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PlayerActionPopover } from "@/components/tournament/PlayerActionPopover";
 import {
   AlertDialog,
@@ -67,6 +73,8 @@ const RefereeStation = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<{ teamNumber: 1 | 2; playerId: string } | null>(null);
   const [autoLoadBanner, setAutoLoadBanner] = useState(false);
+  const [goalScorerPicker, setGoalScorerPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
+  const [goalRemoverPicker, setGoalRemoverPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
 
   // Keep last known match assignment to avoid refetching (and resetting local unsaved stats)
   // on every timer tick/update.
@@ -812,7 +820,7 @@ const RefereeStation = () => {
                     <Button 
                       size="icon" 
                       variant="outline"
-                      onClick={() => updateScore(1, 1)}
+                      onClick={() => setGoalScorerPicker({ teamNumber: 1 })}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -820,7 +828,7 @@ const RefereeStation = () => {
                     <Button 
                       size="icon" 
                       variant="outline"
-                      onClick={() => updateScore(1, -1)}
+                      onClick={() => setGoalRemoverPicker({ teamNumber: 1 })}
                       disabled={!team1 || team1.score === 0}
                     >
                       <Minus className="h-4 w-4" />
@@ -833,7 +841,7 @@ const RefereeStation = () => {
                     <Button 
                       size="icon" 
                       variant="outline"
-                      onClick={() => updateScore(2, 1)}
+                      onClick={() => setGoalScorerPicker({ teamNumber: 2 })}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -841,7 +849,7 @@ const RefereeStation = () => {
                     <Button 
                       size="icon" 
                       variant="outline"
-                      onClick={() => updateScore(2, -1)}
+                      onClick={() => setGoalRemoverPicker({ teamNumber: 2 })}
                       disabled={!team2 || team2.score === 0}
                     >
                       <Minus className="h-4 w-4" />
@@ -943,6 +951,93 @@ const RefereeStation = () => {
                   }}
                   onStatChange={(stat, delta) => updatePlayerStat(selectedPlayer.teamNumber, player.player_id, stat as any, delta)}
                 />
+              );
+            })()}
+
+            {/* Goal Scorer Picker (+ button) */}
+            {goalScorerPicker && (() => {
+              const team = goalScorerPicker.teamNumber === 1 ? team1 : team2;
+              if (!team) return null;
+              return (
+                <Dialog open={true} onOpenChange={(open) => { if (!open) setGoalScorerPicker(null); }}>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>Qui a marqué ? ({team.name})</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {team.players.map((player) => (
+                        <Button
+                          key={player.player_id}
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => {
+                            updatePlayerStat(goalScorerPicker.teamNumber, player.player_id, 'goals', 1);
+                            setGoalScorerPicker(null);
+                          }}
+                        >
+                          <UserIcon className="mr-2 h-4 w-4" />
+                          {player.player_name}
+                          {player.goals > 0 && <span className="ml-auto text-muted-foreground">⚽{player.goals}</span>}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button variant="secondary" onClick={() => {
+                      updateScore(goalScorerPicker.teamNumber, 1);
+                      setGoalScorerPicker(null);
+                    }}>
+                      Passer (but anonyme)
+                    </Button>
+                  </DialogContent>
+                </Dialog>
+              );
+            })()}
+
+            {/* Goal Remover Picker (- button) */}
+            {goalRemoverPicker && (() => {
+              const team = goalRemoverPicker.teamNumber === 1 ? team1 : team2;
+              if (!team) return null;
+              const playersWithGoals = team.players.filter(p => p.goals > 0);
+              return (
+                <Dialog open={true} onOpenChange={(open) => { if (!open) setGoalRemoverPicker(null); }}>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>Retirer un but ({team.name})</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {playersWithGoals.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-4">
+                          Aucun joueur avec des buts enregistrés
+                        </p>
+                      ) : (
+                        playersWithGoals.map((player) => (
+                          <Button
+                            key={player.player_id}
+                            variant="outline"
+                            className="w-full justify-between"
+                            onClick={() => {
+                              updatePlayerStat(goalRemoverPicker.teamNumber, player.player_id, 'goals', -1);
+                              setGoalRemoverPicker(null);
+                            }}
+                          >
+                            <span>{player.player_name}</span>
+                            <span className="flex items-center gap-2 text-muted-foreground">
+                              <span>⚽{player.goals}</span>
+                              <Minus className="h-4 w-4" />
+                            </span>
+                          </Button>
+                        ))
+                      )}
+                      {playersWithGoals.length === 0 && (
+                        <Button variant="secondary" className="w-full" onClick={() => {
+                          updateScore(goalRemoverPicker.teamNumber, -1);
+                          setGoalRemoverPicker(null);
+                        }}>
+                          Retirer quand même
+                        </Button>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
               );
             })()}
           </div>
