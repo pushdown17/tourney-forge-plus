@@ -52,12 +52,12 @@ export function PlayerSearchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Rechercher un joueur</DialogTitle>
+          <DialogTitle>Search for a player</DialogTitle>
         </DialogHeader>
 
         <div className="flex gap-2">
           <Input
-            placeholder="Nom du joueur..."
+            placeholder="Player name..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -70,7 +70,7 @@ export function PlayerSearchDialog({
         <div className="max-h-60 overflow-y-auto space-y-1">
           {results.length === 0 && !searching && query.length >= 2 && (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              Aucun joueur trouvé
+              No player found
             </p>
           )}
           {results.map((player) => (

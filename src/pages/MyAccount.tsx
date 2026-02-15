@@ -50,13 +50,13 @@ export default function MyAccount() {
     <div className="min-h-screen bg-gradient-to-b from-background to-background/80">
       <Navigation />
       <div className="container mx-auto px-4 py-8 mt-16">
-        <h1 className="text-3xl font-bold mb-6">Mon Compte</h1>
+        <h1 className="text-3xl font-bold mb-6">My Account</h1>
 
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
-              Profil
+              Profile
             </TabsTrigger>
             <TabsTrigger value="stats" className="gap-2">
               <BarChart3 className="h-4 w-4" />
