@@ -500,6 +500,8 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                   isInTheHole={inTheHoleMatch?.id === match.id}
                   timerState={matchTimers[match.id] || null}
                   onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
+                  selectedTeam={selectedTeam}
+                  onTeamClick={handleTeamClick}
                 />
               ))}
             </div>
@@ -627,9 +629,11 @@ interface MatchCardProps {
     elapsedWhenPaused: number;
   } | null;
   onViewLiveStats?: () => void;
+  selectedTeam?: string | null;
+  onTeamClick?: (teamName: string) => void;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, isOnDeck = false, isInTheHole = false, timerState, onViewLiveStats }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, isOnDeck = false, isInTheHole = false, timerState, onViewLiveStats, selectedTeam, onTeamClick }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -870,7 +874,13 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
-      <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border transition-colors ${isOnRefereeStation ? 'border-primary ring-2 ring-primary/30' : 'border-transparent'} ${isLocked ? 'opacity-50' : ''}`}>
+      <div className={`flex flex-col gap-2 p-4 bg-secondary/20 rounded-lg border transition-all ${isOnRefereeStation ? 'border-primary ring-2 ring-primary/30' : 'border-transparent'} ${isLocked ? 'opacity-50' : ''} ${
+        selectedTeam && onTeamClick
+          ? (match.team1?.name === selectedTeam || match.team2?.name === selectedTeam)
+            ? "bg-primary/30 ring-2 ring-primary shadow-lg"
+            : "bg-muted/20 opacity-50"
+          : ""
+      }`}>
         <div className="flex items-center justify-center gap-2 mb-1">
           {isLive && timerState && (
             <TimerDisplay
@@ -914,7 +924,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
             <div className="flex-1 flex flex-col min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-medium text-sm sm:text-base truncate">{match.team1?.name || "Team 1"}</span>
+                <button
+                  onClick={() => onTeamClick?.(match.team1?.name)}
+                  className={`font-medium text-sm sm:text-base truncate hover:text-primary hover:underline transition-colors cursor-pointer ${
+                    match.team1?.name === selectedTeam ? "text-primary font-bold underline" : ""
+                  }`}
+                >
+                  {match.team1?.name || "Team 1"}
+                </button>
                 <ScoreInput
                   value={team1Score}
                   onChange={(value) => {
@@ -957,7 +974,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                   }}
                   disabled={isLocked || isClosed}
                 />
-                <span className="font-medium text-sm sm:text-base truncate text-right">{match.team2?.name || "Team 2"}</span>
+                <button
+                  onClick={() => onTeamClick?.(match.team2?.name)}
+                  className={`font-medium text-sm sm:text-base truncate text-right hover:text-primary hover:underline transition-colors cursor-pointer ${
+                    match.team2?.name === selectedTeam ? "text-primary font-bold underline" : ""
+                  }`}
+                >
+                  {match.team2?.name || "Team 2"}
+                </button>
               </div>
               {team2Players.length > 0 && (
                 <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 text-right truncate">
@@ -969,7 +993,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
         ) : (
           <div className="flex items-center gap-3">
             <div className="flex-1 flex flex-col min-w-0 text-right">
-              <span className="font-medium text-sm sm:text-base truncate">{match.team1?.name || "Team 1"}</span>
+              <button
+                onClick={() => onTeamClick?.(match.team1?.name)}
+                className={`font-medium text-sm sm:text-base truncate hover:text-primary hover:underline transition-colors cursor-pointer ${
+                  match.team1?.name === selectedTeam ? "text-primary font-bold underline" : ""
+                }`}
+              >
+                {match.team1?.name || "Team 1"}
+              </button>
               {team1Players.length > 0 && (
                 <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">
                   {team1Players.map(p => p.name).join(", ")}
@@ -982,7 +1013,14 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               <span className="font-bold text-lg sm:text-xl w-6 text-center">{team2Score}</span>
             </div>
             <div className="flex-1 flex flex-col min-w-0">
-              <span className="font-medium text-sm sm:text-base truncate">{match.team2?.name || "Team 2"}</span>
+              <button
+                onClick={() => onTeamClick?.(match.team2?.name)}
+                className={`font-medium text-sm sm:text-base truncate hover:text-primary hover:underline transition-colors cursor-pointer ${
+                  match.team2?.name === selectedTeam ? "text-primary font-bold underline" : ""
+                }`}
+              >
+                {match.team2?.name || "Team 2"}
+              </button>
               {team2Players.length > 0 && (
                 <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">
                   {team2Players.map(p => p.name).join(", ")}
