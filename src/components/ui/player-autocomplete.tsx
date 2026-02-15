@@ -6,14 +6,14 @@ import { cn } from "@/lib/utils";
 interface PlayerAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
-  placeholder?: string;
+  placeholder?: string; 
   disabled?: boolean;
 }
 
 export const PlayerAutocomplete = ({
   value,
   onChange,
-  placeholder = "Player name",
+  placeholder = "Nom du joueur",
   disabled = false,
 }: PlayerAutocompleteProps) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);

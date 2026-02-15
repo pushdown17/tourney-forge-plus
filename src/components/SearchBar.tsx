@@ -144,7 +144,7 @@ export const SearchBar = () => {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="Search for a tournament or player..."
+          placeholder="Rechercher un tournoi ou un joueur..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
@@ -156,7 +156,7 @@ export const SearchBar = () => {
         <Card className="absolute z-50 w-full mt-2 glass-card border-primary/20 max-h-[500px] overflow-y-auto">
           {isSearching ? (
             <div className="p-6 text-center text-muted-foreground">
-              Searching...
+              Recherche en cours...
             </div>
           ) : (
             <div className="p-4 space-y-4">
@@ -165,7 +165,7 @@ export const SearchBar = () => {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Trophy className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold text-lg">Tournaments</h3>
+                    <h3 className="font-semibold text-lg">Tournois</h3>
                   </div>
                   <div className="space-y-2">
                     {tournaments.map((tournament) => (
@@ -180,15 +180,15 @@ export const SearchBar = () => {
                             {tournament.is_closed && (
                               <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                                 <Lock className="h-3 w-3" />
-                                Closed
+                                Clôturé
                               </Badge>
                             )}
                           </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                             <Calendar className="h-3 w-3" />
                             <span>
-                              {new Date(tournament.start_date).toLocaleDateString("en-US")} -{" "}
-                              {new Date(tournament.end_date).toLocaleDateString("en-US")}
+                              {new Date(tournament.start_date).toLocaleDateString("fr-FR")} -{" "}
+                              {new Date(tournament.end_date).toLocaleDateString("fr-FR")}
                             </span>
                           </div>
                         </Card>
@@ -203,7 +203,7 @@ export const SearchBar = () => {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <User className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold text-lg">Players</h3>
+                    <h3 className="font-semibold text-lg">Joueurs</h3>
                   </div>
                   <div className="space-y-2">
                     {players.map((player) => (
@@ -217,7 +217,7 @@ export const SearchBar = () => {
                             <div>
                               <div className="font-medium">{player.name}</div>
                               <div className="text-sm text-muted-foreground">
-                                {player.tournaments_count} tournament{player.tournaments_count > 1 ? "s" : ""}
+                                {player.tournaments_count} tournoi{player.tournaments_count > 1 ? "s" : ""}
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -232,7 +232,7 @@ export const SearchBar = () => {
                           </div>
                           {player.matches_played > 0 && (
                             <div className="text-xs text-muted-foreground mt-2">
-                              {player.matches_played} match{player.matches_played > 1 ? "es" : ""} played
+                              {player.matches_played} match{player.matches_played > 1 ? "s" : ""} joué{player.matches_played > 1 ? "s" : ""}
                             </div>
                           )}
                         </Card>
@@ -244,7 +244,7 @@ export const SearchBar = () => {
 
               {tournaments.length === 0 && players.length === 0 && (
                 <div className="text-center py-6 text-muted-foreground">
-                  No results found for "{searchQuery}"
+                  Aucun résultat pour « {searchQuery} »
                 </div>
               )}
 
@@ -253,7 +253,7 @@ export const SearchBar = () => {
                 className="w-full"
                 onClick={() => setShowResults(false)}
               >
-                Close
+                Fermer
               </Button>
             </div>
           )}
