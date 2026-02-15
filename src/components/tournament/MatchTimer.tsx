@@ -162,9 +162,9 @@ export const MatchTimer = ({
   const pauseTimer = async () => {
     const now = new Date(getSyncedNowMs()).toISOString();
     
-    // Calculate total elapsed time including previous pauses
+    // Calculate total elapsed time including previous pauses (keep ms precision)
     const startTime = new Date(startedAt!).getTime();
-    const currentElapsed = Math.floor((getSyncedNowMs() - startTime) / 1000);
+    const currentElapsed = (getSyncedNowMs() - startTime) / 1000;
     const totalElapsed = currentElapsed + elapsedWhenPaused;
     
     const { error } = await supabase
