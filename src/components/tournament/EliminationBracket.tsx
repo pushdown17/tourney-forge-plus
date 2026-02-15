@@ -1189,24 +1189,41 @@ export const EliminationBracket = ({
           }
         }
       } else {
-        // Standard round handling
+        // Standard round handling - fill placeholders with known winners from previous round
         const sorted = [...roundMatchesSorted].sort((a, b) => a.id.localeCompare(b.id));
+        const prevRound = structure.length > 0 ? structure[structure.length - 1] : [];
+        
         for (let i = 0; i < expectedMatches; i++) {
           const existingMatch = sorted[i];
           if (existingMatch) {
             roundMatches.push(existingMatch);
           } else {
+            // Try to find winners from the two feeder matches in previous round
+            const feederIdx1 = i * 2;
+            const feederIdx2 = i * 2 + 1;
+            const feeder1 = prevRound[feederIdx1];
+            const feeder2 = prevRound[feederIdx2];
+            
+            const team1Winner = feeder1 && !feeder1.isSpacer && feeder1.winner_id
+              ? (feeder1.winner_id === feeder1.team1_id ? feeder1.team1 : feeder1.team2)
+              : null;
+            const team2Winner = feeder2 && !feeder2.isSpacer && feeder2.winner_id
+              ? (feeder2.winner_id === feeder2.team1_id ? feeder2.team1 : feeder2.team2)
+              : null;
+
             roundMatches.push({
               id: `placeholder-${round}-${i}`,
               round_number: round,
-              team1_id: "",
-              team2_id: "",
-              team1: null,
-              team2: null,
+              team1_id: team1Winner?.id || "",
+              team2_id: team2Winner?.id || "",
+              team1: team1Winner || null,
+              team2: team2Winner || null,
               team1_score: null,
               team2_score: null,
               winner_id: null,
               isPlaceholder: true,
+              hasAdvancedTeam1: !!team1Winner,
+              hasAdvancedTeam2: !!team2Winner,
             });
           }
         }
