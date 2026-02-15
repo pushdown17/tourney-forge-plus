@@ -1177,12 +1177,27 @@ export const EliminationBracket = ({
     return acc;
   }, {} as { [key: number]: Match[] });
 
-  // Compute On Deck and In the Hole matches
-  const waitingMatches = matches
-    .filter(m => !m.winner_id && !activeStationMatches.has(m.id) && m.team1 && m.team2)
-    .sort((a, b) => a.round_number - b.round_number);
-  const onDeckMatchId = waitingMatches[0]?.id;
-  const inTheHoleMatchId = waitingMatches[1]?.id;
+  // Build sequential match order from bracket structure for queue badges
+  const sequentialMatchOrder: string[] = [];
+  for (const round of bracketStructure) {
+    for (const match of round) {
+      if (match && !match.isSpacer && !match.isPlaceholder && match.id) {
+        sequentialMatchOrder.push(match.id);
+      }
+    }
+  }
+  // Add 3rd place match at the end if it exists
+  if (thirdPlaceMatch) {
+    sequentialMatchOrder.push(thirdPlaceMatch.id);
+  }
+
+  // Compute On Deck and In the Hole matches using sequential bracket order
+  const waitingMatchIds = sequentialMatchOrder.filter(id => {
+    const m = matches.find(match => match.id === id);
+    return m && !m.winner_id && !activeStationMatches.has(m.id) && m.team1 && m.team2;
+  });
+  const onDeckMatchId = waitingMatchIds[0];
+  const inTheHoleMatchId = waitingMatchIds[1];
 
   return (
     <Card className="glass-card p-6">
