@@ -89,10 +89,10 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
     }
 
     if (error) {
-      toast.error("Erreur lors de la sauvegarde");
+      toast.error("Error saving profile");
       console.error(error);
     } else {
-      toast.success("Profil sauvegardé !");
+      toast.success("Profile saved!");
       await fetchProfile();
     }
     setSaving(false);
@@ -103,7 +103,7 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      toast.error("L'image ne doit pas dépasser 2 Mo");
+      toast.error("Image must not exceed 2 MB");
       return;
     }
 
@@ -116,14 +116,14 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
       .upload(filePath, file, { upsert: true });
 
     if (uploadError) {
-      toast.error("Erreur lors de l'upload");
+      toast.error("Error uploading image");
       console.error(uploadError);
     } else {
       const { data: { publicUrl } } = supabase.storage
         .from("avatars")
         .getPublicUrl(filePath);
       setAvatarUrl(publicUrl + "?t=" + Date.now());
-      toast.success("Photo mise à jour !");
+      toast.success("Photo updated!");
     }
     setUploading(false);
   };
@@ -150,14 +150,14 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
 
     if (error) {
       if (error.code === "23505") {
-        toast.error("Ce joueur est déjà lié à un autre compte");
+        toast.error("This player is already linked to another account");
       } else {
-        toast.error("Erreur lors de la liaison");
+        toast.error("Error linking player");
       }
       console.error(error);
     } else {
       setLinkedPlayerName(playerName);
-      toast.success(`Compte lié au joueur "${playerName}"`);
+      toast.success(`Account linked to player "${playerName}"`);
       await fetchProfile();
     }
     setShowPlayerSearch(false);
@@ -171,10 +171,10 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
       .eq("user_id", userId);
 
     if (error) {
-      toast.error("Erreur lors de la déliaison");
+      toast.error("Error unlinking player");
     } else {
       setLinkedPlayerName(null);
-      toast.success("Joueur délié");
+      toast.success("Player unlinked");
       await fetchProfile();
     }
   };
@@ -218,33 +218,33 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
           <div className="flex-1 w-full space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">Prénom</Label>
+                <Label htmlFor="firstName">First Name</Label>
                 <Input
                   id="firstName"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Votre prénom"
+                  placeholder="Your first name"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Nom</Label>
+                <Label htmlFor="lastName">Last Name</Label>
                 <Input
                   id="lastName"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Votre nom"
+                  placeholder="Your last name"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="nickname">Pseudo</Label>
+                <Label htmlFor="nickname">Nickname</Label>
                 <Input
                   id="nickname"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  placeholder="Votre pseudo"
+                  placeholder="Your nickname"
                 />
               </div>
               <div className="space-y-2">
@@ -255,7 +255,7 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
 
             <Button onClick={handleSave} disabled={saving} className="gap-2">
               <Save className="h-4 w-4" />
-              {saving ? "Sauvegarde..." : "Sauvegarder"}
+              {saving ? "Saving..." : "Save"}
             </Button>
           </div>
         </div>
@@ -263,9 +263,9 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
 
       {/* Player linking */}
       <Card className="p-6 glass-card">
-        <h3 className="text-lg font-semibold mb-4">Liaison joueur</h3>
+        <h3 className="text-lg font-semibold mb-4">Player Link</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          Liez votre compte à un profil joueur existant pour retrouver vos stats de tournois.
+          Link your account to an existing player profile to see your tournament stats.
         </p>
 
         {profile?.linked_player_id && linkedPlayerName ? (
@@ -274,13 +274,13 @@ export function ProfileTab({ userId, userEmail }: { userId: string; userEmail: s
             <span className="font-medium">{linkedPlayerName}</span>
             <Button variant="ghost" size="sm" onClick={handleUnlinkPlayer} className="gap-1 text-destructive">
               <Unlink className="h-4 w-4" />
-              Délier
+              Unlink
             </Button>
           </div>
         ) : (
           <Button variant="outline" onClick={() => setShowPlayerSearch(true)} className="gap-2">
             <Search className="h-4 w-4" />
-            Rechercher un joueur
+            Search for a player
           </Button>
         )}
       </Card>

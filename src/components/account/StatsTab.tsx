@@ -115,7 +115,7 @@ export function StatsTab({ userId }: { userId: string }) {
     return (
       <Card className="p-8 glass-card text-center">
         <p className="text-muted-foreground">
-          Liez votre compte à un joueur dans l'onglet <strong>Profil</strong> pour voir vos stats.
+          Link your account to a player in the <strong>Profile</strong> tab to see your stats.
         </p>
       </Card>
     );
@@ -129,7 +129,7 @@ export function StatsTab({ userId }: { userId: string }) {
           <div className="flex items-center gap-3">
             <Target className="h-7 w-7 text-primary" />
             <div>
-              <p className="text-xs text-muted-foreground">Buts</p>
+              <p className="text-xs text-muted-foreground">Goals</p>
               <p className="text-2xl font-bold">{totals.goals}</p>
             </div>
           </div>
@@ -147,7 +147,7 @@ export function StatsTab({ userId }: { userId: string }) {
           <div className="flex items-center gap-3">
             <Trophy className="h-7 w-7 text-primary" />
             <div>
-              <p className="text-xs text-muted-foreground">Matchs</p>
+              <p className="text-xs text-muted-foreground">Matches</p>
               <p className="text-2xl font-bold">{totals.matches}</p>
             </div>
           </div>
@@ -158,7 +158,7 @@ export function StatsTab({ userId }: { userId: string }) {
               <span className="text-destructive font-bold text-sm">F</span>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Fautes</p>
+              <p className="text-xs text-muted-foreground">Fouls</p>
               <p className="text-2xl font-bold">{totals.fouls}</p>
             </div>
           </div>
@@ -166,10 +166,10 @@ export function StatsTab({ userId }: { userId: string }) {
       </div>
 
       {/* Tournament history */}
-      <h2 className="text-xl font-bold">Historique des tournois</h2>
+      <h2 className="text-xl font-bold">Tournament History</h2>
       {tournaments.length === 0 ? (
         <Card className="p-6 glass-card text-center">
-          <p className="text-muted-foreground">Aucune participation trouvée.</p>
+          <p className="text-muted-foreground">No participation found.</p>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -179,7 +179,7 @@ export function StatsTab({ userId }: { userId: string }) {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h3 className="text-lg font-semibold">{t.name}</h3>
-                    <p className="text-sm text-muted-foreground">Équipe : {t.teamName}</p>
+                    <p className="text-sm text-muted-foreground">Team: {t.teamName}</p>
                   </div>
                   <Badge variant="outline">
                     {t.matches} match{t.matches > 1 ? "s" : ""}
@@ -187,13 +187,13 @@ export function StatsTab({ userId }: { userId: string }) {
                 </div>
                 <div className="flex gap-3 flex-wrap">
                   <Badge variant="outline" className="gap-1">
-                    <Target className="h-3 w-3" /> {t.goals} but{t.goals > 1 ? "s" : ""}
+                    <Target className="h-3 w-3" /> {t.goals} goal{t.goals > 1 ? "s" : ""}
                   </Badge>
                   <Badge variant="outline" className="gap-1">
                     <Users className="h-3 w-3" /> {t.assists} assist{t.assists > 1 ? "s" : ""}
                   </Badge>
                   <Badge variant="outline" className="gap-1">
-                    <span className="text-destructive">F</span> {t.fouls} faute{t.fouls > 1 ? "s" : ""}
+                    <span className="text-destructive">F</span> {t.fouls} foul{t.fouls > 1 ? "s" : ""}
                   </Badge>
                 </div>
               </Card>
