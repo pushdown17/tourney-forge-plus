@@ -696,13 +696,31 @@ const RefereeStation = () => {
           }
 
           if (matchesToCreate.length > 0) {
-            const { error: insertErr } = await supabase
+            // Re-check for existing matches right before insert to prevent race conditions
+            const { data: recheck } = await supabase
               .from("matches")
-              .insert(matchesToCreate);
-            if (insertErr) {
-              console.error("Error creating next round matches from station:", insertErr);
-            } else {
-              console.log(`Created ${matchesToCreate.length} next round match(es) from station`);
+              .select("id, team1_id, team2_id, is_third_place_match")
+              .eq("tournament_id", station.tournament_id)
+              .eq("phase", currentPhase)
+              .eq("round_number", match.round_number + 1);
+            
+            const filteredToCreate = matchesToCreate.filter(mc => {
+              return !recheck?.some(ex =>
+                ex.is_third_place_match === mc.is_third_place_match &&
+                ((ex.team1_id === mc.team1_id && ex.team2_id === mc.team2_id) ||
+                 (ex.team1_id === mc.team2_id && ex.team2_id === mc.team1_id))
+              );
+            });
+
+            if (filteredToCreate.length > 0) {
+              const { error: insertErr } = await supabase
+                .from("matches")
+                .insert(filteredToCreate);
+              if (insertErr) {
+                console.error("Error creating next round matches from station:", insertErr);
+              } else {
+                console.log(`Created ${filteredToCreate.length} next round match(es) from station`);
+              }
             }
           }
         }
