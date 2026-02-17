@@ -608,6 +608,7 @@ const RefereeStation = () => {
     });
 
     const currentPhase = match.phase as any;
+    let skipAutoAdvance = false;
 
     // For elimination phases, generate next round matches if needed
     if (currentPhase === 'single_elimination' || currentPhase === 'double_elimination') {
@@ -658,10 +659,8 @@ const RefereeStation = () => {
             const numFields = tournamentData?.number_of_fields || 1;
 
             if (roundMatches.length === 2 && i === 0) {
-              // Semi-finals → create final + 3rd place
-              const loser1 = m1.winner_id === m1.team1_id ? m1.team2_id : m1.team1_id;
-              const loser2 = m2.winner_id === m2.team1_id ? m2.team2_id : m2.team1_id;
-
+              // Semi-finals → create ONLY the final
+              // 3rd place decision is deferred to the tournament dashboard
               matchesToCreate.push({
                 tournament_id: station.tournament_id,
                 phase: currentPhase,
@@ -671,17 +670,7 @@ const RefereeStation = () => {
                 is_third_place_match: false,
                 field_number: 1,
               });
-              if (!thirdPlaceExists) {
-                matchesToCreate.push({
-                  tournament_id: station.tournament_id,
-                  phase: currentPhase,
-                  round_number: match.round_number + 1,
-                  team1_id: loser1,
-                  team2_id: loser2,
-                  is_third_place_match: true,
-                  field_number: Math.min(2, numFields),
-                });
-              }
+              skipAutoAdvance = true;
             } else {
               matchesToCreate.push({
                 tournament_id: station.tournament_id,
@@ -727,6 +716,26 @@ const RefereeStation = () => {
       } catch (err) {
         console.error("Error in next round generation from station:", err);
       }
+    }
+
+    // If semi-finals just completed, don't auto-advance
+    // The tournament dashboard will show a dialog to decide about 3rd place match
+    if (skipAutoAdvance) {
+      await supabase.from("referee_stations").update({
+        current_match_id: null,
+        timer_started_at: null,
+        timer_paused_at: null,
+        timer_elapsed_when_paused: 0,
+        timer_duration_seconds: null
+      } as any).eq("id", stationId);
+
+      toast.success("Demi-finales terminées ! Le gestionnaire va décider de la suite.");
+      setConfirmDialogOpen(false);
+      setMatch(null);
+      setTeam1(null);
+      setTeam2(null);
+      setSaving(false);
+      return;
     }
 
     // Find the next waiting match AFTER generating next round matches
