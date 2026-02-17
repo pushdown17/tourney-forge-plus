@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BracketMatch } from "./BracketMatch";
@@ -127,6 +127,7 @@ export const EliminationBracket = ({
     finale: any;
     thirdPlace: any;
   } | null>(null);
+  const thirdPlaceDecisionMadeRef = useRef(false);
 
   useEffect(() => {
     fetchTournamentAndMatches();
@@ -415,6 +416,52 @@ export const EliminationBracket = ({
       supabase.removeChannel(channel);
     };
   }, [tournamentId]);
+
+  // Auto-detect when semis are complete (from station) and 3rd place decision is needed
+  useEffect(() => {
+    if (!tournament || !isCreator || thirdPlaceDecisionMadeRef.current) return;
+
+    const totalTeams = tournament.teams_for_elimination;
+    if (!totalTeams) return;
+    const { bracketSize } = computeBracketParams(totalTeams);
+    const totalRounds = Math.log2(bracketSize);
+    const semiRound = totalRounds - 1;
+    const finalRound = totalRounds;
+
+    const semiMatches = matches.filter(m => m.round_number === semiRound && !m.is_third_place_match);
+    const finalMatch = matches.find(m => m.round_number === finalRound && !m.is_third_place_match);
+    const thirdPlace = matches.find(m => m.is_third_place_match);
+    const isFinaleOnStation = activeStationMatches.has(finalMatch?.id || '');
+
+    if (semiMatches.length === 2 &&
+        semiMatches.every(m => m.winner_id) &&
+        finalMatch && !finalMatch.winner_id &&
+        !thirdPlace &&
+        !thirdPlaceDialogOpen &&
+        !pendingFinalMatches &&
+        !isFinaleOnStation) {
+
+      const sortedSemis = [...semiMatches].sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+      const loser1 = sortedSemis[0].winner_id === sortedSemis[0].team1_id
+        ? sortedSemis[0].team2_id : sortedSemis[0].team1_id;
+      const loser2 = sortedSemis[1].winner_id === sortedSemis[1].team1_id
+        ? sortedSemis[1].team2_id : sortedSemis[1].team1_id;
+
+      setPendingFinalMatches({
+        finale: null,
+        thirdPlace: {
+          tournament_id: tournamentId,
+          phase: currentPhase as any,
+          round_number: finalRound,
+          team1_id: loser1,
+          team2_id: loser2,
+          is_third_place_match: true,
+          field_number: 2,
+        }
+      });
+      setThirdPlaceDialogOpen(true);
+    }
+  }, [matches, tournament, isCreator, activeStationMatches]);
 
   const fetchTournamentAndMatches = async () => {
     setLoading(true);
@@ -785,17 +832,14 @@ export const EliminationBracket = ({
 
       // SPECIAL: Preliminary round (round 0) completed
       if (completedRound === 0) {
-        // Get preliminary winners and top seeds
-        const prelimWinners = roundMatches
-          .filter(m => m.winner_id)
-          .map(m => m.winner_id);
-
-        if (prelimWinners.length !== roundMatches.length) {
+        // Get preliminary winners
+        const completedPrelims = roundMatches.filter(m => m.winner_id);
+        if (completedPrelims.length !== roundMatches.length) {
           console.log('Not all preliminary matches complete yet');
           return;
         }
 
-        // Get standings to find top seeds
+        // Get standings to find seeds
         const { data: standings, error: standingsError } = await supabase
           .from("team_stats")
           .select("team_id, team:team_id(id, name)")
@@ -805,40 +849,57 @@ export const EliminationBracket = ({
           .limit(teamsCount);
 
         if (standingsError) throw standingsError;
+        if (!standings) return;
 
-        // Create R1 matches: top seeds vs preliminary winners (reversed order)
-        // For 10 teams: #1 vs W(#8v#9), #2 vs W(#7v#10)
-        // Prelim matches are ordered by creation: M1=#7v#10, M2=#8v#9
-        // So prelim winner index 0 = W(#7v#10), index 1 = W(#8v#9)
-        // Top seed #1 should face the winner of the lowest-seed match → W(#8v#9) = last prelim winner
-        // Top seed #2 should face W(#7v#10) = first prelim winner
-        const reversedPrelimWinners = [...prelimWinners].reverse();
-        
-        for (let i = 0; i < reversedPrelimWinners.length; i++) {
-          const topSeed = standings?.[i];
-          const prelimWinner = reversedPrelimWinners[i];
+        // Build map: seed position → team_id
+        // Prelim winners take the slot of the higher-seeded team in their match
+        const seedToTeam = new Map<number, string>();
 
-          if (topSeed && prelimWinner) {
-            // Check if match already exists
-            const exists = existingNextRoundMatches?.some(m =>
-              (m.team1_id === topSeed.team_id && m.team2_id === prelimWinner) ||
-              (m.team1_id === prelimWinner && m.team2_id === topSeed.team_id)
-            );
+        // Direct seeds (teams not in any prelim match)
+        for (let s = 0; s < standings.length; s++) {
+          const playedPrelim = roundMatches.some(m =>
+            m.team1_id === standings[s].team_id || m.team2_id === standings[s].team_id
+          );
+          if (!playedPrelim) {
+            seedToTeam.set(s + 1, standings[s].team_id);
+          }
+        }
 
-            if (!exists) {
-              const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
-              matchesToCreate.push({
-                tournament_id: tournamentId,
-                phase: currentPhase as any,
-                round_number: 1,
-                team1_id: topSeed.team_id,
-                team2_id: prelimWinner,
-                is_third_place_match: false,
-                field_number: fieldNumber,
-              });
-              
-              console.log(`R1 created: Seed ${i + 1} vs Prelim winner`);
-            }
+        // Prelim winners take the high seed's slot
+        for (const pm of completedPrelims) {
+          const idx1 = standings.findIndex(s => s.team_id === pm.team1_id);
+          const idx2 = standings.findIndex(s => s.team_id === pm.team2_id);
+          const highSeed = Math.min(idx1, idx2) + 1;
+          seedToTeam.set(highSeed, pm.winner_id!);
+        }
+
+        // Use standard seeding to create R1 matches
+        const seeding = getStandardSeeding(bracketSize);
+        for (let i = 0; i < seeding.length; i += 2) {
+          const s1 = seeding[i];
+          const s2 = seeding[i + 1];
+          const team1Id = seedToTeam.get(s1);
+          const team2Id = seedToTeam.get(s2);
+
+          if (!team1Id || !team2Id) continue;
+
+          const exists = existingNextRoundMatches?.some(m =>
+            (m.team1_id === team1Id && m.team2_id === team2Id) ||
+            (m.team1_id === team2Id && m.team2_id === team1Id)
+          );
+
+          if (!exists) {
+            const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
+            matchesToCreate.push({
+              tournament_id: tournamentId,
+              phase: currentPhase as any,
+              round_number: 1,
+              team1_id: team1Id,
+              team2_id: team2Id,
+              is_third_place_match: false,
+              field_number: fieldNumber,
+            });
+            console.log(`R1: Seed #${s1} vs Seed #${s2}`);
           }
         }
 
@@ -849,7 +910,7 @@ export const EliminationBracket = ({
 
           if (insertError) throw insertError;
 
-          toast.success(`${matchesToCreate.length} R1 match(es) created!`);
+          toast.success(`${matchesToCreate.length} match(s) de R1 créés !`);
           await fetchTournamentAndMatches();
         }
         return;
@@ -986,31 +1047,93 @@ export const EliminationBracket = ({
     }
   };
 
+  const autoSendToStation = async (sendThirdPlaceFirst: boolean) => {
+    try {
+      const { data: stations } = await supabase
+        .from("referee_stations")
+        .select("id, timer_duration_seconds")
+        .eq("tournament_id", tournamentId)
+        .eq("is_active", true)
+        .is("current_match_id", null)
+        .order("station_number")
+        .limit(1);
+
+      if (!stations || stations.length === 0) {
+        toast.info("Aucune station disponible pour l'envoi automatique");
+        return;
+      }
+
+      const station = stations[0];
+      let matchToSend: string | null = null;
+
+      if (sendThirdPlaceFirst) {
+        const { data: tpMatches } = await supabase
+          .from("matches")
+          .select("id")
+          .eq("tournament_id", tournamentId)
+          .eq("phase", currentPhase)
+          .eq("is_third_place_match", true)
+          .is("winner_id", null)
+          .limit(1);
+
+        matchToSend = tpMatches?.[0]?.id || null;
+        if (matchToSend) toast.success("🥉 Petite finale envoyée sur la station !");
+      } else {
+        const { data: finalMatches } = await supabase
+          .from("matches")
+          .select("id")
+          .eq("tournament_id", tournamentId)
+          .eq("phase", currentPhase)
+          .eq("is_third_place_match", false)
+          .is("winner_id", null)
+          .order("round_number", { ascending: false })
+          .limit(1);
+
+        matchToSend = finalMatches?.[0]?.id || null;
+        if (matchToSend) toast.success("🏆 Grande finale envoyée sur la station !");
+      }
+
+      if (matchToSend) {
+        await supabase.from("referee_stations").update({
+          current_match_id: matchToSend,
+          timer_started_at: null,
+          timer_paused_at: null,
+          timer_elapsed_when_paused: 0,
+        } as any).eq("id", station.id);
+      }
+    } catch (error) {
+      console.error("Error auto-sending to station:", error);
+    }
+  };
+
   const handleThirdPlaceConfirmation = async (includeThirdPlace: boolean) => {
     if (!pendingFinalMatches) return;
-    
+
+    thirdPlaceDecisionMadeRef.current = true;
+
     try {
-      const matchesToInsert = [pendingFinalMatches.finale];
-      
-      if (includeThirdPlace) {
+      const matchesToInsert: any[] = [];
+
+      if (pendingFinalMatches.finale) {
+        matchesToInsert.push(pendingFinalMatches.finale);
+      }
+
+      if (includeThirdPlace && pendingFinalMatches.thirdPlace) {
         matchesToInsert.push(pendingFinalMatches.thirdPlace);
       }
 
-      const { error: insertError } = await supabase
-        .from("matches")
-        .insert(matchesToInsert);
+      if (matchesToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from("matches")
+          .insert(matchesToInsert);
+        if (insertError) throw insertError;
+      }
 
-      if (insertError) throw insertError;
-
-      const message = includeThirdPlace 
-        ? "Final and 3rd place match generated!"
-        : "Final generated!";
-      
-      toast.success(message);
+      await autoSendToStation(includeThirdPlace);
       await fetchTournamentAndMatches();
     } catch (error: any) {
       console.error("Error creating matches:", error);
-      toast.error("Error creating matches");
+      toast.error("Erreur lors de la création des matchs");
     } finally {
       setThirdPlaceDialogOpen(false);
       setPendingFinalMatches(null);
@@ -1691,18 +1814,19 @@ export const EliminationBracket = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Medal className="h-5 w-5 text-amber-600" />
-              3rd Place Match
+              Petite finale
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Do you want to organize a 3rd place match between the semi-final losers?
+              Voulez-vous jouer la petite finale (match pour la 3ème place) ?
+              Le match sera envoyé automatiquement sur la station d'arbitrage.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => handleThirdPlaceConfirmation(false)}>
-              No, just the final
+              Non, passer à la finale
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => handleThirdPlaceConfirmation(true)}>
-              Yes, organize the match
+              Oui, jouer la petite finale
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
