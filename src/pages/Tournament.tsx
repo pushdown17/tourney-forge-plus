@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Calendar, Lock, Unlock, Settings, Save } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Lock, Unlock, Settings, Save, Trash2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { TeamsManager } from "@/components/tournament/TeamsManager";
 import { PlayersManager } from "@/components/tournament/PlayersManager";
 import { PlayerStatsManager } from "@/components/tournament/PlayerStatsManager";
@@ -47,6 +48,7 @@ const Tournament = () => {
   const [teamsForElimination, setTeamsForElimination] = useState("");
   const [savingTeams, setSavingTeams] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [clearStationsDialogOpen, setClearStationsDialogOpen] = useState(false);
   
   const activeTab = searchParams.get("tab") || "teams";
   const activeSubTab = searchParams.get("subtab") || "manage-teams";
@@ -115,12 +117,31 @@ const Tournament = () => {
 
   const handleCloseClick = () => {
     if (tournament.is_closed) {
-      // Reopen directly
       toggleTournamentStatus();
     } else {
-      // Show confirmation dialog
       setCloseDialogOpen(true);
     }
+  };
+
+  const clearAllStationMatches = async () => {
+    setClearStationsDialogOpen(false);
+    const { error } = await supabase
+      .from("referee_stations")
+      .update({
+        current_match_id: null,
+        timer_started_at: null,
+        timer_paused_at: null,
+        timer_elapsed_when_paused: 0,
+      })
+      .eq("tournament_id", id!)
+      .not("current_match_id", "is", null);
+
+    if (error) {
+      toast.error("Erreur lors du nettoyage des stations");
+    } else {
+      toast.success("Tous les matchs ont été retirés des stations");
+    }
+    setSettingsOpen(false);
   };
 
   const toggleTournamentStatus = async () => {
@@ -278,6 +299,16 @@ const Tournament = () => {
                             <Save className="h-4 w-4 mr-2" />
                             {savingTeams ? "Saving..." : "Save"}
                           </Button>
+                          <Separator />
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setClearStationsDialogOpen(true)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Clear station matches
+                          </Button>
                         </div>
                       </PopoverContent>
                     </Popover>
@@ -428,6 +459,24 @@ const Tournament = () => {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={toggleTournamentStatus} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                 Close
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Clear Station Matches Confirmation Dialog */}
+        <AlertDialog open={clearStationsDialogOpen} onOpenChange={setClearStationsDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Retirer les matchs des stations ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Cette action va retirer tous les matchs actuellement assignés aux stations d'arbitrage. Les timers seront également réinitialisés.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={clearAllStationMatches} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Confirmer
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
