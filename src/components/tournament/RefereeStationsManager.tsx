@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Copy, ExternalLink, Monitor, Loader2 } from "lucide-react";
+import { Plus, Trash2, Copy, ExternalLink, Monitor, Loader2, XCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -131,6 +131,25 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
     }
   };
 
+  const clearStationMatch = async (stationId: string) => {
+    const { error } = await supabase
+      .from("referee_stations")
+      .update({
+        current_match_id: null,
+        timer_started_at: null,
+        timer_paused_at: null,
+        timer_elapsed_when_paused: 0,
+      })
+      .eq("id", stationId);
+
+    if (error) {
+      toast.error("Erreur lors du retrait du match");
+    } else {
+      toast.success("Match retiré de la station");
+      fetchStations();
+    }
+  };
+
   const copyStationLink = (stationId: string) => {
     const url = `${window.location.origin}/referee-station/${stationId}`;
     navigator.clipboard.writeText(url);
@@ -231,6 +250,17 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
               </div>
               
               <div className="flex items-center gap-2">
+                {isCreator && station.current_match_id && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => clearStationMatch(station.id)}
+                    className="text-destructive hover:text-destructive"
+                    title="Retirer le match"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
