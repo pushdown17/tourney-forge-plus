@@ -647,7 +647,7 @@ export const EliminationBracket = ({
               round_number: 0,
               team1_id: highSeed.team_id,
               team2_id: lowSeed.team_id,
-              field_number: (matchIndex % numberOfFields) + 1,
+              field_number: matchIndex + 1,
             });
             matchIndex++;
             
@@ -674,14 +674,13 @@ export const EliminationBracket = ({
         const lowSeed = directR1Teams[directR1Teams.length - 1 - i];
         
         if (highSeed && lowSeed && highSeed.team_id !== lowSeed.team_id) {
-          const fieldNumber = (matchIndex % numberOfFields) + 1;
           matchesToInsert.push({
             tournament_id: tournamentId,
             phase: currentPhase,
             round_number: 1,
             team1_id: highSeed.team_id,
             team2_id: lowSeed.team_id,
-            field_number: fieldNumber,
+            field_number: matchIndex + 1,
           });
           matchIndex++;
           
@@ -889,7 +888,6 @@ export const EliminationBracket = ({
           );
 
           if (!exists) {
-            const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
             matchesToCreate.push({
               tournament_id: tournamentId,
               phase: currentPhase as any,
@@ -897,7 +895,7 @@ export const EliminationBracket = ({
               team1_id: team1Id,
               team2_id: team2Id,
               is_third_place_match: false,
-              field_number: fieldNumber,
+              field_number: matchesToCreate.length + 1,
             });
             console.log(`R1: Seed #${s1} vs Seed #${s2}`);
           }
