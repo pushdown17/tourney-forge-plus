@@ -679,7 +679,7 @@ const RefereeStation = () => {
                 team1_id: m1.winner_id,
                 team2_id: m2.winner_id,
                 is_third_place_match: false,
-                field_number: (matchesToCreate.length % numFields) + 1,
+                field_number: matchesToCreate.length + 1,
               });
             }
           }
@@ -748,6 +748,7 @@ const RefereeStation = () => {
       .is("winner_id", null)
       .neq("id", match.id)
       .order("round_number")
+      .order("field_number")
       .order("created_at");
 
     // Get all active station match assignments (except current station)
