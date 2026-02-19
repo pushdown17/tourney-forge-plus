@@ -1181,11 +1181,12 @@ export const EliminationBracket = ({
     const prelimFeedSet = new Set(prelimFeedPositions);
 
     if (hasPreliminary) {
-      // Sort prelim matches: lowest max-seed first so #8v#9 feeds #1 slot and #7v#10 feeds #2 slot
+      // Sort prelim matches by field_number (stable, set at generation time)
       const sortedPrelim = [...preliminaryMatches].sort((a, b) => {
-        const maxSeedA = Math.max(a.team1?.seed || 0, a.team2?.seed || 0);
-        const maxSeedB = Math.max(b.team1?.seed || 0, b.team2?.seed || 0);
-        return maxSeedA - maxSeedB;
+        const fn1 = a.field_number || 0;
+        const fn2 = b.field_number || 0;
+        if (fn1 !== fn2) return fn1 - fn2;
+        return (a.created_at || '').localeCompare(b.created_at || '');
       });
 
       // Create padded preliminary array (same slot count as R1)
@@ -1213,72 +1214,38 @@ export const EliminationBracket = ({
       const roundMatches: any[] = [];
 
       if (round === 1 && hasPreliminary) {
-        // Separate matches: those involving a prelim winner vs direct matches
-        const prelimWinnerIds = new Set(
-          preliminaryMatches.filter(m => m.winner_id).map(m => m.winner_id)
-        );
-
-        const topSeedMatches = roundMatchesSorted.filter(m =>
-          prelimWinnerIds.has(m.team1_id) || prelimWinnerIds.has(m.team2_id) ||
-          (m.team1?.seed && m.team1.seed <= numPreliminaryMatches) ||
-          (m.team2?.seed && m.team2.seed <= numPreliminaryMatches)
-        );
-        const directMatches = roundMatchesSorted.filter(m =>
-          !topSeedMatches.includes(m)
-        );
-
-        // Sort direct matches: higher min-seed first (top half with #1)
-        directMatches.sort((a, b) => {
-          const minSeedA = Math.min(a.team1?.seed || 99, a.team2?.seed || 99);
-          const minSeedB = Math.min(b.team1?.seed || 99, b.team2?.seed || 99);
-          return minSeedB - minSeedA;
+        // Sort R1 matches by field_number then created_at for stable ordering
+        const sortedR1 = [...roundMatchesSorted].sort((a, b) => {
+          const fn1 = a.field_number || 0;
+          const fn2 = b.field_number || 0;
+          if (fn1 !== fn2) return fn1 - fn2;
+          if ((a.created_at || '') !== (b.created_at || '')) return (a.created_at || '').localeCompare(b.created_at || '');
+          return a.id.localeCompare(b.id);
         });
-
-        // Sort top-seed matches by their top seed
-        topSeedMatches.sort((a, b) => {
-          const minSeedA = Math.min(a.team1?.seed || 99, a.team2?.seed || 99);
-          const minSeedB = Math.min(b.team1?.seed || 99, b.team2?.seed || 99);
-          return minSeedA - minSeedB;
-        });
-
-        let directIdx = 0;
-        let topSeedIdx = 0;
 
         for (let i = 0; i < expectedMatches; i++) {
-          if (prelimFeedSet.has(i)) {
-            if (topSeedIdx < topSeedMatches.length) {
-              roundMatches.push(topSeedMatches[topSeedIdx++]);
-            } else {
-              roundMatches.push({
-                id: `placeholder-${round}-${i}`,
-                round_number: round,
-                team1_id: "",
-                team2_id: "",
-                team1: null,
-                team2: null,
-                team1_score: null,
-                team2_score: null,
-                winner_id: null,
-                isPlaceholder: true,
-              });
-            }
+          if (i < sortedR1.length) {
+            roundMatches.push(sortedR1[i]);
           } else {
-            if (directIdx < directMatches.length) {
-              roundMatches.push(directMatches[directIdx++]);
-            } else {
-              roundMatches.push({
-                id: `placeholder-${round}-${i}`,
-                round_number: round,
-                team1_id: "",
-                team2_id: "",
-                team1: null,
-                team2: null,
-                team1_score: null,
-                team2_score: null,
-                winner_id: null,
-                isPlaceholder: true,
-              });
-            }
+            // Try to find winners from feeder prelim matches
+            const feederPrelim = structure.length > 0 ? structure[0][i] : null;
+            const prelimWinner = feederPrelim && !feederPrelim.isSpacer && feederPrelim.winner_id
+              ? (feederPrelim.winner_id === feederPrelim.team1_id ? feederPrelim.team1 : feederPrelim.team2)
+              : null;
+
+            roundMatches.push({
+              id: `placeholder-${round}-${i}`,
+              round_number: round,
+              team1_id: prelimWinner?.id || "",
+              team2_id: "",
+              team1: prelimWinner || null,
+              team2: null,
+              team1_score: null,
+              team2_score: null,
+              winner_id: null,
+              isPlaceholder: true,
+              hasAdvancedTeam1: !!prelimWinner,
+            });
           }
         }
       } else if (round === 1 && numByes > 0) {
@@ -1306,7 +1273,13 @@ export const EliminationBracket = ({
         }
       } else {
         // Standard round handling - fill placeholders with known winners from previous round
-        const sorted = [...roundMatchesSorted].sort((a, b) => a.id.localeCompare(b.id));
+        const sorted = [...roundMatchesSorted].sort((a, b) => {
+          const fn1 = a.field_number || 0;
+          const fn2 = b.field_number || 0;
+          if (fn1 !== fn2) return fn1 - fn2;
+          if ((a.created_at || '') !== (b.created_at || '')) return (a.created_at || '').localeCompare(b.created_at || '');
+          return a.id.localeCompare(b.id);
+        });
         const prevRound = structure.length > 0 ? structure[structure.length - 1] : [];
         
         for (let i = 0; i < expectedMatches; i++) {
