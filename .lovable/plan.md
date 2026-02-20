@@ -1,17 +1,43 @@
 
 
-## Regeneration du bracket d'elimination
+## Fix: Show directly qualified teams in Quarter-Finals slots
 
-### Ce qui sera fait
+### Problem
 
-1. **Suppression des matchs d'elimination existants** - Les 4 matchs preliminaires actuels (dont M1 non joue, M2-M4 joues) seront supprimes de la base de donnees.
+When generating a 12-team bracket, seeds #1-#4 (H, D, I, G) are directly qualified for the Quarter-Finals and don't play preliminary matches. However, the bracket display currently shows empty "TBD" placeholders for all QF slots until the preliminary round completes. The directly qualified teams should be visible in their QF slots immediately, waiting for their opponent from the preliminary round.
 
-2. **Le bracket se regenerera automatiquement** - En retournant sur l'onglet Elimination, le composant detectera qu'il n'y a plus de matchs et proposera le bouton "Start Elimination" pour relancer la generation complete du bracket a partir du classement des tours preliminaires.
+### Root Cause
 
-### Details techniques
+In `generateBracketStructure()` (line ~1216-1249), when building R1 placeholders for the preliminary case, the code only looks at prelim match winners to populate slots. It has no knowledge of which directly qualified team belongs in each slot.
 
-- Execution d'un `DELETE` sur les matchs avec `tournament_id = '35e6c64f-...'` et `phase = 'single_elimination'`
-- Le tournament reste en phase `single_elimination`, donc le bouton de generation sera disponible immediatement
-- Les 12 equipes seront re-seedees selon le classement actuel du round robin/swiss
-- Les 4 matchs preliminaires seront regeneres avec le bon seeding (#12 vs #5, #11 vs #6, #10 vs #7, #9 vs #8) et les field_numbers sequentiels (1, 2, 3, 4)
+### Solution
+
+Modify `generateBracketStructure()` to compute the full R1 seeding map and show directly qualified teams in their correct QF slots even before preliminary matches are played.
+
+### Technical Details
+
+**File: `src/components/tournament/EliminationBracket.tsx`**
+
+In the `generateBracketStructure()` function, specifically the `round === 1 && hasPreliminary` branch (lines 1216-1249):
+
+1. Compute the standard seeding order for the bracket size (e.g., `[1,8,4,5,2,7,3,6]` for 8)
+2. Build a seed-to-team map from the current standings data (available in the `matches` state via team seeds)
+3. For each R1 slot, determine which two seeds should play:
+   - If a real match exists for this slot, display it normally
+   - If no match exists yet, create a placeholder that shows:
+     - The directly qualified team (seed #1-#4) in one slot
+     - "TBD" or the prelim winner (if known) in the other slot
+
+This requires fetching standings data and storing it in component state (or deriving it from match seeds), then using `getStandardSeeding(bracketSize)` to determine which seed goes where in R1.
+
+The key mapping for 12 teams (bracketSize=8, seeding `[1,8,4,5,2,7,3,6]`):
+- QF slot 0: Seed #1 (H) vs Seed #8 (prelim winner)
+- QF slot 1: Seed #4 (G) vs Seed #5 (prelim winner)
+- QF slot 2: Seed #2 (D) vs Seed #7 (prelim winner)
+- QF slot 3: Seed #3 (I) vs Seed #6 (prelim winner)
+
+**Changes needed:**
+1. Store standings/seed map in component state (fetch alongside matches in `fetchTournamentAndMatches`)
+2. In `generateBracketStructure()`, use the seeding + standings to populate R1 placeholders with directly qualified teams
+3. Determine which team in each slot is "direct" vs "from prelim" to correctly assign team1/team2 in the placeholder
 
