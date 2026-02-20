@@ -117,6 +117,7 @@ export const EliminationBracket = ({
   const [stationMatch, setStationMatch] = useState<{ id: string; label: string } | null>(null);
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
+  const [seedToTeam, setSeedToTeam] = useState<Map<number, Team>>(new Map());
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: {
     durationSeconds: number;
     startedAt: string | null;
@@ -501,11 +502,16 @@ export const EliminationBracket = ({
       
       // Build seed map from standings
       const seedMap = new Map<string, number>();
+      const reverseSeedMap = new Map<number, Team>();
       if (standingsResult.data) {
-        standingsResult.data.forEach((stat, index) => {
+        standingsResult.data.forEach((stat: any, index: number) => {
           seedMap.set(stat.team_id, index + 1);
+          if (stat.team) {
+            reverseSeedMap.set(index + 1, { id: stat.team.id, name: stat.team.name, seed: index + 1 });
+          }
         });
       }
+      setSeedToTeam(reverseSeedMap);
 
       // No BYE logic: if teams_for_elimination isn't a power of 2, we rely on a preliminary round.
 
@@ -1223,28 +1229,49 @@ export const EliminationBracket = ({
           return a.id.localeCompare(b.id);
         });
 
+        // Use seeding to show directly qualified teams in QF placeholders
+        const seeding = getStandardSeeding(bracketSize);
+        const numDirectlyQualified = bracketSize - numPreliminaryMatches;
+
         for (let i = 0; i < expectedMatches; i++) {
           if (i < sortedR1.length) {
             roundMatches.push(sortedR1[i]);
           } else {
-            // Try to find winners from feeder prelim matches
+            // Determine which seeds belong in this slot
+            const seed1 = seeding[i * 2];     // team1 seed
+            const seed2 = seeding[i * 2 + 1]; // team2 seed
+
+            // The directly qualified team is the one with seed <= numDirectlyQualified
+            const directSeed = seed1 <= numDirectlyQualified ? seed1 : (seed2 <= numDirectlyQualified ? seed2 : null);
+            const prelimSeed = seed1 <= numDirectlyQualified ? seed2 : seed1;
+
+            const directTeam = directSeed ? seedToTeam.get(directSeed) || null : null;
+
+            // Try to find winner from feeder prelim match
             const feederPrelim = structure.length > 0 ? structure[0][i] : null;
             const prelimWinner = feederPrelim && !feederPrelim.isSpacer && feederPrelim.winner_id
               ? (feederPrelim.winner_id === feederPrelim.team1_id ? feederPrelim.team1 : feederPrelim.team2)
               : null;
 
+            // Place directly qualified team as team1, prelim winner/TBD as team2
+            // (following seeding order: lower seed = team1)
+            const isDirectSeedTeam1 = seed1 <= numDirectlyQualified;
+            const team1 = isDirectSeedTeam1 ? directTeam : prelimWinner;
+            const team2 = isDirectSeedTeam1 ? prelimWinner : directTeam;
+
             roundMatches.push({
               id: `placeholder-${round}-${i}`,
               round_number: round,
-              team1_id: prelimWinner?.id || "",
-              team2_id: "",
-              team1: prelimWinner || null,
-              team2: null,
+              team1_id: team1?.id || "",
+              team2_id: team2?.id || "",
+              team1: team1 || null,
+              team2: team2 || null,
               team1_score: null,
               team2_score: null,
               winner_id: null,
               isPlaceholder: true,
-              hasAdvancedTeam1: !!prelimWinner,
+              hasAdvancedTeam1: !!prelimWinner && !isDirectSeedTeam1,
+              hasAdvancedTeam2: !!prelimWinner && isDirectSeedTeam1,
             });
           }
         }
