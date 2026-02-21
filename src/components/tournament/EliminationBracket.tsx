@@ -1675,6 +1675,12 @@ export const EliminationBracket = ({
                                   }
                                 }
                               }}
+                              onEditScore={() => {
+                                if (!match.isPlaceholder) {
+                                  setSelectedMatch(match);
+                                  setStatsDialogOpen(true);
+                                }
+                              }}
                               onSendToStation={() => {
                                 const label = `${match.team1?.name || "TBD"} vs ${match.team2?.name || "TBD"}`;
                                 setStationMatch({ id: match.id, label });
@@ -1784,6 +1790,10 @@ export const EliminationBracket = ({
                         } else {
                           setStatsDialogOpen(true);
                         }
+                      }}
+                      onEditScore={() => {
+                        setSelectedMatch(thirdPlaceMatch);
+                        setStatsDialogOpen(true);
                       }}
                       onIncrementScore={(teamId, teamName) => {
                         if (thirdPlaceLocked && !isThirdPlaceCompleted) {
