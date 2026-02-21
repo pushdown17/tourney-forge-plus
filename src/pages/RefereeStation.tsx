@@ -621,6 +621,7 @@ const RefereeStation = () => {
           .eq("phase", currentPhase)
           .eq("round_number", match.round_number)
           .eq("is_third_place_match", false)
+          .order("field_number", { ascending: true })
           .order("created_at", { ascending: true });
 
         if (roundMatches && roundMatches.length > 0) {
@@ -634,53 +635,154 @@ const RefereeStation = () => {
 
           const matchesToCreate: any[] = [];
 
-          for (let i = 0; i < roundMatches.length; i += 2) {
-            if (i + 1 >= roundMatches.length) break;
-            const m1 = roundMatches[i];
-            const m2 = roundMatches[i + 1];
-            if (!m1.winner_id || !m2.winner_id) continue;
-
-            // Check if final already exists
-            const exists = existingNextRound?.some(ex =>
-              !ex.is_third_place_match &&
-              ((ex.team1_id === m1.winner_id && ex.team2_id === m2.winner_id) ||
-               (ex.team1_id === m2.winner_id && ex.team2_id === m1.winner_id))
-            );
-            // Check if 3rd place match already exists
-            const thirdPlaceExists = existingNextRound?.some(ex => ex.is_third_place_match);
-            if (exists) continue;
-
-            const { data: tournamentData } = await supabase
-              .from("tournaments")
-              .select("number_of_fields")
-              .eq("id", station.tournament_id)
-              .single();
-
-            const numFields = tournamentData?.number_of_fields || 1;
-
-            if (roundMatches.length === 2 && i === 0) {
-              // Semi-finals → create ONLY the final
-              // 3rd place decision is deferred to the tournament dashboard
-              matchesToCreate.push({
-                tournament_id: station.tournament_id,
-                phase: currentPhase,
-                round_number: match.round_number + 1,
-                team1_id: m1.winner_id,
-                team2_id: m2.winner_id,
-                is_third_place_match: false,
-                field_number: 1,
-              });
-              skipAutoAdvance = true;
+          // SPECIAL HANDLING: Preliminary round (round 0) → use seeding logic
+          if (match.round_number === 0) {
+            // All prelim matches must be complete before creating QF matches
+            const allPrelimsComplete = roundMatches.every(m => m.winner_id);
+            if (!allPrelimsComplete) {
+              console.log('Not all preliminary matches complete yet, skipping QF generation');
             } else {
-              matchesToCreate.push({
-                tournament_id: station.tournament_id,
-                phase: currentPhase,
-                round_number: match.round_number + 1,
-                team1_id: m1.winner_id,
-                team2_id: m2.winner_id,
-                is_third_place_match: false,
-                field_number: matchesToCreate.length + 1,
-              });
+              // Get tournament info for teams_for_elimination
+              const { data: tournamentInfo } = await supabase
+                .from("tournaments")
+                .select("teams_for_elimination, number_of_fields")
+                .eq("id", station.tournament_id)
+                .single();
+
+              const teamsCount = tournamentInfo?.teams_for_elimination || 8;
+              const numFields = tournamentInfo?.number_of_fields || 1;
+
+              // Compute bracket size (next power of 2 >= prelim matches * 2 ... actually just compute properly)
+              const bracketSize = Math.pow(2, Math.ceil(Math.log2(teamsCount)));
+              const numPreliminaryMatches = teamsCount - bracketSize / 2;
+              // bracketSize/2 because that's how many QF slots exist (= bracketSize when bracketSize is used as total bracket)
+              // Actually: bracketSize = nearest power of 2 that accommodates all teams
+              // numPreliminaryMatches = teamsCount - bracketSize (where bracketSize is next lower power of 2)
+              // Let me recalculate:
+              const lowerPow2 = Math.pow(2, Math.floor(Math.log2(teamsCount)));
+              const actualBracketSize = teamsCount <= lowerPow2 ? lowerPow2 : lowerPow2; // bracketSize for R1
+              const actualPrelimCount = teamsCount - lowerPow2;
+
+              // Get standings for seed mapping
+              const { data: standings } = await supabase
+                .from("team_stats")
+                .select("team_id")
+                .eq("tournament_id", station.tournament_id)
+                .order("points", { ascending: false })
+                .order("goals_for", { ascending: false })
+                .limit(teamsCount);
+
+              if (standings) {
+                // Build seed → team_id map
+                const seedToTeam = new Map<number, string>();
+
+                // Direct seeds (teams not in any prelim match)
+                for (let s = 0; s < standings.length; s++) {
+                  const playedPrelim = roundMatches.some(m =>
+                    m.team1_id === standings[s].team_id || m.team2_id === standings[s].team_id
+                  );
+                  if (!playedPrelim) {
+                    seedToTeam.set(s + 1, standings[s].team_id);
+                  }
+                }
+
+                // Prelim winners take the higher seed's slot
+                for (const pm of roundMatches) {
+                  if (!pm.winner_id) continue;
+                  const idx1 = standings.findIndex(s => s.team_id === pm.team1_id);
+                  const idx2 = standings.findIndex(s => s.team_id === pm.team2_id);
+                  const highSeed = Math.min(idx1, idx2) + 1;
+                  seedToTeam.set(highSeed, pm.winner_id);
+                }
+
+                // Standard seeding order
+                const getStandardSeeding = (size: number): number[] => {
+                  if (size === 1) return [1];
+                  const prev = getStandardSeeding(size / 2);
+                  const result: number[] = [];
+                  for (const seed of prev) {
+                    result.push(seed, size + 1 - seed);
+                  }
+                  return result;
+                };
+
+                const seeding = getStandardSeeding(lowerPow2);
+                for (let i = 0; i < seeding.length; i += 2) {
+                  const s1 = seeding[i];
+                  const s2 = seeding[i + 1];
+                  const team1Id = seedToTeam.get(s1);
+                  const team2Id = seedToTeam.get(s2);
+
+                  if (!team1Id || !team2Id) continue;
+
+                  const exists = existingNextRound?.some(m =>
+                    (m.team1_id === team1Id && m.team2_id === team2Id) ||
+                    (m.team1_id === team2Id && m.team2_id === team1Id)
+                  );
+
+                  if (!exists) {
+                    matchesToCreate.push({
+                      tournament_id: station.tournament_id,
+                      phase: currentPhase,
+                      round_number: 1,
+                      team1_id: team1Id,
+                      team2_id: team2Id,
+                      is_third_place_match: false,
+                      field_number: (matchesToCreate.length % numFields) + 1,
+                    });
+                    console.log(`R1 from station: Seed #${s1} vs Seed #${s2}`);
+                  }
+                }
+              }
+            }
+          } else {
+            // Standard progression for R1 and beyond: pair consecutive matches
+            for (let i = 0; i < roundMatches.length; i += 2) {
+              if (i + 1 >= roundMatches.length) break;
+              const m1 = roundMatches[i];
+              const m2 = roundMatches[i + 1];
+              if (!m1.winner_id || !m2.winner_id) continue;
+
+              // Check if match already exists
+              const exists = existingNextRound?.some(ex =>
+                !ex.is_third_place_match &&
+                ((ex.team1_id === m1.winner_id && ex.team2_id === m2.winner_id) ||
+                 (ex.team1_id === m2.winner_id && ex.team2_id === m1.winner_id))
+              );
+              const thirdPlaceExists = existingNextRound?.some(ex => ex.is_third_place_match);
+              if (exists) continue;
+
+              const { data: tournamentData } = await supabase
+                .from("tournaments")
+                .select("number_of_fields")
+                .eq("id", station.tournament_id)
+                .single();
+
+              const numFields = tournamentData?.number_of_fields || 1;
+
+              if (roundMatches.length === 2 && i === 0) {
+                // Semi-finals → create ONLY the final
+                matchesToCreate.push({
+                  tournament_id: station.tournament_id,
+                  phase: currentPhase,
+                  round_number: match.round_number + 1,
+                  team1_id: m1.winner_id,
+                  team2_id: m2.winner_id,
+                  is_third_place_match: false,
+                  field_number: 1,
+                });
+                skipAutoAdvance = true;
+              } else {
+                matchesToCreate.push({
+                  tournament_id: station.tournament_id,
+                  phase: currentPhase,
+                  round_number: match.round_number + 1,
+                  team1_id: m1.winner_id,
+                  team2_id: m2.winner_id,
+                  is_third_place_match: false,
+                  field_number: matchesToCreate.length + 1,
+                });
+              }
             }
           }
 
@@ -691,7 +793,7 @@ const RefereeStation = () => {
               .select("id, team1_id, team2_id, is_third_place_match")
               .eq("tournament_id", station.tournament_id)
               .eq("phase", currentPhase)
-              .eq("round_number", match.round_number + 1);
+              .eq("round_number", match.round_number === 0 ? 1 : match.round_number + 1);
             
             const filteredToCreate = matchesToCreate.filter(mc => {
               return !recheck?.some(ex =>
