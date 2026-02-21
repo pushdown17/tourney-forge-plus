@@ -1497,15 +1497,17 @@ export const EliminationBracket = ({
   // Check if semi-finals are completed (for 3rd place match)
   const areSemiFinalsCompleted = (): boolean => {
     const totalTeams = tournament?.teams_for_elimination || 8;
-    const bracketSize = Math.pow(2, Math.floor(Math.log2(totalTeams)));
+    const { bracketSize } = computeBracketParams(totalTeams);
     const totalRounds = Math.log2(bracketSize);
-    const semiFinalsRound = totalRounds - 1; // Second to last round
+    const semiFinalsRound = totalRounds - 1;
     
     const semiFinalsMatches = matches.filter(
       m => m.round_number === semiFinalsRound && !m.is_third_place_match
     );
     
-    return semiFinalsMatches.length === 2 && semiFinalsMatches.every(m => m.winner_id !== null);
+    // Count completed semis (at least 2 must have winners)
+    const completedSemis = semiFinalsMatches.filter(m => m.winner_id !== null);
+    return completedSemis.length >= 2;
   };
 
   const bracketStructure = generateBracketStructure();
