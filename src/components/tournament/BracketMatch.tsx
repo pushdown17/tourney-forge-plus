@@ -163,7 +163,7 @@ export const BracketMatch = ({
       </div>
 
       {/* Match card with Popover */}
-      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen} modal={false}>
         <PopoverTrigger asChild>
           <Card
             className={cn(
@@ -294,11 +294,14 @@ export const BracketMatch = ({
               className="w-full justify-start gap-2"
               onClick={() => {
                 setPopoverOpen(false);
-                if (isCompleted && onEditScore) {
-                  onEditScore();
-                } else {
-                  onMatchClick();
-                }
+                // Delay to let Radix Popover fully close before opening Dialog
+                setTimeout(() => {
+                  if (isCompleted && onEditScore) {
+                    onEditScore();
+                  } else {
+                    onMatchClick();
+                  }
+                }, 100);
               }}
             >
               <ClipboardEdit className="h-4 w-4" />
@@ -311,7 +314,7 @@ export const BracketMatch = ({
                 className="w-full justify-start gap-2"
                 onClick={() => {
                   setPopoverOpen(false);
-                  onMatchClick();
+                  setTimeout(() => onMatchClick(), 100);
                 }}
               >
                 <Trophy className="h-4 w-4" />
@@ -325,7 +328,7 @@ export const BracketMatch = ({
                 className="w-full justify-start gap-2"
                 onClick={() => {
                   setPopoverOpen(false);
-                  onSendToStation();
+                  setTimeout(() => onSendToStation(), 100);
                 }}
               >
                 <Monitor className="h-4 w-4" />
