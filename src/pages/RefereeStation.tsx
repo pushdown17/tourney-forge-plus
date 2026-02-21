@@ -842,7 +842,9 @@ const RefereeStation = () => {
 
     // Find the next waiting match AFTER generating next round matches
     // so newly created matches (including 3rd place) are picked up
-    const { data: allMatches, error: nextErr } = await supabase
+    // We filter for matches that have NOT been played yet (team1_score IS NULL)
+    // This prevents draws (no winner_id but with scores) from being re-selected
+    const { data: allMatches } = await supabase
       .from("matches")
       .select("id, team1_id, team2_id, winner_id, team1_score, team2_score")
       .eq("tournament_id", station.tournament_id)
@@ -853,8 +855,8 @@ const RefereeStation = () => {
       .order("field_number")
       .order("created_at");
 
-    console.log("[Auto-advance] Current match validated:", match.id, "phase:", currentPhase);
-    console.log("[Auto-advance] Unplayed matches found:", allMatches?.map(m => ({ id: m.id, t1: m.team1_id, t2: m.team2_id, s1: m.team1_score, s2: m.team2_score, w: m.winner_id })));
+    console.log("[Auto-advance] Validated match:", match.id, "phase:", currentPhase);
+    console.log("[Auto-advance] Unplayed matches from DB:", allMatches?.length, allMatches?.map(m => m.id));
 
     // Get all active station match assignments (except current station)
     const { data: activeStations } = await supabase
@@ -869,10 +871,14 @@ const RefereeStation = () => {
       (activeStations || []).map(s => s.current_match_id).filter(Boolean)
     );
 
-    // First waiting match not already on a station (must have both teams, not a bye)
-    const nextMatch = (allMatches || []).find(
-      m => m.team1_id && m.team2_id && m.team1_id !== m.team2_id && !activeMatchIds.has(m.id)
+    // Double-safety: also filter client-side to exclude any match with scores already set
+    const availableMatches = (allMatches || []).filter(
+      m => m.team1_id && m.team2_id && m.team1_id !== m.team2_id 
+        && !activeMatchIds.has(m.id)
+        && m.team1_score === null && m.team2_score === null
     );
+
+    const nextMatch = availableMatches[0] || null;
     console.log("[Auto-advance] Next match selected:", nextMatch?.id || "none");
 
     // Update station: assign next match or clear
