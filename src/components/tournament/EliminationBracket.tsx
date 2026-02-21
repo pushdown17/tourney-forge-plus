@@ -1363,13 +1363,11 @@ export const EliminationBracket = ({
       }
 
       for (const pm of sortedPrelim) {
-        // Use field_number to compute original seed at generation time
-        // Prelim with field_number=k was the k-th generated prelim
-        // Its highSeed at generation was: bracketSize - numPreliminaryMatches + field_number
+        // field_number was assigned based on QF slot position during generation
+        // So field_number=1 → slot 0, field_number=2 → slot 1, etc.
         const fn = pm.field_number || 0;
-        const originalHighSeed = bracketSize - numPreliminaryMatches + fn;
-        const qfSlot = seedToQFSlot.get(originalHighSeed);
-        if (qfSlot !== undefined) {
+        const qfSlot = fn - 1;
+        if (qfSlot >= 0 && qfSlot < r1ExpectedCount) {
           paddedPrelim[qfSlot] = pm;
         }
       }
