@@ -1617,7 +1617,10 @@ export const EliminationBracket = ({
                         const canAccessMatch = isPreviousRoundCompleted(roundNumber);
                         const isLocked = !canAccessMatch && !match.winner_id;
                         const isMatchCompleted = !!match.winner_id;
-                        const matchNumber = matchNumberStart + (++realMatchCount);
+                        const rawMatchNumber = matchNumberStart + (++realMatchCount);
+                        // If this is the final round and a 3rd place match exists, shift number +1
+                        // because the 3rd place match (petite finale) is played before the final
+                        const matchNumber = isLastRound && thirdPlaceMatch ? rawMatchNumber + 1 : rawMatchNumber;
 
                         return (
                           <div key={match.id} style={{ height: `${matchHeight}px` }}>
@@ -1746,7 +1749,7 @@ export const EliminationBracket = ({
                   return (
                     <BracketMatch
                       match={thirdPlaceMatch}
-                      matchNumber={matches.filter(m => !m.is_third_place_match).length + 1}
+                      matchNumber={matches.filter(m => !m.is_third_place_match).length}
                       isEditing={editingMatchId === thirdPlaceMatch.id}
                       scores={scores[thirdPlaceMatch.id] || { team1: "", team2: "" }}
                       isClosed={isClosed || thirdPlaceLocked}
