@@ -972,44 +972,58 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, isClosed = false, isLoc
           </div>
         )}
         <div className="flex items-center gap-4">
-          <div className="flex-1 flex items-center justify-between gap-3">
-            <span className="font-medium flex-1">{match.team1?.name || "Team 1"}</span>
-            <ScoreInput
-              value={team1Score}
-              onChange={(value) => {
-                setTeam1Score(value);
-                if (!isEditing) setIsEditing(true);
-              }}
-              onIncrement={() => {
-                setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
-                setGoalScorerDialogOpen(true);
-              }}
-              onDecrement={() => {
-                setRemovingTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
-                setGoalRemoverDialogOpen(true);
-              }}
-              disabled={isClosed || isLockedByPreviousMatch || !isCreator}
-            />
+          <div className="flex-1 flex flex-col gap-0.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-medium flex-1">{match.team1?.name || "Team 1"}</span>
+              <ScoreInput
+                value={team1Score}
+                onChange={(value) => {
+                  setTeam1Score(value);
+                  if (!isEditing) setIsEditing(true);
+                }}
+                onIncrement={() => {
+                  setScoringTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
+                  setGoalScorerDialogOpen(true);
+                }}
+                onDecrement={() => {
+                  setRemovingTeam({ id: match.team1_id, name: match.team1?.name || "Team 1" });
+                  setGoalRemoverDialogOpen(true);
+                }}
+                disabled={isClosed || isLockedByPreviousMatch || !isCreator}
+              />
+            </div>
+            {team1Players.length > 0 && (
+              <span className="text-[10px] text-muted-foreground leading-tight truncate">
+                {team1Players.map(p => p.name).join(", ")}
+              </span>
+            )}
           </div>
           <span className="text-muted-foreground font-bold">vs</span>
-          <div className="flex-1 flex items-center justify-between gap-3">
-            <ScoreInput
-              value={team2Score}
-              onChange={(value) => {
-                setTeam2Score(value);
-                if (!isEditing) setIsEditing(true);
-              }}
-              onIncrement={() => {
-                setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
-                setGoalScorerDialogOpen(true);
-              }}
-              onDecrement={() => {
-                setRemovingTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
-                setGoalRemoverDialogOpen(true);
-              }}
-              disabled={isClosed || isLockedByPreviousMatch || !isCreator}
-            />
-            <span className="font-medium flex-1 text-right">{match.team2?.name || "Team 2"}</span>
+          <div className="flex-1 flex flex-col gap-0.5">
+            <div className="flex items-center justify-between gap-3">
+              <ScoreInput
+                value={team2Score}
+                onChange={(value) => {
+                  setTeam2Score(value);
+                  if (!isEditing) setIsEditing(true);
+                }}
+                onIncrement={() => {
+                  setScoringTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
+                  setGoalScorerDialogOpen(true);
+                }}
+                onDecrement={() => {
+                  setRemovingTeam({ id: match.team2_id, name: match.team2?.name || "Team 2" });
+                  setGoalRemoverDialogOpen(true);
+                }}
+                disabled={isClosed || isLockedByPreviousMatch || !isCreator}
+              />
+              <span className="font-medium flex-1 text-right">{match.team2?.name || "Team 2"}</span>
+            </div>
+            {team2Players.length > 0 && (
+              <span className="text-[10px] text-muted-foreground leading-tight truncate text-right">
+                {team2Players.map(p => p.name).join(", ")}
+              </span>
+            )}
           </div>
         </div>
 
