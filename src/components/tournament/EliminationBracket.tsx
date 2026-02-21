@@ -1894,6 +1894,11 @@ export const EliminationBracket = ({
                         setScoringTeam({ id: teamId, name: teamName, matchId: thirdPlaceMatch.id });
                         setGoalScorerDialogOpen(true);
                       }}
+                      onSendToStation={isCreator && !thirdPlaceLocked && !isThirdPlaceCompleted ? () => {
+                        const label = `${thirdPlaceMatch.team1?.name || "TBD"} vs ${thirdPlaceMatch.team2?.name || "TBD"}`;
+                        setStationMatch({ id: thirdPlaceMatch.id, label });
+                        setStationDialogOpen(true);
+                      } : undefined}
                     />
                   );
                 })()}
