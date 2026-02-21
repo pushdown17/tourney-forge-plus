@@ -762,6 +762,84 @@ export const EliminationBracket = ({
     }
   };
 
+  // Cascade winner change to the next-round match
+  const cascadeWinnerChange = async (matchId: string, oldWinnerId: string | null, newWinnerId: string | null, roundNumber: number) => {
+    if (!oldWinnerId || !newWinnerId || oldWinnerId === newWinnerId) return;
+
+    // Find next-round match that contains the old winner
+    const { data: nextMatches } = await supabase
+      .from("matches")
+      .select("*")
+      .eq("tournament_id", tournamentId)
+      .eq("phase", currentPhase)
+      .eq("is_third_place_match", false)
+      .or(`team1_id.eq.${oldWinnerId},team2_id.eq.${oldWinnerId}`);
+
+    if (!nextMatches) return;
+
+    // Filter to only matches in later rounds
+    const laterMatches = nextMatches.filter(m => m.round_number > roundNumber);
+
+    for (const nextMatch of laterMatches) {
+      if (nextMatch.winner_id) {
+        toast.warning("⚠️ Un match suivant a déjà été joué avec l'ancienne équipe. Vérifiez manuellement.");
+        continue;
+      }
+
+      const updateData: any = {};
+      if (nextMatch.team1_id === oldWinnerId) updateData.team1_id = newWinnerId;
+      if (nextMatch.team2_id === oldWinnerId) updateData.team2_id = newWinnerId;
+
+      if (Object.keys(updateData).length > 0) {
+        const { error } = await supabase.from("matches").update(updateData).eq("id", nextMatch.id);
+        if (!error) {
+          toast.success("✅ Équipe qualifiée mise à jour dans le tour suivant");
+        }
+      }
+    }
+
+    // Also update 3rd place match if it exists and contains the old loser
+    const oldMatch = matches.find(m => m.id === matchId);
+    if (oldMatch) {
+      const oldLoserId = oldWinnerId === oldMatch.team1_id ? oldMatch.team1_id : oldMatch.team2_id;
+      const newLoserId = newWinnerId === oldMatch.team1_id ? oldMatch.team2_id : oldMatch.team1_id;
+      
+      // The old loser was the new winner's opponent, and the new loser is the old winner
+      // Old loser = team that was NOT the old winner = the team that IS the new winner... no.
+      // Let me think: if old winner was A, new winner is B, then old loser was B, new loser is A.
+      if (oldLoserId !== newLoserId) {
+        const { data: thirdPlaceMatches } = await supabase
+          .from("matches")
+          .select("*")
+          .eq("tournament_id", tournamentId)
+          .eq("phase", currentPhase)
+          .eq("is_third_place_match", true)
+          .or(`team1_id.eq.${oldWinnerId},team2_id.eq.${oldWinnerId}`);
+
+        for (const tpMatch of (thirdPlaceMatches || [])) {
+          if (tpMatch.winner_id) {
+            toast.warning("⚠️ La petite finale a déjà été jouée. Vérifiez manuellement.");
+            continue;
+          }
+          const tpUpdate: any = {};
+          // The old winner should be replaced by the old winner (who is now the loser)
+          // Actually: in 3rd place match, the loser of the semi goes. 
+          // Old winner (A) won the semi → was NOT in 3rd place. Now B wins → A should go to 3rd place.
+          // The old loser (B) was in the 3rd place match. Now B wins → B should be removed from 3rd place, A should take B's spot.
+          if (tpMatch.team1_id === newWinnerId) tpUpdate.team1_id = oldWinnerId;
+          if (tpMatch.team2_id === newWinnerId) tpUpdate.team2_id = oldWinnerId;
+
+          if (Object.keys(tpUpdate).length > 0) {
+            const { error } = await supabase.from("matches").update(tpUpdate).eq("id", tpMatch.id);
+            if (!error) {
+              toast.success("✅ Petite finale mise à jour avec la bonne équipe");
+            }
+          }
+        }
+      }
+    }
+  };
+
   const handleScoreUpdate = async (matchId: string) => {
     const matchScores = scores[matchId];
     if (!matchScores) return;
@@ -794,6 +872,7 @@ export const EliminationBracket = ({
     const match = matches.find(m => m.id === matchId);
     if (!match) return;
 
+    const oldWinnerId = match.winner_id;
     const winnerId = team1Score > team2Score ? match.team1_id : 
                      team2Score > team1Score ? match.team2_id : null;
 
@@ -813,6 +892,11 @@ export const EliminationBracket = ({
         .eq("id", matchId);
 
       if (error) throw error;
+
+      // Cascade winner change to next round if winner changed
+      if (oldWinnerId && oldWinnerId !== winnerId) {
+        await cascadeWinnerChange(matchId, oldWinnerId, winnerId, match.round_number);
+      }
 
       // Celebration animation
       setRecentlyCompletedMatchId(matchId);
@@ -1822,10 +1906,26 @@ export const EliminationBracket = ({
           open={statsDialogOpen}
           onOpenChange={setStatsDialogOpen}
           onScoreUpdate={async () => {
-            await fetchTournamentAndMatches();
-            // Check if next round should be generated
             if (selectedMatch) {
+              // Re-fetch match to get current winner after dialog edits
+              const { data: updatedMatch } = await supabase
+                .from("matches")
+                .select("winner_id")
+                .eq("id", selectedMatch.id)
+                .single();
+
+              const newWinnerId = updatedMatch?.winner_id || null;
+              const oldWinnerId = selectedMatch.winner_id || null;
+
+              // Cascade if winner changed
+              if (oldWinnerId && newWinnerId && oldWinnerId !== newWinnerId) {
+                await cascadeWinnerChange(selectedMatch.id, oldWinnerId, newWinnerId, selectedMatch.round_number);
+              }
+
+              await fetchTournamentAndMatches();
               await checkAndGenerateNextRound(selectedMatch.round_number);
+            } else {
+              await fetchTournamentAndMatches();
             }
           }}
         />
