@@ -88,7 +88,7 @@ export const DoubleEliminationBracket = ({
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: TimerState }>({});
-  
+  const [playersByTeam, setPlayersByTeam] = useState<Record<string, string[]>>({});
 
   // If not yet in elimination phase, show transition component
   if (currentPhase !== "double_elimination") {
@@ -263,6 +263,42 @@ export const DoubleEliminationBracket = ({
       }));
 
       setMatches(matchesWithSeeds);
+
+      // Fetch players for all teams
+      const teamIds = new Set<string>();
+      matchesWithSeeds.forEach(m => {
+        if (m.team1_id) teamIds.add(m.team1_id);
+        if (m.team2_id) teamIds.add(m.team2_id);
+      });
+
+      if (teamIds.size > 0) {
+        const { data: ttData } = await supabase
+          .from("tournament_teams")
+          .select("id, team_id")
+          .eq("tournament_id", tournamentId)
+          .in("team_id", Array.from(teamIds));
+
+        if (ttData && ttData.length > 0) {
+          const ttIds = ttData.map(tt => tt.id);
+          const { data: ttpData } = await supabase
+            .from("tournament_team_players")
+            .select("tournament_team_id, players:player_id(name)")
+            .in("tournament_team_id", ttIds);
+
+          const ttIdToTeamId: Record<string, string> = {};
+          ttData.forEach(tt => { ttIdToTeamId[tt.id] = tt.team_id; });
+
+          const playersMap: Record<string, string[]> = {};
+          ttpData?.forEach((ttp: any) => {
+            const teamId = ttIdToTeamId[ttp.tournament_team_id];
+            if (teamId) {
+              if (!playersMap[teamId]) playersMap[teamId] = [];
+              if (ttp.players?.name) playersMap[teamId].push(ttp.players.name);
+            }
+          });
+          setPlayersByTeam(playersMap);
+        }
+      }
 
       if (!matchesResult.data || matchesResult.data.length === 0) {
         await generateBracket(tournamentData.teams_for_elimination);
@@ -972,6 +1008,8 @@ export const DoubleEliminationBracket = ({
                         isOnDeck={onDeckMatchId === match.id}
                         isInTheHole={inTheHoleMatchId === match.id}
                         timerState={matchTimers[match.id] || null}
+                        team1Players={playersByTeam[match.team1_id] || []}
+                        team2Players={playersByTeam[match.team2_id] || []}
                         onStartEdit={() => {
                           if (match.isPlaceholder) return;
                           if (isLocked || isMatchCompleted) {
@@ -1151,6 +1189,8 @@ export const DoubleEliminationBracket = ({
                         isOnDeck={onDeckMatchId === gf.id}
                         isInTheHole={inTheHoleMatchId === gf.id}
                         timerState={matchTimers[gf.id] || null}
+                        team1Players={playersByTeam[gf.team1_id] || []}
+                        team2Players={playersByTeam[gf.team2_id] || []}
                         onStartEdit={() => {
                           if (gf.isPlaceholder) return;
                           if (resetLocked) {
