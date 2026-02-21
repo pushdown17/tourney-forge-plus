@@ -844,10 +844,11 @@ const RefereeStation = () => {
     // so newly created matches (including 3rd place) are picked up
     const { data: allMatches } = await supabase
       .from("matches")
-      .select("id, team1_id, team2_id, winner_id")
+      .select("id, team1_id, team2_id, winner_id, team1_score, team2_score")
       .eq("tournament_id", station.tournament_id)
       .eq("phase", currentPhase)
       .is("winner_id", null)
+      .is("team1_score", null)
       .neq("id", match.id)
       .order("round_number")
       .order("field_number")
