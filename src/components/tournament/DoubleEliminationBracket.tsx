@@ -1048,6 +1048,12 @@ export const DoubleEliminationBracket = ({
                             setStatsDialogOpen(true);
                           }
                         }}
+                        onEditScore={() => {
+                          if (!match.isPlaceholder) {
+                            setSelectedMatch(match);
+                            setStatsDialogOpen(true);
+                          }
+                        }}
                         onIncrementScore={(teamId, teamName) => {
                           if (match.isPlaceholder) return;
                           if (isLocked || isMatchCompleted) {
@@ -1231,6 +1237,12 @@ export const DoubleEliminationBracket = ({
                           if (gf.winner_id) {
                             setRecapDialogOpen(true);
                           } else {
+                            setStatsDialogOpen(true);
+                          }
+                        }}
+                        onEditScore={() => {
+                          if (!gf.isPlaceholder) {
+                            setSelectedMatch(gf);
                             setStatsDialogOpen(true);
                           }
                         }}

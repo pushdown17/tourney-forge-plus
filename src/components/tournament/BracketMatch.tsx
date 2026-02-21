@@ -66,6 +66,7 @@ interface BracketMatchProps {
   onSaveScore: () => void;
   onScoreChange: (team: "team1" | "team2", value: string) => void;
   onMatchClick: () => void;
+  onEditScore?: () => void;
   onSendToStation?: () => void;
   onIncrementScore: (teamId: string, teamName: string) => void;
 }
@@ -94,6 +95,7 @@ export const BracketMatch = ({
   onSaveScore,
   onScoreChange,
   onMatchClick,
+  onEditScore,
   onSendToStation,
   onIncrementScore,
 }: BracketMatchProps) => {
@@ -176,12 +178,12 @@ export const BracketMatch = ({
             onClick={(e) => {
               if (isPlaceholder) return;
               if (isMatchLocked && !isCompleted) return;
-              // For non-creators or completed matches, go directly to stats/recap
-              if (!isCreator || isCompleted) {
+              // For non-creators, go directly to stats/recap
+              if (!isCreator) {
                 onMatchClick();
                 return;
               }
-              // For creators with active matches, show popover
+              // For creators (active or completed matches), show popover
               setPopoverOpen(true);
             }}
           >
@@ -292,13 +294,31 @@ export const BracketMatch = ({
               className="w-full justify-start gap-2"
               onClick={() => {
                 setPopoverOpen(false);
-                onMatchClick();
+                if (isCompleted && onEditScore) {
+                  onEditScore();
+                } else {
+                  onMatchClick();
+                }
               }}
             >
               <ClipboardEdit className="h-4 w-4" />
-              Gérer le score
+              {isCompleted ? "Modifier le score" : "Gérer le score"}
             </Button>
-            {onSendToStation && (
+            {isCompleted && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  setPopoverOpen(false);
+                  onMatchClick();
+                }}
+              >
+                <Trophy className="h-4 w-4" />
+                Voir le récapitulatif
+              </Button>
+            )}
+            {onSendToStation && !isCompleted && (
               <Button
                 variant="ghost"
                 size="sm"
