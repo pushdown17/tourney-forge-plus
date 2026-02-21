@@ -707,6 +707,7 @@ const RefereeStation = () => {
                 };
 
                 const seeding = getStandardSeeding(lowerPow2);
+                let qfFieldNumber = actualPrelimCount + 1; // Continue field numbering after prelim matches
                 for (let i = 0; i < seeding.length; i += 2) {
                   const s1 = seeding[i];
                   const s2 = seeding[i + 1];
@@ -728,9 +729,10 @@ const RefereeStation = () => {
                       team1_id: team1Id,
                       team2_id: team2Id,
                       is_third_place_match: false,
-                      field_number: (matchesToCreate.length % numFields) + 1,
+                      field_number: qfFieldNumber,
                     });
-                    console.log(`R1 from station: Seed #${s1} vs Seed #${s2}`);
+                    console.log(`R1 from station: Seed #${s1} vs Seed #${s2}, field_number=${qfFieldNumber}`);
+                    qfFieldNumber++;
                   }
                 }
               }
@@ -773,6 +775,7 @@ const RefereeStation = () => {
                 });
                 skipAutoAdvance = true;
               } else {
+                const existingCount = existingNextRound?.filter(m => !m.is_third_place_match).length || 0;
                 matchesToCreate.push({
                   tournament_id: station.tournament_id,
                   phase: currentPhase,
@@ -780,7 +783,7 @@ const RefereeStation = () => {
                   team1_id: m1.winner_id,
                   team2_id: m2.winner_id,
                   is_third_place_match: false,
-                  field_number: matchesToCreate.length + 1,
+                  field_number: existingCount + matchesToCreate.length + 1,
                 });
               }
             }

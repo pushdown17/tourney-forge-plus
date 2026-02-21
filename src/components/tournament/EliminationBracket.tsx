@@ -1002,6 +1002,7 @@ export const EliminationBracket = ({
 
         // Use standard seeding to create R1 matches
         const seeding = getStandardSeeding(bracketSize);
+        let qfFieldNumber = numPreliminaryMatches + 1; // Continue field numbering after prelim matches
         for (let i = 0; i < seeding.length; i += 2) {
           const s1 = seeding[i];
           const s2 = seeding[i + 1];
@@ -1023,9 +1024,10 @@ export const EliminationBracket = ({
               team1_id: team1Id,
               team2_id: team2Id,
               is_third_place_match: false,
-              field_number: matchesToCreate.length + 1,
+              field_number: qfFieldNumber,
             });
-            console.log(`R1: Seed #${s1} vs Seed #${s2}`);
+            console.log(`R1: Seed #${s1} vs Seed #${s2}, field_number=${qfFieldNumber}`);
+            qfFieldNumber++;
           }
         }
 
@@ -1138,8 +1140,9 @@ export const EliminationBracket = ({
           }
         } else {
           // For other rounds: create next round match for this pair
-          // Assign a court in round-robin
-          const fieldNumber = (matchesToCreate.length % numberOfFields) + 1;
+          // Compute field_number continuing from existing matches in the next round
+          const existingCount = existingNextRoundMatches?.filter(m => !m.is_third_place_match).length || 0;
+          const fieldNumber = existingCount + matchesToCreate.length + 1;
           
           matchesToCreate.push({
             tournament_id: tournamentId,
