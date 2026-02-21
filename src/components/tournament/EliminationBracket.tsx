@@ -1344,12 +1344,17 @@ export const EliminationBracket = ({
         seedToQFSlot.set(seeding[i + 1], Math.floor(i / 2));
       }
 
+      // Build reverse map: team_id → seed number
+      const teamToSeed = new Map<string, number>();
+      seedToTeam.forEach((team, seed) => {
+        teamToSeed.set(team.id, seed);
+      });
+
       for (const pm of sortedPrelim) {
-        // Use field_number to compute original seed at generation time
-        // Prelim with field_number=k was the k-th generated prelim
-        // Its highSeed at generation was: bracketSize - numPreliminaryMatches + field_number
-        const fn = pm.field_number || 0;
-        const originalHighSeed = bracketSize - numPreliminaryMatches + fn;
+        // Determine the high seed from the match's actual team IDs
+        const seed1 = teamToSeed.get(pm.team1_id) ?? 999;
+        const seed2 = teamToSeed.get(pm.team2_id) ?? 999;
+        const originalHighSeed = Math.min(seed1, seed2);
         const qfSlot = seedToQFSlot.get(originalHighSeed);
         if (qfSlot !== undefined) {
           paddedPrelim[qfSlot] = pm;
