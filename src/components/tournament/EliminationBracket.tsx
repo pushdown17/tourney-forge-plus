@@ -581,8 +581,12 @@ export const EliminationBracket = ({
         const r1Matches = matchesResult.data.filter((m: any) => m.round_number === 1 && !m.is_third_place_match);
         if (prelimMatches.length > 0 && prelimMatches.every((m: any) => m.winner_id) && r1Matches.length === 0) {
           console.log('All prelims complete but no R1 matches found — triggering fallback generation');
-          await checkAndGenerateNextRound(0);
-          await fetchTournamentAndMatches();
+          try {
+            await checkAndGenerateNextRound(0);
+          } catch (e) {
+            console.error('Fallback generation failed:', e);
+          }
+          // Do NOT recursively call fetchTournamentAndMatches here to avoid infinite loop
         }
       }
     } catch (error: any) {
@@ -710,7 +714,7 @@ export const EliminationBracket = ({
               round_number: 0,
               team1_id: highSeed.team_id,
               team2_id: lowSeed.team_id,
-              field_number: matchIndex + 1,
+              field_number: (matchIndex % (numberOfFields || 1)) + 1,
             });
             matchIndex++;
             
@@ -743,7 +747,7 @@ export const EliminationBracket = ({
             round_number: 1,
             team1_id: highSeed.team_id,
             team2_id: lowSeed.team_id,
-            field_number: matchIndex + 1,
+            field_number: (matchIndex % (numberOfFields || 1)) + 1,
           });
           matchIndex++;
           
@@ -1017,7 +1021,7 @@ export const EliminationBracket = ({
 
         // Use standard seeding to create R1 matches
         const seeding = getStandardSeeding(bracketSize);
-        let qfFieldNumber = numPreliminaryMatches + 1; // Continue field numbering after prelim matches
+        let qfMatchIndex = 0;
         for (let i = 0; i < seeding.length; i += 2) {
           const s1 = seeding[i];
           const s2 = seeding[i + 1];
@@ -1032,6 +1036,7 @@ export const EliminationBracket = ({
           );
 
           if (!exists) {
+            const fieldNum = (qfMatchIndex % (numberOfFields || 1)) + 1;
             matchesToCreate.push({
               tournament_id: tournamentId,
               phase: currentPhase as any,
@@ -1039,10 +1044,10 @@ export const EliminationBracket = ({
               team1_id: team1Id,
               team2_id: team2Id,
               is_third_place_match: false,
-              field_number: qfFieldNumber,
+              field_number: fieldNum,
             });
-            console.log(`R1: Seed #${s1} vs Seed #${s2}, field_number=${qfFieldNumber}`);
-            qfFieldNumber++;
+            console.log(`R1: Seed #${s1} vs Seed #${s2}, field_number=${fieldNum}`);
+            qfMatchIndex++;
           }
         }
 
@@ -1155,9 +1160,9 @@ export const EliminationBracket = ({
           }
         } else {
           // For other rounds: create next round match for this pair
-          // Compute field_number continuing from existing matches in the next round
           const existingCount = existingNextRoundMatches?.filter(m => !m.is_third_place_match).length || 0;
-          const fieldNumber = existingCount + matchesToCreate.length + 1;
+          const fieldIndex = existingCount + matchesToCreate.length;
+          const fieldNumber = (fieldIndex % (numberOfFields || 1)) + 1;
           
           matchesToCreate.push({
             tournament_id: tournamentId,
