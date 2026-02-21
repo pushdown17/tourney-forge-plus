@@ -698,30 +698,48 @@ export const EliminationBracket = ({
       
       if (numPreliminaryMatches > 0) {
         // Create preliminary matches pairing lowest seeds
-        // For 10 teams: prelim seeds are #7,#8,#9,#10
-        // Pairs: #7v#10, #8v#9 (crossed seeding)
+        // For 12 teams (bracketSize=8): prelim seeds are #5-#12
+        // Pairs: #5v#12, #6v#11, #7v#10, #8v#9 (crossed seeding)
         const prelimTeams = standings.slice(bracketSize - numPreliminaryMatches, teamsCount);
-        // prelimTeams has 2*numPreliminaryMatches entries
         
+        // Compute QF slot for each prelim match so field_number matches visual position
+        const seedingOrder = getStandardSeeding(bracketSize);
+        const seedToQFSlot = new Map<number, number>();
+        for (let si = 0; si < seedingOrder.length; si += 2) {
+          seedToQFSlot.set(seedingOrder[si], Math.floor(si / 2));
+          seedToQFSlot.set(seedingOrder[si + 1], Math.floor(si / 2));
+        }
+        
+        // Build prelim matches with their visual slot
+        const prelimWithSlot: { highSeed: any; lowSeed: any; qfSlot: number; seed1: number; seed2: number }[] = [];
         for (let i = 0; i < numPreliminaryMatches; i++) {
           const highSeed = prelimTeams[i];
           const lowSeed = prelimTeams[prelimTeams.length - 1 - i];
-          
           if (highSeed && lowSeed) {
-            matchesToInsert.push({
-              tournament_id: tournamentId,
-              phase: currentPhase,
-              round_number: 0,
-              team1_id: highSeed.team_id,
-              team2_id: lowSeed.team_id,
-              field_number: matchIndex + 1,
+            const originalHighSeedNum = bracketSize - numPreliminaryMatches + i + 1;
+            const qfSlot = seedToQFSlot.get(originalHighSeedNum) ?? i;
+            prelimWithSlot.push({
+              highSeed, lowSeed, qfSlot,
+              seed1: standings.indexOf(highSeed) + 1,
+              seed2: standings.indexOf(lowSeed) + 1,
             });
-            matchIndex++;
-            
-            const seed1 = standings.indexOf(highSeed) + 1;
-            const seed2 = standings.indexOf(lowSeed) + 1;
-            console.log(`Preliminary: #${seed1} ${highSeed.team?.name} vs #${seed2} ${lowSeed.team?.name}`);
           }
+        }
+        
+        // Sort by QF slot so field_number 1 = top of bracket
+        prelimWithSlot.sort((a, b) => a.qfSlot - b.qfSlot);
+        
+        for (const pm of prelimWithSlot) {
+          matchesToInsert.push({
+            tournament_id: tournamentId,
+            phase: currentPhase,
+            round_number: 0,
+            team1_id: pm.highSeed.team_id,
+            team2_id: pm.lowSeed.team_id,
+            field_number: matchIndex + 1,
+          });
+          matchIndex++;
+          console.log(`Preliminary: #${pm.seed1} ${pm.highSeed.team?.name} vs #${pm.seed2} ${pm.lowSeed.team?.name} (QF slot ${pm.qfSlot}, M${matchIndex})`);
         }
       }
       
