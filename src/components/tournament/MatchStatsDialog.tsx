@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScoreInput } from "@/components/ui/score-input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, ChevronDown, ChevronUp } from "lucide-react";
+import { Users, ChevronDown, ChevronUp, Save } from "lucide-react";
 
 interface MatchStatsDialogProps {
   match: any;
@@ -28,6 +29,7 @@ export const MatchStatsDialog = ({
   const [tournamentTeamPlayerMap, setTournamentTeamPlayerMap] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [localScores, setLocalScores] = useState({ team1: 0, team2: 0 });
+  const [manualScoreMode, setManualScoreMode] = useState(false);
 
   // Handle dialog close - refresh parent only if there were changes
   const handleOpenChange = (newOpen: boolean) => {
@@ -208,6 +210,7 @@ export const MatchStatsDialog = ({
   // Use local scores if updated, otherwise match scores
   const displayTeam1Score = hasChanges ? localScores.team1 : (match?.team1_score ?? team1GoalsCalc);
   const displayTeam2Score = hasChanges ? localScores.team2 : (match?.team2_score ?? team2GoalsCalc);
+  const hasPlayers = team1Players.length > 0 || team2Players.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -224,17 +227,71 @@ export const MatchStatsDialog = ({
             <div className="text-center flex-1">
               <p className="font-semibold text-lg">{match?.team1?.name}</p>
             </div>
-            <div className="flex items-center gap-3 px-6 py-2 bg-background rounded-lg">
-              <span className="text-3xl font-bold text-primary">{displayTeam1Score}</span>
-              <span className="text-2xl text-muted-foreground">-</span>
-              <span className="text-3xl font-bold text-primary">{displayTeam2Score}</span>
-            </div>
+            {manualScoreMode ? (
+              <div className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg">
+                <ScoreInput
+                  value={localScores.team1}
+                  onChange={(value) => setLocalScores(prev => ({ ...prev, team1: value }))}
+                />
+                <span className="text-2xl text-muted-foreground font-bold">-</span>
+                <ScoreInput
+                  value={localScores.team2}
+                  onChange={(value) => setLocalScores(prev => ({ ...prev, team2: value }))}
+                />
+                <Button
+                  size="sm"
+                  className="ml-2 gap-1"
+                  onClick={async () => {
+                    const winnerId = localScores.team1 > localScores.team2 ? match.team1_id :
+                                    localScores.team2 > localScores.team1 ? match.team2_id : null;
+                    const { error } = await supabase
+                      .from("matches")
+                      .update({
+                        team1_score: localScores.team1,
+                        team2_score: localScores.team2,
+                        winner_id: winnerId,
+                      })
+                      .eq("id", match.id);
+                    if (error) {
+                      toast.error("Erreur lors de la mise à jour du score");
+                    } else {
+                      toast.success("Score mis à jour");
+                      setHasChanges(true);
+                      setManualScoreMode(false);
+                    }
+                  }}
+                >
+                  <Save className="h-4 w-4" />
+                  Valider
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-3 px-6 py-2 bg-background rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => {
+                  setLocalScores({
+                    team1: displayTeam1Score,
+                    team2: displayTeam2Score,
+                  });
+                  setManualScoreMode(true);
+                }}
+                title="Cliquer pour modifier le score"
+              >
+                <span className="text-3xl font-bold text-primary">{displayTeam1Score}</span>
+                <span className="text-2xl text-muted-foreground">-</span>
+                <span className="text-3xl font-bold text-primary">{displayTeam2Score}</span>
+              </div>
+            )}
             <div className="text-center flex-1">
               <p className="font-semibold text-lg">{match?.team2?.name}</p>
             </div>
           </div>
           <p className="text-xs text-muted-foreground text-center mt-2">
-            The score updates automatically based on recorded goals
+            {manualScoreMode
+              ? "Modifiez le score puis cliquez Valider"
+              : hasPlayers
+                ? "Le score se met à jour automatiquement via les buts des joueurs"
+                : "Cliquez sur le score pour le modifier directement"}
           </p>
         </Card>
 
