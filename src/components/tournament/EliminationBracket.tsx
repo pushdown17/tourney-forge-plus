@@ -714,7 +714,7 @@ export const EliminationBracket = ({
               round_number: 0,
               team1_id: highSeed.team_id,
               team2_id: lowSeed.team_id,
-              field_number: (matchIndex % (numberOfFields || 1)) + 1,
+              field_number: matchIndex + 1,
             });
             matchIndex++;
             
@@ -747,7 +747,7 @@ export const EliminationBracket = ({
             round_number: 1,
             team1_id: highSeed.team_id,
             team2_id: lowSeed.team_id,
-            field_number: (matchIndex % (numberOfFields || 1)) + 1,
+            field_number: matchIndex + 1,
           });
           matchIndex++;
           
@@ -1036,7 +1036,7 @@ export const EliminationBracket = ({
           );
 
           if (!exists) {
-            const fieldNum = (qfMatchIndex % (numberOfFields || 1)) + 1;
+            const fieldNum = qfMatchIndex + 1;
             matchesToCreate.push({
               tournament_id: tournamentId,
               phase: currentPhase as any,
@@ -1161,8 +1161,7 @@ export const EliminationBracket = ({
         } else {
           // For other rounds: create next round match for this pair
           const existingCount = existingNextRoundMatches?.filter(m => !m.is_third_place_match).length || 0;
-          const fieldIndex = existingCount + matchesToCreate.length;
-          const fieldNumber = (fieldIndex % (numberOfFields || 1)) + 1;
+          const fieldNumber = existingCount + matchesToCreate.length + 1;
           
           matchesToCreate.push({
             tournament_id: tournamentId,
