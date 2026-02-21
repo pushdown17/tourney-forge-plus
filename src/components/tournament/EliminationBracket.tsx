@@ -1509,6 +1509,9 @@ export const EliminationBracket = ({
                 const matchHeight = 148;
                 const baseGap = 4;
                 const unit = matchHeight + baseGap;
+                // Visual center of the match card within the fixed-height slot
+                // Header (~20px) + card (~80px), so center of card is around 20 + 40 = 60px
+                const matchCenterY = 60;
                 
                 // When there's a preliminary round, both prelim and R1 share the same spacing level
                 // (they have the same number of slots). Subsequent rounds shift accordingly.
@@ -1573,7 +1576,7 @@ export const EliminationBracket = ({
                             roundMatches.map((m, idx) => {
                               if (m.isSpacer) return null;
                               const totalSlotHeight = matchHeight + verticalGap;
-                              const y = idx * totalSlotHeight + matchHeight / 2;
+                              const y = idx * totalSlotHeight + matchCenterY;
                               return (
                                 <g key={idx} className="animate-fade-in">
                                   <line x1="0" y1={y} x2="32" y2={y} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
@@ -1588,8 +1591,8 @@ export const EliminationBracket = ({
 
                               const totalSlotHeight = matchHeight + verticalGap;
                               const baseY = matchIndex * totalSlotHeight;
-                              const y1 = baseY + matchHeight / 2;
-                              const y2 = baseY + totalSlotHeight + matchHeight / 2;
+                              const y1 = baseY + matchCenterY;
+                              const y2 = baseY + totalSlotHeight + matchCenterY;
                               const yMid = (y1 + y2) / 2;
 
                               return (
