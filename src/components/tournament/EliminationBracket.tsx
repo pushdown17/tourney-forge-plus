@@ -1323,11 +1323,12 @@ export const EliminationBracket = ({
       }
 
       for (const pm of sortedPrelim) {
-        // Find the higher seed in this prelim match to determine its QF slot
-        const seed1 = pm.team1?.seed ?? 999;
-        const seed2 = pm.team2?.seed ?? 999;
-        const higherSeed = Math.min(seed1, seed2);
-        const qfSlot = seedToQFSlot.get(higherSeed);
+        // Use field_number to compute original seed at generation time
+        // Prelim with field_number=k was the k-th generated prelim
+        // Its highSeed at generation was: bracketSize - numPreliminaryMatches + field_number
+        const fn = pm.field_number || 0;
+        const originalHighSeed = bracketSize - numPreliminaryMatches + fn;
+        const qfSlot = seedToQFSlot.get(originalHighSeed);
         if (qfSlot !== undefined) {
           paddedPrelim[qfSlot] = pm;
         }
