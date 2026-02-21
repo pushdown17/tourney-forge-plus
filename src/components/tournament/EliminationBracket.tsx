@@ -505,17 +505,22 @@ export const EliminationBracket = ({
           .from("team_stats")
           .select("team_id, points, goals_for, goals_against, team:teams!team_stats_team_id_fkey(id, name)")
           .eq("tournament_id", tournamentId)
-          .order("points", { ascending: false })
-          .order("goals_for", { ascending: false })
       ]);
 
       if (matchesResult.error) throw matchesResult.error;
       
-      // Build seed map from standings
+      // Build seed map from standings - sort same as StandingsTable: points DESC, goal diff DESC, goals_for DESC
       const seedMap = new Map<string, number>();
       const reverseSeedMap = new Map<number, Team>();
       if (standingsResult.data) {
-        standingsResult.data.forEach((stat: any, index: number) => {
+        const sortedStandings = [...standingsResult.data].sort((a: any, b: any) => {
+          if (b.points !== a.points) return b.points - a.points;
+          const diffA = a.goals_for - a.goals_against;
+          const diffB = b.goals_for - b.goals_against;
+          if (diffB !== diffA) return diffB - diffA;
+          return b.goals_for - a.goals_for;
+        });
+        sortedStandings.forEach((stat: any, index: number) => {
           seedMap.set(stat.team_id, index + 1);
           if (stat.team) {
             reverseSeedMap.set(index + 1, { id: stat.team.id, name: stat.team.name, seed: index + 1 });
