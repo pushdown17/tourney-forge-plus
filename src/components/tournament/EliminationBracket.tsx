@@ -682,25 +682,46 @@ export const EliminationBracket = ({
         const prelimTeams = standings.slice(bracketSize - numPreliminaryMatches, teamsCount);
         // prelimTeams has 2*numPreliminaryMatches entries
         
+        // First, build all prelim pairings
+        const prelimPairings: { highSeed: any; lowSeed: any; originalHighSeedNum: number }[] = [];
         for (let i = 0; i < numPreliminaryMatches; i++) {
           const highSeed = prelimTeams[i];
           const lowSeed = prelimTeams[prelimTeams.length - 1 - i];
-          
           if (highSeed && lowSeed) {
-            matchesToInsert.push({
-              tournament_id: tournamentId,
-              phase: currentPhase,
-              round_number: 0,
-              team1_id: highSeed.team_id,
-              team2_id: lowSeed.team_id,
-              field_number: matchIndex + 1,
-            });
-            matchIndex++;
-            
-            const seed1 = standings.indexOf(highSeed) + 1;
-            const seed2 = standings.indexOf(lowSeed) + 1;
-            console.log(`Preliminary: #${seed1} ${highSeed.team?.name} vs #${seed2} ${lowSeed.team?.name}`);
+            const seedNum = standings.indexOf(highSeed) + 1;
+            prelimPairings.push({ highSeed, lowSeed, originalHighSeedNum: seedNum });
           }
+        }
+        
+        // Sort prelim pairings by their visual bracket slot order
+        // so that field_number matches the visual display order
+        const seeding = getStandardSeeding(bracketSize);
+        const seedToSlot = new Map<number, number>();
+        for (let i = 0; i < seeding.length; i += 2) {
+          seedToSlot.set(seeding[i], Math.floor(i / 2));
+          seedToSlot.set(seeding[i + 1], Math.floor(i / 2));
+        }
+        
+        prelimPairings.sort((a, b) => {
+          const slotA = seedToSlot.get(a.originalHighSeedNum) ?? 999;
+          const slotB = seedToSlot.get(b.originalHighSeedNum) ?? 999;
+          return slotA - slotB;
+        });
+        
+        for (const pairing of prelimPairings) {
+          matchesToInsert.push({
+            tournament_id: tournamentId,
+            phase: currentPhase,
+            round_number: 0,
+            team1_id: pairing.highSeed.team_id,
+            team2_id: pairing.lowSeed.team_id,
+            field_number: matchIndex + 1,
+          });
+          matchIndex++;
+          
+          const seed1 = standings.indexOf(pairing.highSeed) + 1;
+          const seed2 = standings.indexOf(pairing.lowSeed) + 1;
+          console.log(`Preliminary: #${seed1} ${pairing.highSeed.team?.name} vs #${seed2} ${pairing.lowSeed.team?.name}`);
         }
       }
       
