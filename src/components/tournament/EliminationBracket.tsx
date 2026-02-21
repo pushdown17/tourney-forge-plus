@@ -1505,9 +1505,9 @@ export const EliminationBracket = ({
                 const hasPreliminaryRound = bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0;
                 const isPreliminaryRound = roundNumber === 0;
                 
-                // Dimensions
-                const matchHeight = 124;
-                const baseGap = 12;
+                // Dimensions - include space for the "Enter score" button area
+                const matchHeight = 148;
+                const baseGap = 4;
                 const unit = matchHeight + baseGap;
                 
                 // When there's a preliminary round, both prelim and R1 share the same spacing level
@@ -1617,75 +1617,76 @@ export const EliminationBracket = ({
                         const matchNumber = matchNumberStart + (++realMatchCount);
 
                         return (
-                          <BracketMatch
-                            key={match.id}
-                            match={match}
-                            matchNumber={matchNumber}
-                            isEditing={editingMatchId === match.id}
-                            scores={scores[match.id] || { team1: "", team2: "" }}
-                            isClosed={isClosed || isLocked}
-                            isFinal={isLastRound}
-                            isRecentlyCompleted={recentlyCompletedMatchId === match.id}
-                            advancedTeamId={recentlyAdvancedTeamIds.includes(match.team1_id) ? match.team1_id : 
-                                            recentlyAdvancedTeamIds.includes(match.team2_id) ? match.team2_id : undefined}
-                            isLocked={isLocked}
-                            isCompleted={isMatchCompleted}
-                            isCreator={isCreator}
-                            isLive={liveMatches.has(match.id)}
-                            isOnDeck={onDeckMatchId === match.id}
-                            isInTheHole={inTheHoleMatchId === match.id}
-                            timerState={matchTimers[match.id] || null}
-                            tournamentId={tournamentId}
-                            team1Players={playersByTeam[match.team1_id] || []}
-                            team2Players={playersByTeam[match.team2_id] || []}
-                            onStartEdit={() => {
-                              if (isLocked && !isMatchCompleted) {
-                                toast.error("Complete the previous round matches first");
-                                return;
-                              }
-                              setEditingMatchId(match.id);
-                              setScores({
+                          <div key={match.id} style={{ height: `${matchHeight}px` }}>
+                            <BracketMatch
+                              match={match}
+                              matchNumber={matchNumber}
+                              isEditing={editingMatchId === match.id}
+                              scores={scores[match.id] || { team1: "", team2: "" }}
+                              isClosed={isClosed || isLocked}
+                              isFinal={isLastRound}
+                              isRecentlyCompleted={recentlyCompletedMatchId === match.id}
+                              advancedTeamId={recentlyAdvancedTeamIds.includes(match.team1_id) ? match.team1_id : 
+                                              recentlyAdvancedTeamIds.includes(match.team2_id) ? match.team2_id : undefined}
+                              isLocked={isLocked}
+                              isCompleted={isMatchCompleted}
+                              isCreator={isCreator}
+                              isLive={liveMatches.has(match.id)}
+                              isOnDeck={onDeckMatchId === match.id}
+                              isInTheHole={inTheHoleMatchId === match.id}
+                              timerState={matchTimers[match.id] || null}
+                              tournamentId={tournamentId}
+                              team1Players={playersByTeam[match.team1_id] || []}
+                              team2Players={playersByTeam[match.team2_id] || []}
+                              onStartEdit={() => {
+                                if (isLocked && !isMatchCompleted) {
+                                  toast.error("Complete the previous round matches first");
+                                  return;
+                                }
+                                setEditingMatchId(match.id);
+                                setScores({
+                                  ...scores,
+                                  [match.id]: {
+                                    team1: match.team1_score?.toString() || "0",
+                                    team2: match.team2_score?.toString() || "0"
+                                  }
+                                });
+                              }}
+                              onCancelEdit={() => setEditingMatchId(null)}
+                              onSaveScore={() => handleScoreUpdate(match.id)}
+                              onScoreChange={(team, value) => setScores({
                                 ...scores,
-                                [match.id]: {
-                                  team1: match.team1_score?.toString() || "0",
-                                  team2: match.team2_score?.toString() || "0"
+                                [match.id]: { ...scores[match.id], [team]: value }
+                              })}
+                              onMatchClick={() => {
+                                if (isLocked && !isMatchCompleted) {
+                                  toast.error("Complete the previous round matches first");
+                                  return;
                                 }
-                              });
-                            }}
-                            onCancelEdit={() => setEditingMatchId(null)}
-                            onSaveScore={() => handleScoreUpdate(match.id)}
-                            onScoreChange={(team, value) => setScores({
-                              ...scores,
-                              [match.id]: { ...scores[match.id], [team]: value }
-                            })}
-                            onMatchClick={() => {
-                              if (isLocked && !isMatchCompleted) {
-                                toast.error("Complete the previous round matches first");
-                                return;
-                              }
-                              if (!match.isPlaceholder) {
-                                setSelectedMatch(match);
-                                if (isMatchCompleted || !isCreator) {
-                                  setRecapDialogOpen(true);
-                                } else {
-                                  setStatsDialogOpen(true);
+                                if (!match.isPlaceholder) {
+                                  setSelectedMatch(match);
+                                  if (isMatchCompleted || !isCreator) {
+                                    setRecapDialogOpen(true);
+                                  } else {
+                                    setStatsDialogOpen(true);
+                                  }
                                 }
-                              }
-                            }}
-                            onSendToStation={() => {
-                              const label = `${match.team1?.name || "TBD"} vs ${match.team2?.name || "TBD"}`;
-                              setStationMatch({ id: match.id, label });
-                              setStationDialogOpen(true);
-                            }}
-                            onIncrementScore={(teamId, teamName) => {
-                              if (isLocked && !isMatchCompleted) {
-                                toast.error("Complete the previous round matches first");
-                                return;
-                              }
-                              setScoringTeam({ id: teamId, name: teamName, matchId: match.id });
-                              setGoalScorerDialogOpen(true);
-                            }}
-                          />
+                              }}
+                              onSendToStation={() => {
+                                const label = `${match.team1?.name || "TBD"} vs ${match.team2?.name || "TBD"}`;
+                                setStationMatch({ id: match.id, label });
+                                setStationDialogOpen(true);
+                              }}
+                              onIncrementScore={(teamId, teamName) => {
+                                if (isLocked && !isMatchCompleted) {
+                                  toast.error("Complete the previous round matches first");
+                                  return;
+                                }
+                                setScoringTeam({ id: teamId, name: teamName, matchId: match.id });
+                                setGoalScorerDialogOpen(true);
+                              }}
+                            />
+                          </div>
                         );
                       })}
                     </div>
