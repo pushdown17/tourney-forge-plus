@@ -798,23 +798,20 @@ export const EliminationBracket = ({
       }
     }
 
-    // Also update 3rd place match if it exists and contains the old loser
+    // Also update 3rd place match if it exists
+    // When winner changes from A→B: old loser B was in 3rd place, now B wins so A (new loser) should replace B
     const oldMatch = matches.find(m => m.id === matchId);
     if (oldMatch) {
-      const oldLoserId = oldWinnerId === oldMatch.team1_id ? oldMatch.team1_id : oldMatch.team2_id;
-      const newLoserId = newWinnerId === oldMatch.team1_id ? oldMatch.team2_id : oldMatch.team1_id;
-      
-      // The old loser was the new winner's opponent, and the new loser is the old winner
-      // Old loser = team that was NOT the old winner = the team that IS the new winner... no.
-      // Let me think: if old winner was A, new winner is B, then old loser was B, new loser is A.
-      if (oldLoserId !== newLoserId) {
-        const { data: thirdPlaceMatches } = await supabase
-          .from("matches")
-          .select("*")
-          .eq("tournament_id", tournamentId)
-          .eq("phase", currentPhase)
-          .eq("is_third_place_match", true)
-          .or(`team1_id.eq.${oldWinnerId},team2_id.eq.${oldWinnerId}`);
+      // Old loser = the team that is now the new winner (they were losing before)
+      // New loser = the old winner (they now lost)
+      // In 3rd place match, the old loser (newWinnerId) is currently listed → replace with new loser (oldWinnerId)
+      const { data: thirdPlaceMatches } = await supabase
+        .from("matches")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .eq("phase", currentPhase)
+        .eq("is_third_place_match", true)
+        .or(`team1_id.eq.${newWinnerId},team2_id.eq.${newWinnerId}`);
 
         for (const tpMatch of (thirdPlaceMatches || [])) {
           if (tpMatch.winner_id) {
@@ -836,7 +833,6 @@ export const EliminationBracket = ({
             }
           }
         }
-      }
     }
   };
 
