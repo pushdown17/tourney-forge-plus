@@ -1586,25 +1586,73 @@ const PlayerStatsInput = ({ player, stats, onUpdate, onEditStart, onEditEnd }: P
 const CompletedMatchCard = ({ match }: { match: any }) => {
   const isTeam1Winner = match.team1_score > match.team2_score;
   const isTeam2Winner = match.team2_score > match.team1_score;
+  const [team1Players, setTeam1Players] = useState<string[]>([]);
+  const [team2Players, setTeam2Players] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchPlayers = async () => {
+      const { data: tt1 } = await supabase
+        .from("tournament_teams")
+        .select("id")
+        .eq("tournament_id", match.tournament_id)
+        .eq("team_id", match.team1_id)
+        .maybeSingle();
+      if (tt1) {
+        const { data: players1 } = await supabase
+          .from("tournament_team_players")
+          .select("players(name)")
+          .eq("tournament_team_id", tt1.id);
+        setTeam1Players((players1 || []).map((p: any) => p.players?.name).filter(Boolean));
+      }
+      const { data: tt2 } = await supabase
+        .from("tournament_teams")
+        .select("id")
+        .eq("tournament_id", match.tournament_id)
+        .eq("team_id", match.team2_id)
+        .maybeSingle();
+      if (tt2) {
+        const { data: players2 } = await supabase
+          .from("tournament_team_players")
+          .select("players(name)")
+          .eq("tournament_team_id", tt2.id);
+        setTeam2Players((players2 || []).map((p: any) => p.players?.name).filter(Boolean));
+      }
+    };
+    fetchPlayers();
+  }, [match.tournament_id, match.team1_id, match.team2_id]);
   
   return (
     <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">
-      <div className="flex-1 flex items-center justify-between gap-3">
-        <span className={`font-medium ${isTeam1Winner ? 'text-primary' : ''}`}>
-          {match.team1?.name || "Team 1"}
-        </span>
-        <span className={`text-lg font-bold ${isTeam1Winner ? 'text-primary' : ''}`}>
-          {match.team1_score}
-        </span>
+      <div className="flex-1 flex flex-col gap-0.5">
+        <div className="flex items-center justify-between gap-3">
+          <span className={`font-medium ${isTeam1Winner ? 'text-primary' : ''}`}>
+            {match.team1?.name || "Team 1"}
+          </span>
+          <span className={`text-lg font-bold ${isTeam1Winner ? 'text-primary' : ''}`}>
+            {match.team1_score}
+          </span>
+        </div>
+        {team1Players.length > 0 && (
+          <span className="text-[9px] text-muted-foreground leading-tight truncate">
+            {team1Players.join(", ")}
+          </span>
+        )}
       </div>
       <span className="text-muted-foreground">-</span>
-      <div className="flex-1 flex items-center justify-between gap-3">
-        <span className={`text-lg font-bold ${isTeam2Winner ? 'text-primary' : ''}`}>
-          {match.team2_score}
-        </span>
-        <span className={`font-medium text-right ${isTeam2Winner ? 'text-primary' : ''}`}>
-          {match.team2?.name || "Team 2"}
-        </span>
+      <div className="flex-1 flex flex-col gap-0.5">
+        <div className="flex items-center justify-between gap-3">
+          <span className={`text-lg font-bold ${isTeam2Winner ? 'text-primary' : ''}`}>
+            {match.team2_score}
+          </span>
+          <span className={`font-medium text-right ${isTeam2Winner ? 'text-primary' : ''}`}>
+            {match.team2?.name || "Team 2"}
+          </span>
+        </div>
+        {team2Players.length > 0 && (
+          <span className="text-[9px] text-muted-foreground leading-tight truncate text-right">
+            {team2Players.join(", ")}
+          </span>
+        )}
       </div>
     </div>
   );

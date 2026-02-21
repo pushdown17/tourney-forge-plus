@@ -518,50 +518,14 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
             {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).map((match) => {
               const highlighted = isMatchHighlighted(match);
               return (
-                <Card 
-                  key={match.id} 
-                  className={`p-4 transition-all ${
-                    highlighted 
-                      ? "bg-primary/30 ring-2 ring-primary shadow-lg" 
-                      : selectedTeam 
-                        ? "bg-muted/20 opacity-50" 
-                        : "bg-muted/30"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1">
-                      <button
-                        onClick={() => handleTeamClick(match.team1?.name)}
-                        className={`font-medium hover:text-primary hover:underline transition-colors cursor-pointer ${
-                          match.team1?.name === selectedTeam ? "text-primary font-bold underline" : ""
-                        } ${match.winner_id === match.team1_id ? 'text-primary font-bold' : ''}`}
-                      >
-                        {match.team1?.name}
-                      </button>
-                      <button
-                        onClick={() => setSelectedMatch(match)}
-                        className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
-                        title="View match details"
-                      >
-                        <span className={`text-xl font-bold ${match.winner_id === match.team1_id ? 'text-primary' : ''}`}>
-                          {match.team1_score}
-                        </span>
-                        <span className="text-muted-foreground">-</span>
-                        <span className={`text-xl font-bold ${match.winner_id === match.team2_id ? 'text-primary' : ''}`}>
-                          {match.team2_score}
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => handleTeamClick(match.team2?.name)}
-                        className={`font-medium hover:text-primary hover:underline transition-colors cursor-pointer ${
-                          match.team2?.name === selectedTeam ? "text-primary font-bold underline" : ""
-                        } ${match.winner_id === match.team2_id ? 'text-primary font-bold' : ''}`}
-                      >
-                        {match.team2?.name}
-                      </button>
-                    </div>
-                  </div>
-                </Card>
+                <CompletedRRMatchCard
+                  key={match.id}
+                  match={match}
+                  highlighted={highlighted}
+                  selectedTeam={selectedTeam}
+                  onTeamClick={handleTeamClick}
+                  onMatchClick={() => setSelectedMatch(match)}
+                />
               );
             })}
           </div>
@@ -1555,5 +1519,108 @@ const PlayerStatsInput = ({ player, stats, onUpdate, onEditStart, onEditEnd }: P
         </div>
       </CollapsibleContent>
     </Collapsible>
+  );
+};
+
+const CompletedRRMatchCard = ({ match, highlighted, selectedTeam, onTeamClick, onMatchClick }: {
+  match: any;
+  highlighted: boolean;
+  selectedTeam: string | null;
+  onTeamClick: (name: string) => void;
+  onMatchClick: () => void;
+}) => {
+  const [team1Players, setTeam1Players] = useState<string[]>([]);
+  const [team2Players, setTeam2Players] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchPlayers = async () => {
+      const { data: tt1 } = await supabase
+        .from("tournament_teams")
+        .select("id")
+        .eq("tournament_id", match.tournament_id)
+        .eq("team_id", match.team1_id)
+        .maybeSingle();
+      if (tt1) {
+        const { data: players1 } = await supabase
+          .from("tournament_team_players")
+          .select("players(name)")
+          .eq("tournament_team_id", tt1.id);
+        setTeam1Players((players1 || []).map((p: any) => p.players?.name).filter(Boolean));
+      }
+      const { data: tt2 } = await supabase
+        .from("tournament_teams")
+        .select("id")
+        .eq("tournament_id", match.tournament_id)
+        .eq("team_id", match.team2_id)
+        .maybeSingle();
+      if (tt2) {
+        const { data: players2 } = await supabase
+          .from("tournament_team_players")
+          .select("players(name)")
+          .eq("tournament_team_id", tt2.id);
+        setTeam2Players((players2 || []).map((p: any) => p.players?.name).filter(Boolean));
+      }
+    };
+    fetchPlayers();
+  }, [match.tournament_id, match.team1_id, match.team2_id]);
+
+  return (
+    <Card 
+      className={`p-4 transition-all ${
+        highlighted 
+          ? "bg-primary/30 ring-2 ring-primary shadow-lg" 
+          : selectedTeam 
+            ? "bg-muted/20 opacity-50" 
+            : "bg-muted/30"
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="flex flex-col">
+            <button
+              onClick={() => onTeamClick(match.team1?.name)}
+              className={`font-medium hover:text-primary hover:underline transition-colors cursor-pointer text-left ${
+                match.team1?.name === selectedTeam ? "text-primary font-bold underline" : ""
+              } ${match.winner_id === match.team1_id ? 'text-primary font-bold' : ''}`}
+            >
+              {match.team1?.name}
+            </button>
+            {team1Players.length > 0 && (
+              <span className="text-[9px] text-muted-foreground leading-tight truncate">
+                {team1Players.join(", ")}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={onMatchClick}
+            className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+            title="View match details"
+          >
+            <span className={`text-xl font-bold ${match.winner_id === match.team1_id ? 'text-primary' : ''}`}>
+              {match.team1_score}
+            </span>
+            <span className="text-muted-foreground">-</span>
+            <span className={`text-xl font-bold ${match.winner_id === match.team2_id ? 'text-primary' : ''}`}>
+              {match.team2_score}
+            </span>
+          </button>
+          <div className="flex flex-col">
+            <button
+              onClick={() => onTeamClick(match.team2?.name)}
+              className={`font-medium hover:text-primary hover:underline transition-colors cursor-pointer text-left ${
+                match.team2?.name === selectedTeam ? "text-primary font-bold underline" : ""
+              } ${match.winner_id === match.team2_id ? 'text-primary font-bold' : ''}`}
+            >
+              {match.team2?.name}
+            </button>
+            {team2Players.length > 0 && (
+              <span className="text-[9px] text-muted-foreground leading-tight truncate">
+                {team2Players.join(", ")}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 };
