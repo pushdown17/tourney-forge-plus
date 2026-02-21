@@ -59,6 +59,8 @@ interface BracketMatchProps {
   isInTheHole?: boolean;
   timerState?: TimerState | null;
   tournamentId?: string;
+  team1Players?: string[];
+  team2Players?: string[];
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveScore: () => void;
@@ -85,6 +87,8 @@ export const BracketMatch = ({
   isInTheHole = false,
   timerState,
   tournamentId,
+  team1Players = [],
+  team2Players = [],
   onStartEdit,
   onCancelEdit,
   onSaveScore,
@@ -105,7 +109,7 @@ export const BracketMatch = ({
   const canEdit = isCreator && !isClosed && (!isMatchLocked || isCompleted);
   
   return (
-    <div className="animate-fade-in h-[124px] flex flex-col">
+    <div className="animate-fade-in flex flex-col">
       {/* Match header */}
       <div className="flex items-center justify-center gap-2 mb-1">
         <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
@@ -191,26 +195,33 @@ export const BracketMatch = ({
                 match.hasAdvancedTeam1 && "bg-primary/5"
               )}
             >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                {match.winner_id === match.team1_id && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                )}
-                {match.hasAdvancedTeam1 && !match.winner_id && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 animate-[pulse_2s_ease-in-out_infinite]" />
-                )}
-                {match.team1?.seed && (
-                  <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
-                    #{match.team1.seed}
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  {match.winner_id === match.team1_id && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                  )}
+                  {match.hasAdvancedTeam1 && !match.winner_id && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 animate-[pulse_2s_ease-in-out_infinite]" />
+                  )}
+                  {match.team1?.seed && (
+                    <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
+                      #{match.team1.seed}
+                    </span>
+                  )}
+                  <span className={cn(
+                    "text-sm truncate",
+                    match.winner_id === match.team1_id && "font-semibold text-primary",
+                    match.hasAdvancedTeam1 && !match.winner_id && "font-medium text-primary animate-fade-in",
+                    !match.team1?.name && "text-muted-foreground italic"
+                  )}>
+                    {match.team1?.name || "TBD"}
+                  </span>
+                </div>
+                {team1Players.length > 0 && (
+                  <span className="text-[9px] text-muted-foreground leading-tight truncate pl-0.5">
+                    {team1Players.join(", ")}
                   </span>
                 )}
-                <span className={cn(
-                  "text-sm truncate",
-                  match.winner_id === match.team1_id && "font-semibold text-primary",
-                  match.hasAdvancedTeam1 && !match.winner_id && "font-medium text-primary animate-fade-in",
-                  !match.team1?.name && "text-muted-foreground italic"
-                )}>
-                  {match.team1?.name || "TBD"}
-                </span>
               </div>
               {match.team1_score !== null && (
                 <span className={cn(
@@ -232,26 +243,33 @@ export const BracketMatch = ({
                 match.hasAdvancedTeam2 && "bg-primary/5"
               )}
             >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                {!isBye && match.winner_id === match.team2_id && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                )}
-                {match.hasAdvancedTeam2 && !match.winner_id && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 animate-[pulse_2s_ease-in-out_infinite]" />
-                )}
-                {!isBye && match.team2?.seed && (
-                  <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
-                    #{match.team2.seed}
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  {!isBye && match.winner_id === match.team2_id && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                  )}
+                  {match.hasAdvancedTeam2 && !match.winner_id && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 animate-[pulse_2s_ease-in-out_infinite]" />
+                  )}
+                  {!isBye && match.team2?.seed && (
+                    <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
+                      #{match.team2.seed}
+                    </span>
+                  )}
+                  <span className={cn(
+                    "text-sm truncate",
+                    !isBye && match.winner_id === match.team2_id && "font-semibold text-primary",
+                    match.hasAdvancedTeam2 && !match.winner_id && "font-medium text-primary animate-fade-in",
+                    isBye ? "text-muted-foreground italic" : (!match.team2?.name && "text-muted-foreground italic")
+                  )}>
+                    {isBye ? "BYE" : (match.team2?.name || "TBD")}
+                  </span>
+                </div>
+                {team2Players.length > 0 && !isBye && (
+                  <span className="text-[9px] text-muted-foreground leading-tight truncate pl-0.5">
+                    {team2Players.join(", ")}
                   </span>
                 )}
-                <span className={cn(
-                  "text-sm truncate",
-                  !isBye && match.winner_id === match.team2_id && "font-semibold text-primary",
-                  match.hasAdvancedTeam2 && !match.winner_id && "font-medium text-primary animate-fade-in",
-                  isBye ? "text-muted-foreground italic" : (!match.team2?.name && "text-muted-foreground italic")
-                )}>
-                  {isBye ? "BYE" : (match.team2?.name || "TBD")}
-                </span>
               </div>
               {!isBye && match.team2_score !== null && (
                 <span className={cn(

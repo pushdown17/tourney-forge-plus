@@ -118,6 +118,7 @@ export const EliminationBracket = ({
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
   const [seedToTeam, setSeedToTeam] = useState<Map<number, Team>>(new Map());
+  const [playersByTeam, setPlayersByTeam] = useState<Record<string, string[]>>({});
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: {
     durationSeconds: number;
     startedAt: string | null;
@@ -524,6 +525,43 @@ export const EliminationBracket = ({
       }));
 
       setMatches(matchesWithSeeds);
+
+      // Fetch players for all teams in the bracket
+      const teamIds = new Set<string>();
+      matchesWithSeeds.forEach(m => {
+        if (m.team1_id) teamIds.add(m.team1_id);
+        if (m.team2_id) teamIds.add(m.team2_id);
+      });
+
+      if (teamIds.size > 0) {
+        const { data: ttData } = await supabase
+          .from("tournament_teams")
+          .select("id, team_id")
+          .eq("tournament_id", tournamentId)
+          .in("team_id", Array.from(teamIds));
+
+        if (ttData && ttData.length > 0) {
+          const ttIds = ttData.map(tt => tt.id);
+          const { data: ttpData } = await supabase
+            .from("tournament_team_players")
+            .select("tournament_team_id, players:player_id(name)")
+            .in("tournament_team_id", ttIds);
+
+          const ttIdToTeamId: Record<string, string> = {};
+          ttData.forEach(tt => { ttIdToTeamId[tt.id] = tt.team_id; });
+
+          const playersMap: Record<string, string[]> = {};
+          ttpData?.forEach((ttp: any) => {
+            const teamId = ttIdToTeamId[ttp.tournament_team_id];
+            if (teamId) {
+              if (!playersMap[teamId]) playersMap[teamId] = [];
+              if (ttp.players?.name) playersMap[teamId].push(ttp.players.name);
+            }
+          });
+          setPlayersByTeam(playersMap);
+        }
+      }
+
       if (!matchesResult.data || matchesResult.data.length === 0) {
         // Auto-generate matches
         await generateBracket(tournamentData.teams_for_elimination);
@@ -1594,6 +1632,8 @@ export const EliminationBracket = ({
                             isInTheHole={inTheHoleMatchId === match.id}
                             timerState={matchTimers[match.id] || null}
                             tournamentId={tournamentId}
+                            team1Players={playersByTeam[match.team1_id] || []}
+                            team2Players={playersByTeam[match.team2_id] || []}
                             onStartEdit={() => {
                               if (isLocked && !isMatchCompleted) {
                                 toast.error("Complete the previous round matches first");
@@ -1703,6 +1743,8 @@ export const EliminationBracket = ({
                       isOnDeck={onDeckMatchId === thirdPlaceMatch.id}
                       isInTheHole={inTheHoleMatchId === thirdPlaceMatch.id}
                       timerState={matchTimers[thirdPlaceMatch.id] || null}
+                      team1Players={playersByTeam[thirdPlaceMatch.team1_id] || []}
+                      team2Players={playersByTeam[thirdPlaceMatch.team2_id] || []}
                       onStartEdit={() => {
                         if (thirdPlaceLocked && !isThirdPlaceCompleted) {
                           toast.error("Complete the semi-finals first");
