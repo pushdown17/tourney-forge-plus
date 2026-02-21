@@ -101,7 +101,8 @@ export const BracketMatch = ({
   // A match is locked if it is completed (has a winner) OR if the previous matches are not finished
   const isMatchLocked = isCompleted || isLocked;
   // Only show edit controls if user is the creator
-  const canEdit = isCreator && !isClosed && !isMatchLocked;
+  // Creators can edit completed matches to correct errors
+  const canEdit = isCreator && !isClosed && (!isMatchLocked || isCompleted);
   
   return (
     <div className="animate-fade-in h-[124px] flex flex-col">
@@ -298,7 +299,7 @@ export const BracketMatch = ({
       </Popover>
 
       {/* Score edit section - Only display if user is creator and match is not completed */}
-      {!isPlaceholder && hasTeams && !isCompleted && canEdit && (
+      {!isPlaceholder && hasTeams && canEdit && (
         <div className="mt-1.5">
           {isEditing ? (
             <div className="flex gap-1 items-center justify-center bg-muted/30 rounded-md p-1.5">
