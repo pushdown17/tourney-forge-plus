@@ -207,10 +207,18 @@ export const EliminationBracket = ({
             );
 
             // Always refresh to show newly created matches (from station or other clients)
-            // Note: next round generation is handled by the referee station or by manual score entry (handleScoreUpdate).
-            // We do NOT call checkAndGenerateNextRound here to avoid duplicate match creation race conditions.
             if (updatedMatch.winner_id && (!oldMatch || !oldMatch.winner_id)) {
-              setTimeout(() => fetchTournamentAndMatches(), 2000);
+              // Delay to allow station to generate next round first
+              setTimeout(async () => {
+                await fetchTournamentAndMatches();
+                // Fallback: if station failed to generate next round, try from bracket page
+                // This handles race conditions or station failures silently
+                try {
+                  await checkAndGenerateNextRound(updatedMatch.round_number);
+                } catch (e) {
+                  console.log('Fallback next round generation skipped or already handled:', e);
+                }
+              }, 3000);
             }
             
             // If match was inserted (new match created externally), refresh
@@ -567,6 +575,15 @@ export const EliminationBracket = ({
       if (!matchesResult.data || matchesResult.data.length === 0) {
         // Auto-generate matches
         await generateBracket(tournamentData.teams_for_elimination);
+      } else {
+        // Check if next round needs to be generated (fallback for station failures)
+        const prelimMatches = matchesResult.data.filter((m: any) => m.round_number === 0 && !m.is_third_place_match);
+        const r1Matches = matchesResult.data.filter((m: any) => m.round_number === 1 && !m.is_third_place_match);
+        if (prelimMatches.length > 0 && prelimMatches.every((m: any) => m.winner_id) && r1Matches.length === 0) {
+          console.log('All prelims complete but no R1 matches found — triggering fallback generation');
+          await checkAndGenerateNextRound(0);
+          await fetchTournamentAndMatches();
+        }
       }
     } catch (error: any) {
       toast.error("Error loading bracket");
