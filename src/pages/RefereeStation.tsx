@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn, User as UserIcon, Timer } from "lucide-react";
+import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn, User as UserIcon, Timer, Medal } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -76,6 +76,8 @@ const RefereeStation = () => {
   const [autoLoadBanner, setAutoLoadBanner] = useState(false);
   const [goalScorerPicker, setGoalScorerPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
   const [goalRemoverPicker, setGoalRemoverPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
+  const [thirdPlaceDialogOpen, setThirdPlaceDialogOpen] = useState(false);
+  const [semiFinalsLosers, setSemiFinalsLosers] = useState<{ loser1Id: string; loser2Id: string; finalRound: number; phase: string } | null>(null);
 
   // Keep last known match assignment to avoid refetching (and resetting local unsaved stats)
   // on every timer tick/update.
@@ -763,7 +765,7 @@ const RefereeStation = () => {
               const numFields = tournamentData?.number_of_fields || 1;
 
               if (roundMatches.length === 2 && i === 0) {
-                // Semi-finals → create ONLY the final
+                // Semi-finals → create the final
                 matchesToCreate.push({
                   tournament_id: station.tournament_id,
                   phase: currentPhase,
@@ -773,6 +775,10 @@ const RefereeStation = () => {
                   is_third_place_match: false,
                   field_number: 1,
                 });
+                // Determine losers for potential 3rd place match
+                const loser1 = m1.team1_id === m1.winner_id ? m1.team2_id : m1.team1_id;
+                const loser2 = m2.team1_id === m2.winner_id ? m2.team2_id : m2.team1_id;
+                setSemiFinalsLosers({ loser1Id: loser1, loser2Id: loser2, finalRound: match.round_number + 1, phase: currentPhase });
                 skipAutoAdvance = true;
               } else {
                 const existingCount = existingNextRound?.filter(m => !m.is_third_place_match).length || 0;
@@ -834,12 +840,13 @@ const RefereeStation = () => {
         timer_duration_seconds: null
       } as any).eq("id", stationId);
 
-      toast.success("Demi-finales terminées ! Le gestionnaire va décider de la suite.");
       setConfirmDialogOpen(false);
       setMatch(null);
       setTeam1(null);
       setTeam2(null);
       setSaving(false);
+      // Show the 3rd place dialog
+      setThirdPlaceDialogOpen(true);
       return;
     }
 
@@ -915,6 +922,84 @@ const RefereeStation = () => {
       setTeam1(null);
       setTeam2(null);
     }
+  };
+
+  const handleThirdPlaceDecision = async (wantThirdPlace: boolean) => {
+    setThirdPlaceDialogOpen(false);
+    if (!semiFinalsLosers || !station) {
+      setSemiFinalsLosers(null);
+      return;
+    }
+
+    const currentPhase = semiFinalsLosers.phase as any;
+
+    if (wantThirdPlace) {
+      // Create 3rd place match
+      const { data: existing3rd } = await supabase
+        .from("matches")
+        .select("id")
+        .eq("tournament_id", station.tournament_id)
+        .eq("phase", currentPhase)
+        .eq("round_number", semiFinalsLosers.finalRound)
+        .eq("is_third_place_match", true);
+
+      if (!existing3rd || existing3rd.length === 0) {
+        const { data: created, error: insertErr } = await supabase
+          .from("matches")
+          .insert({
+            tournament_id: station.tournament_id,
+            phase: currentPhase,
+            round_number: semiFinalsLosers.finalRound,
+            team1_id: semiFinalsLosers.loser1Id,
+            team2_id: semiFinalsLosers.loser2Id,
+            is_third_place_match: true,
+            field_number: 0,
+          })
+          .select("id")
+          .single();
+
+        if (insertErr) {
+          console.error("Error creating 3rd place match:", insertErr);
+          toast.error("Erreur lors de la création de la petite finale");
+        } else if (created) {
+          // Send 3rd place match to station
+          const timerDuration = station.timer_duration_seconds;
+          await supabase.from("referee_stations").update({
+            current_match_id: created.id,
+            timer_started_at: null,
+            timer_paused_at: null,
+            timer_elapsed_when_paused: 0,
+            timer_duration_seconds: timerDuration,
+          }).eq("id", stationId);
+          toast.success("Petite finale créée et envoyée à la station !");
+        }
+      }
+    } else {
+      // No 3rd place → send the final directly to station
+      const { data: finalMatch } = await supabase
+        .from("matches")
+        .select("id")
+        .eq("tournament_id", station.tournament_id)
+        .eq("phase", currentPhase)
+        .eq("round_number", semiFinalsLosers.finalRound)
+        .eq("is_third_place_match", false)
+        .is("team1_score", null)
+        .single();
+
+      if (finalMatch) {
+        const timerDuration = station.timer_duration_seconds;
+        await supabase.from("referee_stations").update({
+          current_match_id: finalMatch.id,
+          timer_started_at: null,
+          timer_paused_at: null,
+          timer_elapsed_when_paused: 0,
+          timer_duration_seconds: timerDuration,
+        }).eq("id", stationId);
+        toast.success("Grande Finale envoyée à la station !");
+      }
+    }
+
+    setSemiFinalsLosers(null);
   };
 
   // Show loading while checking auth
@@ -1334,6 +1419,29 @@ const RefereeStation = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={validateMatch}>
               Confirm & Send
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Third Place Match Decision Dialog */}
+      <AlertDialog open={thirdPlaceDialogOpen} onOpenChange={setThirdPlaceDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Medal className="h-5 w-5 text-amber-500" />
+              Petite finale ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Les demi-finales sont terminées ! Souhaitez-vous organiser un match pour la 3ème place (petite finale) avant la grande finale ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleThirdPlaceDecision(false)}>
+              Non, passer à la finale
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleThirdPlaceDecision(true)}>
+              Oui, petite finale
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
