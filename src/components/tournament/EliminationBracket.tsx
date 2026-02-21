@@ -430,20 +430,22 @@ export const EliminationBracket = ({
     const semiRound = totalRounds - 1;
     const finalRound = totalRounds;
 
-    const semiMatches = matches.filter(m => m.round_number === semiRound && !m.is_third_place_match);
+    const allSemiMatches = matches.filter(m => m.round_number === semiRound && !m.is_third_place_match);
+    // Only consider the completed semi-final matches (exactly the ones with winners)
+    const completedSemis = allSemiMatches.filter(m => m.winner_id);
     const finalMatch = matches.find(m => m.round_number === finalRound && !m.is_third_place_match);
     const thirdPlace = matches.find(m => m.is_third_place_match);
     const isFinaleOnStation = activeStationMatches.has(finalMatch?.id || '');
 
-    if (semiMatches.length === 2 &&
-        semiMatches.every(m => m.winner_id) &&
+    if (completedSemis.length >= 2 &&
         finalMatch && !finalMatch.winner_id &&
         !thirdPlace &&
         !thirdPlaceDialogOpen &&
         !pendingFinalMatches &&
         !isFinaleOnStation) {
 
-      const sortedSemis = [...semiMatches].sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+      // Take the first 2 completed semis sorted by creation date
+      const sortedSemis = [...completedSemis].sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '')).slice(0, 2);
       const loser1 = sortedSemis[0].winner_id === sortedSemis[0].team1_id
         ? sortedSemis[0].team2_id : sortedSemis[0].team1_id;
       const loser2 = sortedSemis[1].winner_id === sortedSemis[1].team1_id
