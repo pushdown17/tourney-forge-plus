@@ -842,17 +842,19 @@ const RefereeStation = () => {
 
     // Find the next waiting match AFTER generating next round matches
     // so newly created matches (including 3rd place) are picked up
-    const { data: allMatches } = await supabase
+    const { data: allMatches, error: nextErr } = await supabase
       .from("matches")
       .select("id, team1_id, team2_id, winner_id, team1_score, team2_score")
       .eq("tournament_id", station.tournament_id)
       .eq("phase", currentPhase)
-      .is("winner_id", null)
       .is("team1_score", null)
       .neq("id", match.id)
       .order("round_number")
       .order("field_number")
       .order("created_at");
+
+    console.log("[Auto-advance] Current match validated:", match.id, "phase:", currentPhase);
+    console.log("[Auto-advance] Unplayed matches found:", allMatches?.map(m => ({ id: m.id, t1: m.team1_id, t2: m.team2_id, s1: m.team1_score, s2: m.team2_score, w: m.winner_id })));
 
     // Get all active station match assignments (except current station)
     const { data: activeStations } = await supabase
@@ -871,6 +873,7 @@ const RefereeStation = () => {
     const nextMatch = (allMatches || []).find(
       m => m.team1_id && m.team2_id && m.team1_id !== m.team2_id && !activeMatchIds.has(m.id)
     );
+    console.log("[Auto-advance] Next match selected:", nextMatch?.id || "none");
 
     // Update station: assign next match or clear
     const timerDuration = station.timer_duration_seconds;
