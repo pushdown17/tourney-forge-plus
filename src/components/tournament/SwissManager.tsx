@@ -23,9 +23,13 @@ import { GoalScorerDialog } from "./GoalScorerDialog";
 import { GoalRemoverDialog } from "./GoalRemoverDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
 import { MatchStatsRecap } from "./MatchStatsRecap";
+import { MatchStatsDialog } from "./MatchStatsDialog";
+import { MatchStatsViewDialog } from "./MatchStatsViewDialog";
 import { SendToStationDialog } from "./SendToStationDialog";
 import { TimerDisplay } from "./TimerDisplay";
 import { LiveMatchStatsDialog } from "./LiveMatchStatsDialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ClipboardEdit, Eye } from "lucide-react";
 
 interface SwissManagerProps {
   tournamentId: string;
@@ -44,6 +48,8 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
   const [selectedLiveMatch, setSelectedLiveMatch] = useState<any | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
+  const [editingMatch, setEditingMatch] = useState<any | null>(null);
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: {
     durationSeconds: number;
     startedAt: string | null;
@@ -617,7 +623,14 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
               <h3 className="text-lg font-semibold mb-3 text-muted-foreground">Completed Matches</h3>
               <div className="space-y-2 opacity-60">
                 {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).map((match) => (
-                  <CompletedMatchCard key={match.id} match={match} />
+                  <CompletedMatchCard
+                    key={match.id}
+                    match={match}
+                    isCreator={isCreator}
+                    isClosed={isClosed}
+                    onEditScore={() => setEditingMatch(match)}
+                    onViewStats={() => setSelectedMatch(match)}
+                  />
                 ))}
               </div>
             </div>
@@ -645,6 +658,36 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           open={!!selectedLiveMatch}
           onOpenChange={(open) => !open && setSelectedLiveMatch(null)}
           isLive={liveMatches.has(selectedLiveMatch.id)}
+        />
+      )}
+
+      {/* Match Stats Dialog for editing completed matches (creator only) */}
+      {editingMatch && (
+        <MatchStatsDialog
+          match={editingMatch}
+          tournamentId={tournamentId}
+          open={!!editingMatch}
+          onOpenChange={(open) => !open && setEditingMatch(null)}
+          onScoreUpdate={() => {
+            fetchMatches();
+            fetchMaxRound();
+          }}
+        />
+      )}
+
+      {/* Match Stats View Dialog for viewing completed matches */}
+      {selectedMatch && (
+        <MatchStatsViewDialog
+          matchId={selectedMatch.id}
+          team1Id={selectedMatch.team1_id}
+          team2Id={selectedMatch.team2_id}
+          team1Name={selectedMatch.team1?.name || ""}
+          team2Name={selectedMatch.team2?.name || ""}
+          team1Score={selectedMatch.team1_score}
+          team2Score={selectedMatch.team2_score}
+          tournamentId={tournamentId}
+          open={!!selectedMatch}
+          onOpenChange={(open) => !open && setSelectedMatch(null)}
         />
       )}
     </div>
@@ -1583,11 +1626,18 @@ const PlayerStatsInput = ({ player, stats, onUpdate, onEditStart, onEditEnd }: P
   );
 };
 
-const CompletedMatchCard = ({ match }: { match: any }) => {
+const CompletedMatchCard = ({ match, isCreator = false, isClosed = false, onEditScore, onViewStats }: {
+  match: any;
+  isCreator?: boolean;
+  isClosed?: boolean;
+  onEditScore?: () => void;
+  onViewStats?: () => void;
+}) => {
   const isTeam1Winner = match.team1_score > match.team2_score;
   const isTeam2Winner = match.team2_score > match.team1_score;
   const [team1Players, setTeam1Players] = useState<string[]>([]);
   const [team2Players, setTeam2Players] = useState<string[]>([]);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   useEffect(() => {
     const fetchPlayers = async () => {
@@ -1621,39 +1671,82 @@ const CompletedMatchCard = ({ match }: { match: any }) => {
     fetchPlayers();
   }, [match.tournament_id, match.team1_id, match.team2_id]);
   
+  const handleClick = () => {
+    if (isCreator && !isClosed) {
+      setPopoverOpen(true);
+    } else if (onViewStats) {
+      onViewStats();
+    }
+  };
+
   return (
-    <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">
-      <div className="flex-1 flex flex-col gap-0.5">
-        <div className="flex items-center justify-between gap-3">
-          <span className={`font-medium ${isTeam1Winner ? 'text-primary' : ''}`}>
-            {match.team1?.name || "Team 1"}
-          </span>
-          <span className={`text-lg font-bold ${isTeam1Winner ? 'text-primary' : ''}`}>
-            {match.team1_score}
-          </span>
+    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+      <PopoverTrigger asChild>
+        <div 
+          className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={handleClick}
+        >
+          <div className="flex-1 flex flex-col gap-0.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className={`font-medium ${isTeam1Winner ? 'text-primary' : ''}`}>
+                {match.team1?.name || "Team 1"}
+              </span>
+              <span className={`text-lg font-bold ${isTeam1Winner ? 'text-primary' : ''}`}>
+                {match.team1_score}
+              </span>
+            </div>
+            {team1Players.length > 0 && (
+              <span className="text-[9px] text-muted-foreground leading-tight truncate">
+                {team1Players.join(", ")}
+              </span>
+            )}
+          </div>
+          <span className="text-muted-foreground">-</span>
+          <div className="flex-1 flex flex-col gap-0.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className={`text-lg font-bold ${isTeam2Winner ? 'text-primary' : ''}`}>
+                {match.team2_score}
+              </span>
+              <span className={`font-medium text-right ${isTeam2Winner ? 'text-primary' : ''}`}>
+                {match.team2?.name || "Team 2"}
+              </span>
+            </div>
+            {team2Players.length > 0 && (
+              <span className="text-[9px] text-muted-foreground leading-tight truncate text-right">
+                {team2Players.join(", ")}
+              </span>
+            )}
+          </div>
         </div>
-        {team1Players.length > 0 && (
-          <span className="text-[9px] text-muted-foreground leading-tight truncate">
-            {team1Players.join(", ")}
-          </span>
-        )}
-      </div>
-      <span className="text-muted-foreground">-</span>
-      <div className="flex-1 flex flex-col gap-0.5">
-        <div className="flex items-center justify-between gap-3">
-          <span className={`text-lg font-bold ${isTeam2Winner ? 'text-primary' : ''}`}>
-            {match.team2_score}
-          </span>
-          <span className={`font-medium text-right ${isTeam2Winner ? 'text-primary' : ''}`}>
-            {match.team2?.name || "Team 2"}
-          </span>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-2">
+        <div className="flex flex-col gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2"
+            onClick={() => {
+              setPopoverOpen(false);
+              onEditScore?.();
+            }}
+          >
+            <ClipboardEdit className="h-4 w-4" />
+            Modifier le score
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2"
+            onClick={() => {
+              setPopoverOpen(false);
+              onViewStats?.();
+            }}
+          >
+            <Eye className="h-4 w-4" />
+            Voir le récapitulatif
+          </Button>
         </div>
-        {team2Players.length > 0 && (
-          <span className="text-[9px] text-muted-foreground leading-tight truncate text-right">
-            {team2Players.join(", ")}
-          </span>
-        )}
-      </div>
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 };

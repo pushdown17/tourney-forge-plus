@@ -24,9 +24,12 @@ import { GoalRemoverDialog } from "./GoalRemoverDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
 import { MatchStatsRecap } from "./MatchStatsRecap";
 import { MatchStatsViewDialog } from "./MatchStatsViewDialog";
+import { MatchStatsDialog } from "./MatchStatsDialog";
 import { LiveMatchStatsDialog } from "./LiveMatchStatsDialog";
 import { SendToStationDialog } from "./SendToStationDialog";
 import { TimerDisplay } from "./TimerDisplay";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ClipboardEdit, Eye } from "lucide-react";
 
 interface RoundRobinManagerProps {
   tournamentId: string;
@@ -41,6 +44,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
+  const [editingMatch, setEditingMatch] = useState<any | null>(null);
   const [selectedLiveMatch, setSelectedLiveMatch] = useState<any | null>(null);
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
@@ -525,6 +529,9 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                   selectedTeam={selectedTeam}
                   onTeamClick={handleTeamClick}
                   onMatchClick={() => setSelectedMatch(match)}
+                  isCreator={isCreator}
+                  isClosed={isClosed}
+                  onEditScore={() => setEditingMatch(match)}
                 />
               );
             })}
@@ -551,6 +558,17 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
           tournamentId={tournamentId}
           open={!!selectedMatch}
           onOpenChange={(open) => !open && setSelectedMatch(null)}
+        />
+      )}
+
+      {/* Match Stats Dialog for editing completed matches (creator only) */}
+      {editingMatch && (
+        <MatchStatsDialog
+          match={editingMatch}
+          tournamentId={tournamentId}
+          open={!!editingMatch}
+          onOpenChange={(open) => !open && setEditingMatch(null)}
+          onScoreUpdate={fetchMatches}
         />
       )}
 
@@ -1522,15 +1540,19 @@ const PlayerStatsInput = ({ player, stats, onUpdate, onEditStart, onEditEnd }: P
   );
 };
 
-const CompletedRRMatchCard = ({ match, highlighted, selectedTeam, onTeamClick, onMatchClick }: {
+const CompletedRRMatchCard = ({ match, highlighted, selectedTeam, onTeamClick, onMatchClick, isCreator = false, isClosed = false, onEditScore }: {
   match: any;
   highlighted: boolean;
   selectedTeam: string | null;
   onTeamClick: (name: string) => void;
   onMatchClick: () => void;
+  isCreator?: boolean;
+  isClosed?: boolean;
+  onEditScore?: () => void;
 }) => {
   const [team1Players, setTeam1Players] = useState<string[]>([]);
   const [team2Players, setTeam2Players] = useState<string[]>([]);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   useEffect(() => {
     const fetchPlayers = async () => {
@@ -1564,6 +1586,15 @@ const CompletedRRMatchCard = ({ match, highlighted, selectedTeam, onTeamClick, o
     fetchPlayers();
   }, [match.tournament_id, match.team1_id, match.team2_id]);
 
+  const handleScoreClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isCreator && !isClosed) {
+      setPopoverOpen(true);
+    } else {
+      onMatchClick();
+    }
+  };
+
   return (
     <Card 
       className={`p-4 transition-all ${
@@ -1591,19 +1622,51 @@ const CompletedRRMatchCard = ({ match, highlighted, selectedTeam, onTeamClick, o
               </span>
             )}
           </div>
-          <button
-            onClick={onMatchClick}
-            className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
-            title="View match details"
-          >
-            <span className={`text-xl font-bold ${match.winner_id === match.team1_id ? 'text-primary' : ''}`}>
-              {match.team1_score}
-            </span>
-            <span className="text-muted-foreground">-</span>
-            <span className={`text-xl font-bold ${match.winner_id === match.team2_id ? 'text-primary' : ''}`}>
-              {match.team2_score}
-            </span>
-          </button>
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <button
+                onClick={handleScoreClick}
+                className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+                title="View match details"
+              >
+                <span className={`text-xl font-bold ${match.winner_id === match.team1_id ? 'text-primary' : ''}`}>
+                  {match.team1_score}
+                </span>
+                <span className="text-muted-foreground">-</span>
+                <span className={`text-xl font-bold ${match.winner_id === match.team2_id ? 'text-primary' : ''}`}>
+                  {match.team2_score}
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2">
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={() => {
+                    setPopoverOpen(false);
+                    onEditScore?.();
+                  }}
+                >
+                  <ClipboardEdit className="h-4 w-4" />
+                  Modifier le score
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={() => {
+                    setPopoverOpen(false);
+                    onMatchClick();
+                  }}
+                >
+                  <Eye className="h-4 w-4" />
+                  Voir le récapitulatif
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
           <div className="flex flex-col">
             <button
               onClick={() => onTeamClick(match.team2?.name)}
