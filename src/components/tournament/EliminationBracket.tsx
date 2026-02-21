@@ -1595,12 +1595,8 @@ export const EliminationBracket = ({
                             timerState={matchTimers[match.id] || null}
                             tournamentId={tournamentId}
                             onStartEdit={() => {
-                              if (isLocked || isMatchCompleted) {
-                                if (isMatchCompleted) {
-                                  toast.error("This match is finished and can no longer be modified");
-                                } else {
-                                  toast.error("Complete the previous round matches first");
-                                }
+                              if (isLocked && !isMatchCompleted) {
+                                toast.error("Complete the previous round matches first");
                                 return;
                               }
                               setEditingMatchId(match.id);
@@ -1638,12 +1634,8 @@ export const EliminationBracket = ({
                               setStationDialogOpen(true);
                             }}
                             onIncrementScore={(teamId, teamName) => {
-                              if (isLocked || isMatchCompleted) {
-                                if (isMatchCompleted) {
-                                  toast.error("This match is finished and can no longer be modified");
-                                } else {
-                                  toast.error("Complete the previous round matches first");
-                                }
+                              if (isLocked && !isMatchCompleted) {
+                                toast.error("Complete the previous round matches first");
                                 return;
                               }
                               setScoringTeam({ id: teamId, name: teamName, matchId: match.id });
@@ -1712,12 +1704,8 @@ export const EliminationBracket = ({
                       isInTheHole={inTheHoleMatchId === thirdPlaceMatch.id}
                       timerState={matchTimers[thirdPlaceMatch.id] || null}
                       onStartEdit={() => {
-                        if (thirdPlaceLocked || isThirdPlaceCompleted) {
-                          if (isThirdPlaceCompleted) {
-                            toast.error("This match is finished and can no longer be modified");
-                          } else {
-                            toast.error("Complete the semi-finals first");
-                          }
+                        if (thirdPlaceLocked && !isThirdPlaceCompleted) {
+                          toast.error("Complete the semi-finals first");
                           return;
                         }
                         setEditingMatchId(thirdPlaceMatch.id);
@@ -1748,12 +1736,8 @@ export const EliminationBracket = ({
                         }
                       }}
                       onIncrementScore={(teamId, teamName) => {
-                        if (thirdPlaceLocked || isThirdPlaceCompleted) {
-                          if (isThirdPlaceCompleted) {
-                            toast.error("This match is finished and can no longer be modified");
-                          } else {
-                            toast.error("Complete the semi-finals first");
-                          }
+                        if (thirdPlaceLocked && !isThirdPlaceCompleted) {
+                          toast.error("Complete the semi-finals first");
                           return;
                         }
                         setScoringTeam({ id: teamId, name: teamName, matchId: thirdPlaceMatch.id });
