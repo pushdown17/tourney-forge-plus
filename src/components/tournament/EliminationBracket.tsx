@@ -1213,17 +1213,6 @@ export const EliminationBracket = ({
     const preliminaryMatches = matches
       .filter((m) => m.round_number === 0 && !m.is_third_place_match);
 
-    // Determine prelim feed positions in R1 (edges: top for #1, bottom for #2)
-    const prelimFeedPositions: number[] = [];
-    for (let i = 0; i < numPreliminaryMatches; i++) {
-      if (i % 2 === 0) {
-        prelimFeedPositions.push(Math.floor(i / 2)); // 0, 1, 2...
-      } else {
-        prelimFeedPositions.push(r1ExpectedCount - 1 - Math.floor(i / 2)); // last, last-1...
-      }
-    }
-    const prelimFeedSet = new Set(prelimFeedPositions);
-
     if (hasPreliminary) {
       // Sort prelim matches by field_number (stable, set at generation time)
       const sortedPrelim = [...preliminaryMatches].sort((a, b) => {
@@ -1240,9 +1229,24 @@ export const EliminationBracket = ({
         round_number: 0,
       }));
 
-      // Place prelim matches at their feed positions
-      for (let i = 0; i < sortedPrelim.length && i < prelimFeedPositions.length; i++) {
-        paddedPrelim[prelimFeedPositions[i]] = sortedPrelim[i];
+      // Place each prelim match at the R1 slot it feeds into, based on standard seeding
+      const seeding = getStandardSeeding(bracketSize);
+      // Build map: seed → QF slot index
+      const seedToQFSlot = new Map<number, number>();
+      for (let i = 0; i < seeding.length; i += 2) {
+        seedToQFSlot.set(seeding[i], Math.floor(i / 2));
+        seedToQFSlot.set(seeding[i + 1], Math.floor(i / 2));
+      }
+
+      for (const pm of sortedPrelim) {
+        // Find the higher seed in this prelim match to determine its QF slot
+        const seed1 = pm.team1?.seed ?? 999;
+        const seed2 = pm.team2?.seed ?? 999;
+        const higherSeed = Math.min(seed1, seed2);
+        const qfSlot = seedToQFSlot.get(higherSeed);
+        if (qfSlot !== undefined) {
+          paddedPrelim[qfSlot] = pm;
+        }
       }
 
       structure.push(paddedPrelim);
