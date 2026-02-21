@@ -1848,6 +1848,8 @@ export const EliminationBracket = ({
                       isOnDeck={onDeckMatchId === thirdPlaceMatch.id}
                       isInTheHole={inTheHoleMatchId === thirdPlaceMatch.id}
                       timerState={matchTimers[thirdPlaceMatch.id] || null}
+                      isCreator={isCreator}
+                      tournamentId={tournamentId}
                       team1Players={playersByTeam[thirdPlaceMatch.team1_id] || []}
                       team2Players={playersByTeam[thirdPlaceMatch.team2_id] || []}
                       onStartEdit={() => {
