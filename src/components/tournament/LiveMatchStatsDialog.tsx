@@ -416,43 +416,6 @@ export const LiveMatchStatsDialog = ({
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Scorers */}
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                Scorers
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  {scorers1.length > 0 ? (
-                    scorers1.map((s, i) => (
-                      <div key={i} className="flex items-center justify-between text-sm">
-                        <span>{s.player_name}</span>
-                        <Badge variant="default" className="text-xs">
-                          {s.goals} {s.goals > 1 ? "goals" : "goal"}
-                        </Badge>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">-</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  {scorers2.length > 0 ? (
-                    scorers2.map((s, i) => (
-                      <div key={i} className="flex items-center justify-between text-sm">
-                        <span>{s.player_name}</span>
-                        <Badge variant="default" className="text-xs">
-                          {s.goals} {s.goals > 1 ? "goals" : "goal"}
-                        </Badge>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">-</p>
-                  )}
-                </div>
-              </div>
-            </Card>
 
             {/* Assisters */}
             {(assisters1.length > 0 || assisters2.length > 0) && (
