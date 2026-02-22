@@ -24,8 +24,11 @@ interface MatchTimelineProps {
 
 const eventConfig: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
   goal: { icon: <Target className="h-4 w-4" />, label: "But", color: "text-primary" },
+  goals: { icon: <Target className="h-4 w-4" />, label: "But", color: "text-primary" },
   assist: { icon: <Handshake className="h-4 w-4" />, label: "Passe", color: "text-blue-500" },
+  assists: { icon: <Handshake className="h-4 w-4" />, label: "Passe", color: "text-blue-500" },
   foul: { icon: <AlertTriangle className="h-4 w-4" />, label: "Faute", color: "text-orange-500" },
+  fouls: { icon: <AlertTriangle className="h-4 w-4" />, label: "Faute", color: "text-orange-500" },
   penalty_30s: { icon: <Clock className="h-4 w-4" />, label: "Pénalité 30s", color: "text-yellow-600" },
   penalty_1m: { icon: <Clock className="h-4 w-4" />, label: "Pénalité 1min", color: "text-orange-600" },
   penalty_2m: { icon: <Clock className="h-4 w-4" />, label: "Pénalité 2min", color: "text-red-600" },
