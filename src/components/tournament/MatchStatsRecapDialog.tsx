@@ -152,12 +152,6 @@ export const MatchStatsRecapDialog = ({
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <span className="font-medium text-sm">{player.name}</span>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
-                    {player.goals > 0 && (
-                      <Badge variant="secondary" className="gap-1 text-xs">
-                        <Target className="h-3 w-3" />
-                        {player.goals}
-                      </Badge>
-                    )}
                     {player.assists > 0 && (
                       <Badge variant="outline" className="gap-1 text-xs">
                         <Handshake className="h-3 w-3" />
@@ -272,9 +266,6 @@ export const MatchStatsRecapDialog = ({
 
         {/* Legend */}
         <div className="flex flex-wrap gap-3 justify-center text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Target className="h-3 w-3" /> Goals
-          </div>
           <div className="flex items-center gap-1">
             <Handshake className="h-3 w-3" /> Assists
           </div>
