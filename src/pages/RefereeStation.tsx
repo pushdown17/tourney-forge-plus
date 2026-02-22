@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MatchTimer } from "@/components/tournament/MatchTimer";
 import type { User } from "@supabase/supabase-js";
+import { getSyncedNowMs } from "@/lib/serverTime";
 
 interface PlayerStat {
   id: string;
@@ -469,9 +470,10 @@ const RefereeStation = () => {
     }, 500); // Save 500ms after last change
   }, [autoSaveScores]);
 
-  const updateScore = (teamNumber: 1 | 2, delta: number) => {
+  const updateScore = (teamNumber: 1 | 2, delta: number, anonymous = false) => {
     let newTeam1Score = team1?.score || 0;
     let newTeam2Score = team2?.score || 0;
+    const team = teamNumber === 1 ? team1 : team2;
     
     if (teamNumber === 1 && team1) {
       newTeam1Score = Math.max(0, team1.score + delta);
@@ -485,7 +487,64 @@ const RefereeStation = () => {
     broadcastLiveScore(newTeam1Score, newTeam2Score);
     // Auto-save to database
     triggerAutoSave(newTeam1Score, newTeam2Score);
+
+    // Record anonymous goal event
+    if (anonymous && team) {
+      const scoreStr = `${newTeam1Score} - ${newTeam2Score}`;
+      recordMatchEvent('goal', 'Anonyme', team.id, null, delta, scoreStr);
+    }
   };
+
+  // Calculate current elapsed match time from station timer
+  const getElapsedMatchTime = useCallback((): string => {
+    if (!station?.timer_duration_seconds) return "00:00";
+    
+    const duration = station.timer_duration_seconds;
+    let elapsedSeconds: number;
+    
+    if (!station.timer_started_at) {
+      elapsedSeconds = 0;
+    } else if (station.timer_paused_at) {
+      elapsedSeconds = station.timer_elapsed_when_paused || 0;
+    } else {
+      const startTime = new Date(station.timer_started_at).getTime();
+      const now = getSyncedNowMs();
+      elapsedSeconds = (now - startTime) / 1000 + (station.timer_elapsed_when_paused || 0);
+    }
+    
+    elapsedSeconds = Math.min(elapsedSeconds, duration);
+    const mins = Math.floor(elapsedSeconds / 60);
+    const secs = Math.floor(elapsedSeconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }, [station?.timer_duration_seconds, station?.timer_started_at, station?.timer_paused_at, station?.timer_elapsed_when_paused]);
+
+  // Record a match event to the timeline
+  const recordMatchEvent = useCallback(async (
+    eventType: string,
+    playerName: string,
+    teamId: string,
+    playerId: string | null,
+    delta: number,
+    scoreAfter?: string
+  ) => {
+    if (!match || !station?.tournament_id) return;
+    
+    try {
+      await (supabase as any).from("match_events").insert({
+        match_id: match.id,
+        tournament_id: station.tournament_id,
+        player_id: playerId,
+        player_name: playerName,
+        team_id: teamId,
+        event_type: eventType,
+        match_time: getElapsedMatchTime(),
+        score_at_event: scoreAfter || null,
+        delta,
+      });
+    } catch (error) {
+      console.error("Error recording match event:", error);
+    }
+  }, [match, station?.tournament_id, getElapsedMatchTime]);
 
   const updatePlayerStat = (
     teamNumber: 1 | 2, 
@@ -493,20 +552,22 @@ const RefereeStation = () => {
     stat: keyof Omit<PlayerStat, 'id' | 'player_id' | 'player_name' | 'tournament_team_player_id'>,
     delta: number
   ) => {
-    const updateTeam = (team: Team) => {
-      const updatedPlayers = team.players.map(p => 
+    const team = teamNumber === 1 ? team1 : team2;
+    const player = team?.players.find(p => p.player_id === playerId);
+
+    const updateTeam = (t: Team) => {
+      const updatedPlayers = t.players.map(p => 
         p.player_id === playerId 
           ? { ...p, [stat]: Math.max(0, p[stat] + delta) }
           : p
       );
       
-      // If updating goals, also update the team score
       const newScore = stat === 'goals' 
-        ? Math.max(0, team.score + delta) 
-        : team.score;
+        ? Math.max(0, t.score + delta) 
+        : t.score;
       
       return {
-        ...team,
+        ...t,
         score: newScore,
         players: updatedPlayers
       };
@@ -532,8 +593,13 @@ const RefereeStation = () => {
     // Broadcast live score when goals change
     if (stat === 'goals') {
       broadcastLiveScore(newTeam1Score, newTeam2Score);
-      // Auto-save to database when goals change
       triggerAutoSave(newTeam1Score, newTeam2Score);
+    }
+
+    // Record event to timeline
+    if (player && team) {
+      const scoreStr = stat === 'goals' ? `${newTeam1Score} - ${newTeam2Score}` : undefined;
+      recordMatchEvent(stat, player.player_name, team.id, player.player_id, delta, scoreStr);
     }
   };
 
@@ -1245,7 +1311,7 @@ const RefereeStation = () => {
                       ))}
                     </div>
                     <Button variant="secondary" onClick={() => {
-                      updateScore(goalScorerPicker.teamNumber, 1);
+                      updateScore(goalScorerPicker.teamNumber, 1, true);
                       setGoalScorerPicker(null);
                     }}>
                       Passer (but anonyme)
@@ -1292,7 +1358,7 @@ const RefereeStation = () => {
                       )}
                       {playersWithGoals.length === 0 && (
                         <Button variant="secondary" className="w-full" onClick={() => {
-                          updateScore(goalRemoverPicker.teamNumber, -1);
+                          updateScore(goalRemoverPicker.teamNumber, -1, true);
                           setGoalRemoverPicker(null);
                         }}>
                           Retirer quand même

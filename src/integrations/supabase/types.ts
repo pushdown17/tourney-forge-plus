@@ -14,6 +14,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      match_events: {
+        Row: {
+          created_at: string
+          delta: number
+          event_type: string
+          id: string
+          match_id: string
+          match_time: string
+          player_id: string | null
+          player_name: string
+          score_at_event: string | null
+          team_id: string
+          tournament_id: string
+        }
+        Insert: {
+          created_at?: string
+          delta?: number
+          event_type: string
+          id?: string
+          match_id: string
+          match_time: string
+          player_id?: string | null
+          player_name: string
+          score_at_event?: string | null
+          team_id: string
+          tournament_id: string
+        }
+        Update: {
+          created_at?: string
+          delta?: number
+          event_type?: string
+          id?: string
+          match_id?: string
+          match_time?: string
+          player_id?: string | null
+          player_name?: string
+          score_at_event?: string | null
+          team_id?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_events_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_events_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_events_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_events_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           created_at: string
