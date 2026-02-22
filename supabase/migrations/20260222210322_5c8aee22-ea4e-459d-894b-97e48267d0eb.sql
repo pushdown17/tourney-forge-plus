@@ -1,0 +1,1 @@
+ALTER TABLE public.referee_stations ADD COLUMN IF NOT EXISTS timer_total_adjusted numeric DEFAULT 0;
