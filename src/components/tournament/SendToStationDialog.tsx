@@ -40,7 +40,9 @@ export const SendToStationDialog = ({
   const [stations, setStations] = useState<RefereeStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState<string | null>(null);
-  const [timerMinutes, setTimerMinutes] = useState<string>("10");
+  const [timerMinutes, setTimerMinutes] = useState<string>(() => {
+    return localStorage.getItem('last_timer_duration') || "10";
+  });
   const [timerEnabled, setTimerEnabled] = useState(true);
 
   const fetchStations = async () => {
@@ -88,6 +90,9 @@ export const SendToStationDialog = ({
       console.error("Error sending to station:", error);
       toast.error("Error sending match to station");
     } else {
+      if (timerEnabled && timerMinutes) {
+        localStorage.setItem('last_timer_duration', timerMinutes);
+      }
       const station = stations.find(s => s.id === stationId);
       toast.success(`Match sent to ${station?.station_name} ${station?.station_number}`);
       onOpenChange(false);
