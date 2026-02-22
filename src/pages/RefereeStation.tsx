@@ -904,18 +904,25 @@ const RefereeStation = () => {
       return;
     }
 
+    setConfirmDialogOpen(false);
+
     if (nextMatch) {
+      // Update the ref immediately so the incoming realtime event won't trigger a redundant fetchStation
+      stationMatchIdRef.current = nextMatch.id;
+      // Update local station state to reflect the new match id
+      setStation((prev: any) => prev ? { ...prev, current_match_id: nextMatch.id } : prev);
+      // Load the next match data directly – no full page reload needed
+      await fetchMatch(nextMatch.id, station.tournament_id);
       toast.success("Match validé ! Prochain match chargé automatiquement.");
       setAutoLoadBanner(true);
       setTimeout(() => setAutoLoadBanner(false), 5000);
     } else {
-      toast.success("Match validé !");
-    }
-    setConfirmDialogOpen(false);
-    if (!nextMatch) {
+      stationMatchIdRef.current = null;
+      setStation((prev: any) => prev ? { ...prev, current_match_id: null } : prev);
       setMatch(null);
       setTeam1(null);
       setTeam2(null);
+      toast.success("Match validé !");
     }
   };
 
