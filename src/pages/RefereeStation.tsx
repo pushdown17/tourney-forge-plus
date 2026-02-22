@@ -994,8 +994,15 @@ const RefereeStation = () => {
     if (nextMatch) {
       // Update the ref immediately so the incoming realtime event won't trigger a redundant fetchStation
       stationMatchIdRef.current = nextMatch.id;
-      // Update local station state to reflect the new match id
-      setStation((prev: any) => prev ? { ...prev, current_match_id: nextMatch.id } : prev);
+      // Update local station state to reflect the new match id and reset timer
+      setStation((prev: any) => prev ? { 
+        ...prev, 
+        current_match_id: nextMatch.id,
+        timer_duration_seconds: originalDuration,
+        timer_started_at: null,
+        timer_paused_at: null,
+        timer_elapsed_when_paused: 0,
+      } : prev);
       // Load the next match data directly – no full page reload needed
       await fetchMatch(nextMatch.id, station.tournament_id);
       toast.success("Match validé ! Prochain match chargé automatiquement.");
