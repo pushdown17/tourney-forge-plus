@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { Target, Users, AlertTriangle, Radio } from "lucide-react";
 import { TimerDisplay } from "./TimerDisplay";
+import { MatchTimeline } from "./MatchTimeline";
 
 interface LiveMatchStatsDialogProps {
   matchId: string;
@@ -395,6 +396,15 @@ export const LiveMatchStatsDialog = ({
             </div>
           </div>
         </Card>
+
+        {/* Match Timeline */}
+        <MatchTimeline
+          matchId={matchId}
+          team1Id={team1Id}
+          team2Id={team2Id}
+          team1Name={team1Name}
+          team2Name={team2Name}
+        />
 
         {loading ? (
           <div className="py-8 text-center text-muted-foreground animate-pulse">
