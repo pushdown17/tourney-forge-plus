@@ -17,6 +17,7 @@ interface MatchTimerProps {
   canControl?: boolean;
   showMilliseconds?: boolean;
   onTimeEnd?: () => void;
+  onDurationChange?: (newDuration: number) => void;
 }
 
 export const MatchTimer = ({
@@ -29,7 +30,8 @@ export const MatchTimer = ({
   elapsedWhenPaused,
   canControl = false,
   showMilliseconds = false,
-  onTimeEnd
+  onTimeEnd,
+  onDurationChange
 }: MatchTimerProps) => {
   const [remainingMs, setRemainingMs] = useState<number>((durationSeconds || 0) * 1000);
   const [isRunning, setIsRunning] = useState(false);
@@ -248,6 +250,7 @@ export const MatchTimer = ({
       .eq('id', stationId);
 
     if (!error) {
+      onDurationChange?.(newDuration);
       broadcastTimerUpdate({
         action: 'adjust',
         durationSeconds: newDuration,

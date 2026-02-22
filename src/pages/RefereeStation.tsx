@@ -1147,6 +1147,9 @@ const RefereeStation = () => {
                 elapsedWhenPaused={station.timer_elapsed_when_paused || 0}
                 canControl={true}
                 showMilliseconds={true}
+                onDurationChange={(newDuration) => {
+                  setStation((prev: any) => prev ? { ...prev, timer_duration_seconds: newDuration } : prev);
+                }}
               />
             ) : (
               <Card className="p-4">
