@@ -502,27 +502,41 @@ const RefereeStation = () => {
   };
 
   // Calculate current elapsed match time (counting up from 00:00)
-  const getElapsedMatchTime = useCallback((): string => {
-    if (!station?.timer_duration_seconds) return "00:00";
-    
-    const duration = station.timer_duration_seconds;
+  // Reads fresh timer state from DB to avoid stale React state issues
+  const getElapsedMatchTime = useCallback(async (): Promise<string> => {
+    if (!stationId) return "00:00";
+
+    // Read fresh timer values from DB to avoid stale local state
+    const { data: freshStation } = await supabase
+      .from('referee_stations')
+      .select('timer_duration_seconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused')
+      .eq('id', stationId)
+      .single();
+
+    const duration = freshStation?.timer_duration_seconds || station?.timer_duration_seconds || 0;
+    if (!duration) return "00:00";
+
+    const timerStartedAt = freshStation?.timer_started_at ?? station?.timer_started_at;
+    const timerPausedAt = freshStation?.timer_paused_at ?? station?.timer_paused_at;
+    const timerElapsed = freshStation?.timer_elapsed_when_paused ?? station?.timer_elapsed_when_paused ?? 0;
+
     let elapsedSeconds: number;
     
-    if (!station.timer_started_at) {
+    if (!timerStartedAt) {
       elapsedSeconds = 0;
-    } else if (station.timer_paused_at) {
-      elapsedSeconds = station.timer_elapsed_when_paused || 0;
+    } else if (timerPausedAt) {
+      elapsedSeconds = timerElapsed || 0;
     } else {
-      const startTime = new Date(station.timer_started_at).getTime();
+      const startTime = new Date(timerStartedAt).getTime();
       const now = getSyncedNowMs();
-      elapsedSeconds = (now - startTime) / 1000 + (station.timer_elapsed_when_paused || 0);
+      elapsedSeconds = (now - startTime) / 1000 + (timerElapsed || 0);
     }
     
     elapsedSeconds = Math.min(elapsedSeconds, duration);
     const mins = Math.floor(elapsedSeconds / 60);
     const secs = Math.floor(elapsedSeconds % 60);
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }, [station?.timer_duration_seconds, station?.timer_started_at, station?.timer_paused_at, station?.timer_elapsed_when_paused]);
+  }, [stationId, station?.timer_duration_seconds, station?.timer_started_at, station?.timer_paused_at, station?.timer_elapsed_when_paused]);
 
   // Record a match event to the timeline
   const recordMatchEvent = useCallback(async (
@@ -553,6 +567,7 @@ const RefereeStation = () => {
           await (supabase as any).from("match_events").delete().eq("id", events[0].id);
         }
       } else {
+        const matchTime = await getElapsedMatchTime();
         await (supabase as any).from("match_events").insert({
           match_id: match.id,
           tournament_id: station.tournament_id,
@@ -560,7 +575,7 @@ const RefereeStation = () => {
           player_name: playerName,
           team_id: teamId,
           event_type: eventType,
-          match_time: getElapsedMatchTime(),
+          match_time: matchTime,
           score_at_event: scoreAfter || null,
           delta,
         });
