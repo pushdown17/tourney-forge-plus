@@ -1757,9 +1757,9 @@ export const EliminationBracket = ({
                         const canAccessMatch = isPreviousRoundCompleted(roundNumber);
                         const isLocked = !canAccessMatch && !match.winner_id;
                         const isMatchCompleted = !!match.winner_id;
-                        // Use field_number for match labeling when available
+                        // Use field_number for match labeling only when multiple fields
                         // This ensures labels match the auto-advance order on referee stations
-                        const rawMatchNumber = match.field_number
+                        const rawMatchNumber = (match.field_number && numberOfFields > 1)
                           ? match.field_number
                           : matchNumberStart + (++realMatchCount);
                         // If this is the final round and a 3rd place match exists, shift number +1
