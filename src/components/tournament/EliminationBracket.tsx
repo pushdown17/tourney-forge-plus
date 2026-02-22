@@ -701,7 +701,26 @@ export const EliminationBracket = ({
       const matchesToInsert: any[] = [];
       let matchIndex = 0;
       
-      if (numPreliminaryMatches > 0) {
+      if (numPreliminaryMatches === 0 && numByes === 0) {
+        // FULL BRACKET (perfect power of 2, e.g. 16 teams): use standard seeding
+        const seeding = getStandardSeeding(bracketSize);
+        for (let i = 0; i < seeding.length; i += 2) {
+          const seed1 = seeding[i];
+          const seed2 = seeding[i + 1];
+          const team1 = standings[seed1 - 1];
+          const team2 = standings[seed2 - 1];
+          matchesToInsert.push({
+            tournament_id: tournamentId,
+            phase: currentPhase,
+            round_number: 1,
+            team1_id: team1.team_id,
+            team2_id: team2.team_id,
+            field_number: matchIndex + 1,
+          });
+          matchIndex++;
+          console.log(`R1: #${seed1} ${team1.team?.name} vs #${seed2} ${team2.team?.name}`);
+        }
+      } else if (numPreliminaryMatches > 0) {
         // Create preliminary matches pairing lowest seeds
         // For 12 teams (bracketSize=8): prelim seeds are #5-#12
         // Pairs: #5v#12, #6v#11, #7v#10, #8v#9 (crossed seeding)
@@ -746,37 +765,31 @@ export const EliminationBracket = ({
           matchIndex++;
           console.log(`Preliminary: #${pm.seed1} ${pm.highSeed.team?.name} vs #${pm.seed2} ${pm.lowSeed.team?.name} (QF slot ${pm.qfSlot}, M${matchIndex})`);
         }
-      }
-      
-      // Create Round 1 matches for directly qualified teams
-      // Direct teams: seeds that don't play preliminary
-      // For 10 teams with 2 prelim: direct seeds are #1..#6, but #1 and #2 wait for prelim winners
-      // Direct pairings (crossed): #3v#6, #4v#5
-      const numDirectTeams = bracketSize - numPreliminaryMatches; // teams going directly to R1 without prelim
-      // But numPreliminaryMatches of these will face prelim winners (created after prelim ends)
-      // So direct R1 matches = (numDirectTeams - numPreliminaryMatches) / 2
-      
-      const directR1Teams = standings.slice(numPreliminaryMatches, bracketSize - numPreliminaryMatches);
-      const numR1Matches = Math.floor(directR1Teams.length / 2);
-      
-      for (let i = 0; i < numR1Matches; i++) {
-        const highSeed = directR1Teams[i];
-        const lowSeed = directR1Teams[directR1Teams.length - 1 - i];
+
+        // Create Round 1 matches for directly qualified teams
+        const numDirectTeams = bracketSize - numPreliminaryMatches;
+        const directR1Teams = standings.slice(numPreliminaryMatches, bracketSize - numPreliminaryMatches);
+        const numR1Matches = Math.floor(directR1Teams.length / 2);
         
-        if (highSeed && lowSeed && highSeed.team_id !== lowSeed.team_id) {
-          matchesToInsert.push({
-            tournament_id: tournamentId,
-            phase: currentPhase,
-            round_number: 1,
-            team1_id: highSeed.team_id,
-            team2_id: lowSeed.team_id,
-            field_number: matchIndex + 1,
-          });
-          matchIndex++;
+        for (let i = 0; i < numR1Matches; i++) {
+          const highSeed = directR1Teams[i];
+          const lowSeed = directR1Teams[directR1Teams.length - 1 - i];
           
-          const seed1 = standings.indexOf(highSeed) + 1;
-          const seed2 = standings.indexOf(lowSeed) + 1;
-          console.log(`R1: #${seed1} ${highSeed.team?.name} vs #${seed2} ${lowSeed.team?.name}`);
+          if (highSeed && lowSeed && highSeed.team_id !== lowSeed.team_id) {
+            matchesToInsert.push({
+              tournament_id: tournamentId,
+              phase: currentPhase,
+              round_number: 1,
+              team1_id: highSeed.team_id,
+              team2_id: lowSeed.team_id,
+              field_number: matchIndex + 1,
+            });
+            matchIndex++;
+            
+            const seed1 = standings.indexOf(highSeed) + 1;
+            const seed2 = standings.indexOf(lowSeed) + 1;
+            console.log(`R1: #${seed1} ${highSeed.team?.name} vs #${seed2} ${lowSeed.team?.name}`);
+          }
         }
       }
 
