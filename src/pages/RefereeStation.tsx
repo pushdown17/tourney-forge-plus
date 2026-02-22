@@ -519,25 +519,24 @@ const RefereeStation = () => {
     const timerStartedAt = freshStation?.timer_started_at ?? station?.timer_started_at;
     const timerPausedAt = freshStation?.timer_paused_at ?? station?.timer_paused_at;
     const timerElapsed = freshStation?.timer_elapsed_when_paused ?? station?.timer_elapsed_when_paused ?? 0;
-    const totalAdjusted = Number((freshStation as any)?.timer_total_adjusted || 0);
 
-    // Calculate raw elapsed time (clock time that passed)
-    let rawElapsed: number;
+    // Calculate remaining time exactly like MatchTimer does (what the referee sees)
+    let remainingMs: number;
     
     if (!timerStartedAt) {
-      rawElapsed = 0;
+      remainingMs = duration * 1000;
     } else if (timerPausedAt) {
-      rawElapsed = timerElapsed || 0;
+      // When paused, elapsedWhenPaused contains TOTAL elapsed time
+      remainingMs = Math.max(0, (duration - (timerElapsed || 0)) * 1000);
     } else {
       const startTime = new Date(timerStartedAt).getTime();
       const now = getSyncedNowMs();
-      rawElapsed = (now - startTime) / 1000 + (timerElapsed || 0);
+      const elapsedMs = now - startTime + (timerElapsed || 0) * 1000;
+      remainingMs = Math.max(0, duration * 1000 - elapsedMs);
     }
     
-    // Elapsed match time = raw elapsed - total adjustment
-    // When time is removed (-10s), totalAdjusted is negative, so elapsed increases
-    // When time is added (+10s), totalAdjusted is positive, so elapsed decreases
-    const elapsedSeconds = Math.max(0, Math.min(rawElapsed - totalAdjusted, duration));
+    // Event time = total duration - remaining time (mirrors what the chrono displays)
+    const elapsedSeconds = Math.max(0, duration - remainingMs / 1000);
     const mins = Math.floor(elapsedSeconds / 60);
     const secs = Math.floor(elapsedSeconds % 60);
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
