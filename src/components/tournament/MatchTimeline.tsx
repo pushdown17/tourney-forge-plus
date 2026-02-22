@@ -80,11 +80,9 @@ export const MatchTimeline = ({ matchId, team1Id, team2Id, team1Name, team2Name 
 
   const goalEvents = visibleEvents.filter(e => goalTypes.includes(e.event_type));
   const foulEvents = visibleEvents.filter(e => foulTypes.includes(e.event_type));
-  const assistEvents = visibleEvents.filter(e => assistTypes.includes(e.event_type));
 
   const sections = [
     { events: goalEvents, label: "Buts" },
-    { events: assistEvents, label: "Passes" },
     { events: foulEvents, label: "Fautes & Pénalités" },
   ].filter(s => s.events.length > 0);
 
