@@ -64,24 +64,11 @@ export const MatchStatsRecap = ({
   const team2Stats = getTeamStats(team2Players);
 
   const hasAnyStats = (stats: ReturnType<typeof getTeamStats>) =>
-    stats.scorers.length > 0 || stats.assisters.length > 0 || stats.fouls.length > 0 || stats.penalties.length > 0;
+    stats.assisters.length > 0 || stats.fouls.length > 0 || stats.penalties.length > 0;
 
   const TeamStatsSection = ({ teamName, stats }: { teamName: string; stats: ReturnType<typeof getTeamStats> }) => (
     <div className="space-y-2">
       <h4 className="font-semibold text-sm border-b pb-1">{teamName}</h4>
-      {stats.scorers.length > 0 && (
-        <div className="flex items-start gap-2 text-sm">
-          <Target className="h-4 w-4 text-green-500 mt-0.5" />
-          <div>
-            <span className="font-medium">Goals: </span>
-            {stats.scorers.map((s, i) => (
-              <span key={s.name}>
-                {s.name} ({s.goals}){i < stats.scorers.length - 1 ? ", " : ""}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
       {stats.assisters.length > 0 && (
         <div className="flex items-start gap-2 text-sm">
           <Users className="h-4 w-4 text-blue-500 mt-0.5" />
