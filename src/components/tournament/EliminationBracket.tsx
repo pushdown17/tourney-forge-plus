@@ -587,7 +587,7 @@ export const EliminationBracket = ({
         if (prelimMatches.length > 0 && prelimMatches.every((m: any) => m.winner_id) && r1Matches.length === 0) {
           console.log('All prelims complete but no R1 matches found — triggering fallback generation');
           try {
-            await checkAndGenerateNextRound(0);
+            await checkAndGenerateNextRound(0, tournamentData.teams_for_elimination);
           } catch (e) {
             console.error('Fallback generation failed:', e);
           }
@@ -962,7 +962,7 @@ export const EliminationBracket = ({
     }
   };
 
-  const checkAndGenerateNextRound = async (completedRound: number) => {
+  const checkAndGenerateNextRound = async (completedRound: number, teamsCountOverride?: number) => {
     try {
       // Get all matches from completed round (non-3rd place)
       const { data: roundMatches, error: matchesError } = await supabase
@@ -983,7 +983,7 @@ export const EliminationBracket = ({
         return;
       }
 
-      const teamsCount = tournament?.teams_for_elimination || 0;
+      const teamsCount = teamsCountOverride || tournament?.teams_for_elimination || 0;
       const { bracketSize, numPreliminaryMatches } = computeBracketParams(teamsCount);
 
       // Check which next round matches already exist
@@ -1009,13 +1009,22 @@ export const EliminationBracket = ({
         }
 
         // Get standings to find seeds
-        const { data: standings, error: standingsError } = await supabase
+        const { data: standingsRaw, error: standingsError } = await supabase
           .from("team_stats")
-          .select("team_id, team:team_id(id, name)")
-          .eq("tournament_id", tournamentId)
-          .order("points", { ascending: false })
-          .order("goals_for", { ascending: false })
-          .limit(teamsCount);
+          .select("team_id, points, goals_for, goals_against, team:team_id(id, name)")
+          .eq("tournament_id", tournamentId);
+
+        if (standingsError) throw standingsError;
+        if (!standingsRaw) return;
+
+        // Sort consistently with StandingsTable: points > goal diff > goals_for
+        const standings = [...standingsRaw].sort((a: any, b: any) => {
+          if (b.points !== a.points) return b.points - a.points;
+          const diffA = a.goals_for - a.goals_against;
+          const diffB = b.goals_for - b.goals_against;
+          if (diffB !== diffA) return diffB - diffA;
+          return b.goals_for - a.goals_for;
+        }).slice(0, teamsCount);
 
         if (standingsError) throw standingsError;
         if (!standings) return;
