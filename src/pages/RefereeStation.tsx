@@ -971,8 +971,9 @@ const RefereeStation = () => {
     const nextMatch = availableMatches[0] || null;
     console.log("[Auto-advance] Next match selected:", nextMatch?.id || "none");
 
-    // Update station: assign next match or clear
-    const timerDuration = station.timer_duration_seconds;
+    // Use the original configured duration from localStorage (not the adjusted one from the current match)
+    const savedDuration = localStorage.getItem('last_timer_duration');
+    const originalDuration = savedDuration ? parseInt(savedDuration, 10) * 60 : station.timer_duration_seconds;
     const { error } = await supabase
       .from("referee_stations")
       .update({ 
@@ -980,7 +981,7 @@ const RefereeStation = () => {
         timer_started_at: null,
         timer_paused_at: null,
         timer_elapsed_when_paused: 0,
-        timer_duration_seconds: nextMatch ? timerDuration : null
+        timer_duration_seconds: nextMatch ? originalDuration : null
       })
       .eq("id", stationId);
 
