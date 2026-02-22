@@ -61,6 +61,7 @@ interface BracketMatchProps {
   tournamentId?: string;
   team1Players?: string[];
   team2Players?: string[];
+  numberOfFields?: number;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveScore: () => void;
@@ -90,6 +91,7 @@ export const BracketMatch = ({
   tournamentId,
   team1Players = [],
   team2Players = [],
+  numberOfFields = 1,
   onStartEdit,
   onCancelEdit,
   onSaveScore,
@@ -117,7 +119,7 @@ export const BracketMatch = ({
         <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
           M{matchNumber}
         </span>
-        {match.field_number && !isBye && (
+        {match.field_number && !isBye && numberOfFields > 1 && (
           <span className="text-[10px] text-primary font-medium bg-primary/10 px-1.5 py-0.5 rounded">
             C{match.field_number}
           </span>

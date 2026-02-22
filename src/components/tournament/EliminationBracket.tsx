@@ -1788,6 +1788,7 @@ export const EliminationBracket = ({
                               tournamentId={tournamentId}
                               team1Players={playersByTeam[match.team1_id] || []}
                               team2Players={playersByTeam[match.team2_id] || []}
+                              numberOfFields={numberOfFields}
                               onStartEdit={() => {
                                 if (isLocked && !isMatchCompleted) {
                                   toast.error("Complete the previous round matches first");
@@ -1908,6 +1909,7 @@ export const EliminationBracket = ({
                       tournamentId={tournamentId}
                       team1Players={playersByTeam[thirdPlaceMatch.team1_id] || []}
                       team2Players={playersByTeam[thirdPlaceMatch.team2_id] || []}
+                      numberOfFields={numberOfFields}
                       onStartEdit={() => {
                         if (thirdPlaceLocked && !isThirdPlaceCompleted) {
                           toast.error("Complete the semi-finals first");
