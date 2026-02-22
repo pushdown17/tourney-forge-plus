@@ -368,55 +368,55 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
         return statsB.goals_for - statsA.goals_for;
       });
 
-      // Swiss pairing algorithm
-      const newMatches = [];
-      const paired = new Set();
-
-      for (let i = 0; i < sortedTeams.length; i++) {
-        if (paired.has(sortedTeams[i].id)) continue;
-
-        const team1 = sortedTeams[i];
-        let team2 = null;
-
-        // Try to find the best opponent (closest in ranking that hasn't played against)
-        for (let j = i + 1; j < sortedTeams.length; j++) {
-          if (paired.has(sortedTeams[j].id)) continue;
-
-          const matchupKey = [team1.id, sortedTeams[j].id].sort().join("-");
+      // Swiss pairing algorithm with backtracking to minimize rematches
+      const teamIds = sortedTeams.map(t => t.id);
+      const teamMap = new Map(sortedTeams.map(t => [t.id, t]));
+      
+      // Try to find a complete pairing with no rematches using recursive backtracking
+      const findBestPairing = (
+        remaining: string[], 
+        currentPairs: [string, string][], 
+        allowRematches: boolean
+      ): [string, string][] | null => {
+        // Filter out the bye team if odd number
+        if (remaining.length <= 1) return currentPairs;
+        
+        const first = remaining[0];
+        const rest = remaining.slice(1);
+        
+        for (let i = 0; i < rest.length; i++) {
+          const opponent = rest[i];
+          const matchupKey = [first, opponent].sort().join("-");
           
-          if (!playedMatchups.has(matchupKey)) {
-            team2 = sortedTeams[j];
-            break;
-          }
+          if (!allowRematches && playedMatchups.has(matchupKey)) continue;
+          
+          const nextRemaining = rest.filter((_, idx) => idx !== i);
+          const result = findBestPairing(
+            nextRemaining, 
+            [...currentPairs, [first, opponent]], 
+            allowRematches
+          );
+          if (result) return result;
         }
-
-        // If no suitable opponent found (all have played), pair with the closest available team
-        if (!team2) {
-          for (let j = i + 1; j < sortedTeams.length; j++) {
-            if (!paired.has(sortedTeams[j].id)) {
-              team2 = sortedTeams[j];
-              break;
-            }
-          }
-        }
-
-        if (team2) {
-          paired.add(team1.id);
-          paired.add(team2.id);
-
-          // Assign a court in round-robin
-          const fieldNumber = (newMatches.length % numberOfFields) + 1;
-
-          newMatches.push({
-            tournament_id: tournamentId,
-            phase: "swiss",
-            round_number: roundToGenerate,
-            team1_id: team1.id,
-            team2_id: team2.id,
-            field_number: fieldNumber,
-          });
-        }
+        
+        return null;
+      };
+      
+      // First try without rematches, then allow rematches as fallback
+      let pairs = findBestPairing(teamIds, [], false);
+      if (!pairs) {
+        console.warn('Could not avoid all rematches, allowing some rematches');
+        pairs = findBestPairing(teamIds, [], true);
       }
+      
+      const newMatches = (pairs || []).map((pair, idx) => ({
+        tournament_id: tournamentId,
+        phase: "swiss" as const,
+        round_number: roundToGenerate,
+        team1_id: pair[0],
+        team2_id: pair[1],
+        field_number: (idx % numberOfFields) + 1,
+      }));
 
       if (newMatches.length === 0) {
         toast.error("Unable to generate new matches.");
