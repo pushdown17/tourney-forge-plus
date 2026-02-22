@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Target, Users, AlertTriangle } from "lucide-react";
+import { Users, Clock } from "lucide-react";
+import { MatchTimeline } from "./MatchTimeline";
 
 interface MatchStatsViewDialogProps {
   matchId: string;
@@ -185,50 +186,27 @@ export const MatchStatsViewDialog = ({
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Scorers */}
+            {/* Match Timeline - goals & fouls chronologically */}
             <Card className="p-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                Scorers
+                <Clock className="h-4 w-4 text-primary" />
+                Chronologie du match
               </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  {scorers1.length > 0 ? (
-                    scorers1.map((s, i) => (
-                      <div key={i} className="flex items-center justify-between text-sm">
-                        <span>{s.player_name}</span>
-                        <Badge variant="default" className="text-xs">
-                          {s.goals} {s.goals > 1 ? "goals" : "goal"}
-                        </Badge>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">-</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  {scorers2.length > 0 ? (
-                    scorers2.map((s, i) => (
-                      <div key={i} className="flex items-center justify-between text-sm">
-                        <span>{s.player_name}</span>
-                        <Badge variant="default" className="text-xs">
-                          {s.goals} {s.goals > 1 ? "goals" : "goal"}
-                        </Badge>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">-</p>
-                  )}
-                </div>
-              </div>
+              <MatchTimeline
+                matchId={matchId}
+                team1Id={team1Id}
+                team2Id={team2Id}
+                team1Name={team1Name}
+                team2Name={team2Name}
+              />
             </Card>
 
-            {/* Assisters */}
+            {/* Assisters only */}
             {(assisters1.length > 0 || assisters2.length > 0) && (
               <Card className="p-4">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <Users className="h-4 w-4 text-primary" />
-                  Assist Providers
+                  Passeurs
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -237,7 +215,7 @@ export const MatchStatsViewDialog = ({
                         <div key={i} className="flex items-center justify-between text-sm">
                           <span>{s.player_name}</span>
                           <Badge variant="secondary" className="text-xs">
-                            {s.assists} {s.assists > 1 ? "assists" : "assist"}
+                            {s.assists} {s.assists > 1 ? "passes" : "passe"}
                           </Badge>
                         </div>
                       ))
@@ -251,86 +229,8 @@ export const MatchStatsViewDialog = ({
                         <div key={i} className="flex items-center justify-between text-sm">
                           <span>{s.player_name}</span>
                           <Badge variant="secondary" className="text-xs">
-                            {s.assists} {s.assists > 1 ? "assists" : "assist"}
+                            {s.assists} {s.assists > 1 ? "passes" : "passe"}
                           </Badge>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">-</p>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Fouls and penalties */}
-            {(foulers1.length > 0 || foulers2.length > 0) && (
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                  Fouls & Penalties
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    {foulers1.length > 0 ? (
-                      foulers1.map((s, i) => (
-                        <div key={i} className="text-sm">
-                          <span className="font-medium">{s.player_name}</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {s.fouls > 0 && (
-                              <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-600">
-                                {s.fouls}F
-                              </Badge>
-                            )}
-                            {s.penalty_30s > 0 && (
-                              <Badge variant="outline" className="text-xs text-orange-600 border-orange-600">
-                                {s.penalty_30s}×30s
-                              </Badge>
-                            )}
-                            {s.penalty_1m > 0 && (
-                              <Badge variant="outline" className="text-xs text-red-500 border-red-500">
-                                {s.penalty_1m}×1min
-                              </Badge>
-                            )}
-                            {s.penalty_2m > 0 && (
-                              <Badge variant="outline" className="text-xs text-red-700 border-red-700">
-                                {s.penalty_2m}×2min
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">-</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    {foulers2.length > 0 ? (
-                      foulers2.map((s, i) => (
-                        <div key={i} className="text-sm">
-                          <span className="font-medium">{s.player_name}</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {s.fouls > 0 && (
-                              <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-600">
-                                {s.fouls}F
-                              </Badge>
-                            )}
-                            {s.penalty_30s > 0 && (
-                              <Badge variant="outline" className="text-xs text-orange-600 border-orange-600">
-                                {s.penalty_30s}×30s
-                              </Badge>
-                            )}
-                            {s.penalty_1m > 0 && (
-                              <Badge variant="outline" className="text-xs text-red-500 border-red-500">
-                                {s.penalty_1m}×1min
-                              </Badge>
-                            )}
-                            {s.penalty_2m > 0 && (
-                              <Badge variant="outline" className="text-xs text-red-700 border-red-700">
-                                {s.penalty_2m}×2min
-                              </Badge>
-                            )}
-                          </div>
                         </div>
                       ))
                     ) : (
