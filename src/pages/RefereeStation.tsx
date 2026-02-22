@@ -82,9 +82,15 @@ const RefereeStation = () => {
   // Keep last known match assignment to avoid refetching (and resetting local unsaved stats)
   // on every timer tick/update.
   const stationMatchIdRef = useRef<string | null>(null);
+  // Store the original timer duration so adjustments don't leak into the next match
+  const initialTimerDurationRef = useRef<number | null>(null);
   useEffect(() => {
     stationMatchIdRef.current = station?.current_match_id ?? null;
-  }, [station?.current_match_id]);
+    // Capture the initial timer duration when a new match is loaded (elapsed = 0 means fresh match)
+    if (station?.timer_duration_seconds && (station?.timer_elapsed_when_paused === 0 || station?.timer_elapsed_when_paused === null) && !station?.timer_started_at) {
+      initialTimerDurationRef.current = station.timer_duration_seconds;
+    }
+  }, [station?.current_match_id, station?.timer_duration_seconds, station?.timer_elapsed_when_paused, station?.timer_started_at]);
 
   // Check authentication
   useEffect(() => {
@@ -970,9 +976,12 @@ const RefereeStation = () => {
     const nextMatch = availableMatches[0] || null;
     console.log("[Auto-advance] Next match selected:", nextMatch?.id || "none");
 
-    // Use the original configured duration from localStorage (not the adjusted one from the current match)
+    // Use the original configured duration (not the adjusted one from the current match)
+    // Priority: stored initial duration > localStorage > current (possibly adjusted) duration
     const savedDuration = localStorage.getItem('last_timer_duration');
-    const originalDuration = savedDuration ? parseInt(savedDuration, 10) * 60 : station.timer_duration_seconds;
+    const originalDuration = initialTimerDurationRef.current 
+      || (savedDuration ? parseInt(savedDuration, 10) * 60 : null) 
+      || station.timer_duration_seconds;
     const { error } = await supabase
       .from("referee_stations")
       .update({ 
