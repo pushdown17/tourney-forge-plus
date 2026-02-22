@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Trophy, Target, Handshake, AlertTriangle, Timer } from "lucide-react";
+import { Users, Trophy, Target, Handshake, AlertTriangle, Timer, Clock } from "lucide-react";
+import { MatchTimeline } from "./MatchTimeline";
 
 interface MatchStatsRecapDialogProps {
   match: any;
@@ -238,9 +239,27 @@ export const MatchStatsRecapDialog = ({
           </div>
         ) : (
           <Card className="p-4 bg-muted/30 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {renderPlayerStats(team1Players, match?.team1?.name || "Team 1", isWinner(match.team1_id))}
-              {renderPlayerStats(team2Players, match?.team2?.name || "Team 2", isWinner(match.team2_id))}
+            {/* Match Timeline */}
+            <div>
+              <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                Chronologie du match
+              </h4>
+              <MatchTimeline
+                matchId={match.id}
+                team1Id={match.team1_id}
+                team2Id={match.team2_id}
+                team1Name={match?.team1?.name || "Team 1"}
+                team2Name={match?.team2?.name || "Team 2"}
+              />
+            </div>
+
+            <div className="border-t border-border/50 pt-4">
+              <h4 className="font-semibold text-sm mb-3">Statistiques des joueurs</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {renderPlayerStats(team1Players, match?.team1?.name || "Team 1", isWinner(match.team1_id))}
+                {renderPlayerStats(team2Players, match?.team2?.name || "Team 2", isWinner(match.team2_id))}
+              </div>
             </div>
             
             {team1Players.length === 0 && team2Players.length === 0 && (
