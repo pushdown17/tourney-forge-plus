@@ -942,6 +942,7 @@ const RefereeStation = () => {
         timer_started_at: null,
         timer_paused_at: null,
         timer_elapsed_when_paused: 0,
+        timer_total_adjusted: 0,
         timer_duration_seconds: null
       } as any).eq("id", stationId);
 
@@ -1008,6 +1009,7 @@ const RefereeStation = () => {
         timer_started_at: null,
         timer_paused_at: null,
         timer_elapsed_when_paused: 0,
+        timer_total_adjusted: 0,
         timer_duration_seconds: nextMatch ? originalDuration : null
       })
       .eq("id", stationId);
@@ -1030,6 +1032,7 @@ const RefereeStation = () => {
         timer_started_at: null,
         timer_paused_at: null,
         timer_elapsed_when_paused: 0,
+        timer_total_adjusted: 0,
       } : prev);
       // Load the next match data directly – no full page reload needed
       await fetchMatch(nextMatch.id, station.tournament_id);
