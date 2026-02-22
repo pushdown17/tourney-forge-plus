@@ -132,7 +132,7 @@ export const EliminationBracket = ({
   const thirdPlaceDecisionMadeRef = useRef(false);
 
   useEffect(() => {
-    fetchTournamentAndMatches();
+    fetchTournamentAndMatches(true);
     fetchActiveTimers();
   }, [tournamentId]);
 
@@ -475,8 +475,8 @@ export const EliminationBracket = ({
     }
   }, [matches, tournament, isCreator, activeStationMatches]);
 
-  const fetchTournamentAndMatches = async () => {
-    setLoading(true);
+  const fetchTournamentAndMatches = async (isInitialLoad = false) => {
+    if (isInitialLoad) setLoading(true);
     try {
       // Get tournament info
       const { data: tournamentData, error: tournamentError } = await supabase
