@@ -972,6 +972,7 @@ export const EliminationBracket = ({
         .eq("phase", currentPhase)
         .eq("round_number", completedRound)
         .eq("is_third_place_match", false)
+        .order("field_number", { ascending: true })
         .order("created_at", { ascending: true });
 
       if (matchesError) throw matchesError;
