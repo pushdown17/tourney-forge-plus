@@ -509,7 +509,7 @@ const RefereeStation = () => {
     // Read fresh timer values from DB to avoid stale local state
     const { data: freshStation } = await supabase
       .from('referee_stations')
-      .select('timer_duration_seconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused')
+      .select('timer_duration_seconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused, timer_total_adjusted')
       .eq('id', stationId)
       .single();
 
@@ -519,20 +519,25 @@ const RefereeStation = () => {
     const timerStartedAt = freshStation?.timer_started_at ?? station?.timer_started_at;
     const timerPausedAt = freshStation?.timer_paused_at ?? station?.timer_paused_at;
     const timerElapsed = freshStation?.timer_elapsed_when_paused ?? station?.timer_elapsed_when_paused ?? 0;
+    const totalAdjusted = Number((freshStation as any)?.timer_total_adjusted || 0);
 
-    let elapsedSeconds: number;
+    // Calculate raw elapsed time (clock time that passed)
+    let rawElapsed: number;
     
     if (!timerStartedAt) {
-      elapsedSeconds = 0;
+      rawElapsed = 0;
     } else if (timerPausedAt) {
-      elapsedSeconds = timerElapsed || 0;
+      rawElapsed = timerElapsed || 0;
     } else {
       const startTime = new Date(timerStartedAt).getTime();
       const now = getSyncedNowMs();
-      elapsedSeconds = (now - startTime) / 1000 + (timerElapsed || 0);
+      rawElapsed = (now - startTime) / 1000 + (timerElapsed || 0);
     }
     
-    elapsedSeconds = Math.min(elapsedSeconds, duration);
+    // Elapsed match time = raw elapsed - total adjustment
+    // When time is removed (-10s), totalAdjusted is negative, so elapsed increases
+    // When time is added (+10s), totalAdjusted is positive, so elapsed decreases
+    const elapsedSeconds = Math.max(0, Math.min(rawElapsed - totalAdjusted, duration));
     const mins = Math.floor(elapsedSeconds / 60);
     const secs = Math.floor(elapsedSeconds % 60);
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;

@@ -223,7 +223,8 @@ export const MatchTimer = ({
       .update({
         timer_started_at: null,
         timer_paused_at: null,
-        timer_elapsed_when_paused: 0
+        timer_elapsed_when_paused: 0,
+        timer_total_adjusted: 0
       } as any)
       .eq('id', stationId);
     
@@ -244,9 +245,22 @@ export const MatchTimer = ({
 
     const newDuration = Math.max(10, durationSeconds + deltaSeconds);
 
+    // Read current total adjustment from DB, then add this delta
+    const { data: currentStation } = await supabase
+      .from('referee_stations')
+      .select('timer_total_adjusted')
+      .eq('id', stationId)
+      .single();
+    
+    const currentAdjusted = Number((currentStation as any)?.timer_total_adjusted || 0);
+    const newTotalAdjusted = currentAdjusted + deltaSeconds;
+
     const { error } = await supabase
       .from('referee_stations')
-      .update({ timer_duration_seconds: newDuration } as any)
+      .update({ 
+        timer_duration_seconds: newDuration,
+        timer_total_adjusted: newTotalAdjusted
+      } as any)
       .eq('id', stationId);
 
     if (!error) {
