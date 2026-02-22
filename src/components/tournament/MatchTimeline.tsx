@@ -88,14 +88,20 @@ export const MatchTimeline = ({ matchId, team1Id, team2Id, team1Name, team2Name 
     { events: foulEvents, label: "Fautes & Pénalités" },
   ].filter(s => s.events.length > 0);
 
-  if (sections.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground text-center py-4 italic">
-        Aucun événement enregistré pour ce match.
-      </p>
-    );
-  }
+  // Parse match_time "MM:SS" to total seconds for sorting
+  const parseTime = (t: string) => {
+    const parts = t.split(":").map(Number);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+  };
 
+  // Merge events from both teams into a single sorted list
+  const buildSortedRows = (sectionEvents: MatchEvent[]) => {
+    const sorted = [...sectionEvents].sort((a, b) => parseTime(a.match_time) - parseTime(b.match_time));
+    return sorted.map(event => ({
+      event,
+      isTeam1: event.team_id === team1Id,
+    }));
+  };
   const renderEventText = (event: MatchEvent) => {
     const icon = eventIcons[event.event_type] || eventIcons.foul;
     const suffix = eventLabels[event.event_type] ? ` (${eventLabels[event.event_type]})` : "";
@@ -119,24 +125,19 @@ export const MatchTimeline = ({ matchId, team1Id, team2Id, team1Name, team2Name 
   return (
     <div className="space-y-2">
       {sections.map((section) => {
-        const team1Events = section.events.filter(e => e.team_id === team1Id);
-        const team2Events = section.events.filter(e => e.team_id === team2Id);
-        const maxRows = Math.max(team1Events.length, team2Events.length);
+        const rows = buildSortedRows(section.events);
 
         return (
           <div key={section.label} className="bg-muted/30 rounded-lg px-3 py-2">
             <div className="grid grid-cols-[1fr_auto_1fr] gap-x-2">
-              {Array.from({ length: maxRows }).map((_, i) => (
-                <div key={i} className="contents">
-                  {/* Team 1 - right aligned */}
+              {rows.map((row) => (
+                <div key={row.event.id} className="contents">
                   <div className="flex justify-end py-0.5">
-                    {team1Events[i] ? renderEventText(team1Events[i]) : null}
+                    {row.isTeam1 ? renderEventText(row.event) : null}
                   </div>
-                  {/* Separator */}
                   <div className="w-px bg-border" />
-                  {/* Team 2 - left aligned */}
                   <div className="flex justify-start py-0.5">
-                    {team2Events[i] ? renderEventTextRight(team2Events[i]) : null}
+                    {!row.isTeam1 ? renderEventTextRight(row.event) : null}
                   </div>
                 </div>
               ))}
