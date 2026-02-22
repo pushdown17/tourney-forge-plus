@@ -530,17 +530,35 @@ const RefereeStation = () => {
     if (!match || !station?.tournament_id) return;
     
     try {
-      await (supabase as any).from("match_events").insert({
-        match_id: match.id,
-        tournament_id: station.tournament_id,
-        player_id: playerId,
-        player_name: playerName,
-        team_id: teamId,
-        event_type: eventType,
-        match_time: getElapsedMatchTime(),
-        score_at_event: scoreAfter || null,
-        delta,
-      });
+      if (delta < 0) {
+        // When removing a stat, delete the most recent matching event
+        const { data: events } = await (supabase as any)
+          .from("match_events")
+          .select("id")
+          .eq("match_id", match.id)
+          .eq("event_type", eventType)
+          .eq("team_id", teamId)
+          .eq("player_name", playerName)
+          .gt("delta", 0)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        
+        if (events && events.length > 0) {
+          await (supabase as any).from("match_events").delete().eq("id", events[0].id);
+        }
+      } else {
+        await (supabase as any).from("match_events").insert({
+          match_id: match.id,
+          tournament_id: station.tournament_id,
+          player_id: playerId,
+          player_name: playerName,
+          team_id: teamId,
+          event_type: eventType,
+          match_time: getElapsedMatchTime(),
+          score_at_event: scoreAfter || null,
+          delta,
+        });
+      }
     } catch (error) {
       console.error("Error recording match event:", error);
     }
