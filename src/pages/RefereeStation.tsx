@@ -495,7 +495,7 @@ const RefereeStation = () => {
     }
   };
 
-  // Calculate current remaining match time (matches the countdown timer visitors see)
+  // Calculate current elapsed match time (counting up from 00:00)
   const getElapsedMatchTime = useCallback((): string => {
     if (!station?.timer_duration_seconds) return "00:00";
     
@@ -512,10 +512,9 @@ const RefereeStation = () => {
       elapsedSeconds = (now - startTime) / 1000 + (station.timer_elapsed_when_paused || 0);
     }
     
-    // Show remaining time (consistent with the countdown timer visitors see)
-    const remainingSeconds = Math.max(0, duration - elapsedSeconds);
-    const mins = Math.floor(remainingSeconds / 60);
-    const secs = Math.floor(remainingSeconds % 60);
+    elapsedSeconds = Math.min(elapsedSeconds, duration);
+    const mins = Math.floor(elapsedSeconds / 60);
+    const secs = Math.floor(elapsedSeconds % 60);
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }, [station?.timer_duration_seconds, station?.timer_started_at, station?.timer_paused_at, station?.timer_elapsed_when_paused]);
 
