@@ -264,55 +264,57 @@ const Tournament = () => {
               </div>
               {isCreator && (
                 <div className="flex items-center gap-2">
-                  {tournament.elimination_type && (
-                    <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="icon">
-                          <Settings className="h-4 w-4" />
+                  <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72">
+                      <div className="space-y-4">
+                        {tournament.elimination_type && (
+                          <>
+                            <div className="space-y-2">
+                              <Label htmlFor="teams-elimination">Teams for Elimination</Label>
+                              <Input
+                                id="teams-elimination"
+                                type="number"
+                                min="2"
+                                max="64"
+                                value={teamsForElimination}
+                                onChange={(e) => setTeamsForElimination(e.target.value)}
+                                placeholder="e.g., 8, 14, 16..."
+                              />
+                              {parseInt(teamsForElimination) > 0 && !Number.isInteger(Math.log2(parseInt(teamsForElimination))) && (
+                                <p className="text-xs text-muted-foreground">
+                                  ℹ️ {Math.pow(2, Math.ceil(Math.log2(parseInt(teamsForElimination)))) - parseInt(teamsForElimination)} bye(s) in round 1
+                                </p>
+                              )}
+                            </div>
+                            <Button 
+                              onClick={saveTeamsForElimination} 
+                              disabled={savingTeams}
+                              className="w-full"
+                              size="sm"
+                            >
+                              <Save className="h-4 w-4 mr-2" />
+                              {savingTeams ? "Saving..." : "Save"}
+                            </Button>
+                            <Separator />
+                          </>
+                        )}
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setClearStationsDialogOpen(true)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Clear station matches
                         </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72">
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="teams-elimination">Teams for Elimination</Label>
-                            <Input
-                              id="teams-elimination"
-                              type="number"
-                              min="2"
-                              max="64"
-                              value={teamsForElimination}
-                              onChange={(e) => setTeamsForElimination(e.target.value)}
-                              placeholder="e.g., 8, 14, 16..."
-                            />
-                            {parseInt(teamsForElimination) > 0 && !Number.isInteger(Math.log2(parseInt(teamsForElimination))) && (
-                              <p className="text-xs text-muted-foreground">
-                                ℹ️ {Math.pow(2, Math.ceil(Math.log2(parseInt(teamsForElimination)))) - parseInt(teamsForElimination)} bye(s) in round 1
-                              </p>
-                            )}
-                          </div>
-                          <Button 
-                            onClick={saveTeamsForElimination} 
-                            disabled={savingTeams}
-                            className="w-full"
-                            size="sm"
-                          >
-                            <Save className="h-4 w-4 mr-2" />
-                            {savingTeams ? "Saving..." : "Save"}
-                          </Button>
-                          <Separator />
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => setClearStationsDialogOpen(true)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Clear station matches
-                          </Button>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Button
                     onClick={handleCloseClick}
                     disabled={updatingStatus}
