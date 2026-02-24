@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock, Monitor, Radio } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
+import { UltimateRoundManager } from "./UltimateRoundManager";
 import { GoalRemoverDialog } from "./GoalRemoverDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
 import { MatchStatsRecap } from "./MatchStatsRecap";
@@ -78,26 +79,38 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     fetchTeamGroups();
   }, [tournamentId, hasGroups]);
 
-  // Filter matches by selected group
+  // Filter matches by selected group (exclude Ultimate Round matches)
   const filteredMatches = useMemo(() => {
-    if (!hasGroups || teamGroupMap.size === 0) return matches;
-    return matches.filter(m => {
+    const nonUltimate = matches.filter(m => m.round_number !== 99);
+    if (!hasGroups || teamGroupMap.size === 0) return nonUltimate;
+    if (selectedGroup === "Ultimate") return [];
+    return nonUltimate.filter(m => {
       const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
       const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
       return g1 === selectedGroup || g2 === selectedGroup;
     });
   }, [matches, hasGroups, teamGroupMap, selectedGroup]);
 
-  // Auto-switch to Afternoon if all Morning matches are completed
+  // Auto-switch: Morning → Afternoon → Ultimate Round
   useEffect(() => {
     if (!hasGroups || teamGroupMap.size === 0 || matches.length === 0) return;
-    const morningMatches = matches.filter(m => {
+    const nonUltimate = matches.filter(m => m.round_number !== 99);
+    const morningMatches = nonUltimate.filter(m => {
       const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
       const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
       return g1 === "Morning" || g2 === "Morning";
     });
-    const allMorningCompleted = morningMatches.length > 0 && morningMatches.every(m => m.team1_score !== null && m.team2_score !== null);
-    if (allMorningCompleted) {
+    const afternoonMatches = nonUltimate.filter(m => {
+      const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
+      const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
+      return g1 === "Afternoon" || g2 === "Afternoon";
+    });
+    const allMorningDone = morningMatches.length > 0 && morningMatches.every(m => m.team1_score !== null && m.team2_score !== null);
+    const allAfternoonDone = afternoonMatches.length > 0 && afternoonMatches.every(m => m.team1_score !== null && m.team2_score !== null);
+    
+    if (allMorningDone && allAfternoonDone) {
+      setSelectedGroup("Ultimate");
+    } else if (allMorningDone) {
       setSelectedGroup("Afternoon");
     }
   }, [matches, hasGroups, teamGroupMap]);
@@ -531,9 +544,10 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
 
         {/* Group tabs */}
         {hasGroups && (
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-6 flex-wrap">
             {["Morning", "Afternoon"].map((group) => {
-              const groupMatches = matches.filter(m => {
+              const nonUltimate = matches.filter(m => m.round_number !== 99);
+              const groupMatches = nonUltimate.filter(m => {
                 const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
                 const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
                 return g1 === group || g2 === group;
@@ -553,83 +567,106 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                 </button>
               );
             })}
+            <button
+              onClick={() => setSelectedGroup("Ultimate")}
+              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                selectedGroup === "Ultimate"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              ⚔️ Ultimate Round
+            </button>
           </div>
         )}
 
-        {/* Matchs en cours - includes matches without scores OR matches on a referee station */}
-        {(() => {
-          const matchesToShow = hasGroups ? filteredMatches : matches;
-          const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
-          const waitingMatches = ongoingMatches
-            .filter(m => !activeStationMatches.has(m.id));
-          const onDeckMatch = waitingMatches[0];
-          const inTheHoleMatch = waitingMatches[1];
+        {/* Conditional rendering: group matches vs Ultimate Round */}
+        {selectedGroup === "Ultimate" && hasGroups ? (
+          <UltimateRoundManager
+            tournamentId={tournamentId}
+            phase="round_robin"
+            isClosed={isClosed}
+            isCreator={isCreator}
+            currentPhase={currentPhase}
+          />
+        ) : (
+          <>
+            {/* Matchs en cours - includes matches without scores OR matches on a referee station */}
+            {(() => {
+              const matchesToShow = hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99);
+              const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
+              const waitingMatches = ongoingMatches
+                .filter(m => !activeStationMatches.has(m.id));
+              const onDeckMatch = waitingMatches[0];
+              const inTheHoleMatch = waitingMatches[1];
 
-          return ongoingMatches.length > 0 && (
-            <div className="space-y-4 mb-6">
-              <h3 className="text-lg font-semibold text-muted-foreground">Ongoing Matches</h3>
-              {ongoingMatches.sort((a, b) => {
-                const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
-                const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
-                return aLive - bLive;
-              }).map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  tournamentId={tournamentId}
-                  onScoreUpdate={updateScore}
-                  editingMatchId={editingMatchId}
-                  setEditingMatchId={setEditingMatchId}
-                  isClosed={isClosed}
-                  isCreator={isCreator}
-                  isOnRefereeStation={activeStationMatches.has(match.id)}
-                  isLive={liveMatches.has(match.id)}
-                  isOnDeck={onDeckMatch?.id === match.id}
-                  isInTheHole={inTheHoleMatch?.id === match.id}
-                  timerState={matchTimers[match.id] || null}
-                  onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
-                  selectedTeam={selectedTeam}
-                  onTeamClick={handleTeamClick}
-                />
-              ))}
-            </div>
-          );
-        })()}
-
-        {/* Matchs terminés - only matches with scores AND not on a referee station */}
-        {(() => {
-          const matchesToShow = hasGroups ? filteredMatches : matches;
-          const completedMatches = matchesToShow.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id));
-          return completedMatches.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
-              <Trophy className="h-4 w-4" />
-              Completed Matches
-            </h3>
-            {completedMatches.map((match) => {
-              const highlighted = isMatchHighlighted(match);
-              return (
-                <CompletedRRMatchCard
-                  key={match.id}
-                  match={match}
-                  highlighted={highlighted}
-                  selectedTeam={selectedTeam}
-                  onTeamClick={handleTeamClick}
-                  onMatchClick={() => setSelectedMatch(match)}
-                  isCreator={isCreator}
-                  isClosed={isClosed}
-                  onEditScore={() => setEditingMatch(match)}
-                />
+              return ongoingMatches.length > 0 && (
+                <div className="space-y-4 mb-6">
+                  <h3 className="text-lg font-semibold text-muted-foreground">Ongoing Matches</h3>
+                  {ongoingMatches.sort((a, b) => {
+                    const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
+                    const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
+                    return aLive - bLive;
+                  }).map((match) => (
+                    <MatchCard
+                      key={match.id}
+                      match={match}
+                      tournamentId={tournamentId}
+                      onScoreUpdate={updateScore}
+                      editingMatchId={editingMatchId}
+                      setEditingMatchId={setEditingMatchId}
+                      isClosed={isClosed}
+                      isCreator={isCreator}
+                      isOnRefereeStation={activeStationMatches.has(match.id)}
+                      isLive={liveMatches.has(match.id)}
+                      isOnDeck={onDeckMatch?.id === match.id}
+                      isInTheHole={inTheHoleMatch?.id === match.id}
+                      timerState={matchTimers[match.id] || null}
+                      onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
+                      selectedTeam={selectedTeam}
+                      onTeamClick={handleTeamClick}
+                    />
+                  ))}
+                </div>
               );
-            })}
-          </div>
-        );
-        })()}
+            })()}
 
-        {(hasGroups ? filteredMatches : matches).length === 0 && (
-          <p className="text-muted-foreground text-center py-8">
-            No matches for this round. Click "Generate" to create matches.
-          </p>
+            {/* Matchs terminés - only matches with scores AND not on a referee station */}
+            {(() => {
+              const matchesToShow = hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99);
+              const completedMatches = matchesToShow.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id));
+              return completedMatches.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
+                  <Trophy className="h-4 w-4" />
+                  Completed Matches
+                </h3>
+                {completedMatches.map((match) => {
+                  const highlighted = isMatchHighlighted(match);
+                  return (
+                    <CompletedRRMatchCard
+                      key={match.id}
+                      match={match}
+                      highlighted={highlighted}
+                      selectedTeam={selectedTeam}
+                      onTeamClick={handleTeamClick}
+                      onMatchClick={() => setSelectedMatch(match)}
+                      isCreator={isCreator}
+                      isClosed={isClosed}
+                      onEditScore={() => setEditingMatch(match)}
+                    />
+                  );
+                })}
+              </div>
+            );
+            })()}
+
+            {(hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99)).length === 0 && (
+              <p className="text-muted-foreground text-center py-8">
+                No matches for this round. Click "Generate" to create matches.
+              </p>
+            )}
+          </>
         )}
       </Card>
 

@@ -3,18 +3,21 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Crown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface StandingsTableProps {
   tournamentId: string;
   numberOfGroups?: number;
+  initialPhase?: string;
 }
 
-export const StandingsTable = ({ tournamentId, numberOfGroups = 1 }: StandingsTableProps) => {
+export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase = "round_robin" }: StandingsTableProps) => {
   const [standings, setStandings] = useState<any[]>([]);
   const [teamGroupMap, setTeamGroupMap] = useState<Map<string, string>>(new Map());
   const [selectedTab, setSelectedTab] = useState<string>("Morning");
   const [matches, setMatches] = useState<any[]>([]);
+  const [ultimateMatches, setUltimateMatches] = useState<any[]>([]);
   const previousPositions = useRef<Map<string, number>>(new Map());
   const [positionChanges, setPositionChanges] = useState<Map<string, number>>(new Map());
 
@@ -41,15 +44,39 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1 }: StandingsTa
     const fetchMatches = async () => {
       const { data } = await supabase
         .from("matches")
-        .select("team1_id, team2_id, team1_score, team2_score")
+        .select("team1_id, team2_id, team1_score, team2_score, round_number")
         .eq("tournament_id", tournamentId)
         .in("phase", ["round_robin", "swiss"]);
-      setMatches(data || []);
+      const nonUltimate = (data || []).filter(m => m.round_number !== 99);
+      setMatches(nonUltimate);
     };
     fetchMatches();
   }, [tournamentId, hasGroups]);
 
-  // Auto-switch to Afternoon if all Morning matches completed
+  // Fetch Ultimate Round matches
+  useEffect(() => {
+    if (!hasGroups) return;
+    const fetchUltimate = async () => {
+      const { data } = await supabase
+        .from("matches")
+        .select("*, team1:team1_id(id, name), team2:team2_id(id, name)")
+        .eq("tournament_id", tournamentId)
+        .eq("round_number", 99)
+        .order("field_number", { ascending: true });
+      setUltimateMatches(data || []);
+    };
+    fetchUltimate();
+
+    // Subscribe to real-time updates for ultimate round matches
+    const channel = supabase
+      .channel('ultimate-standings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tournamentId}` }, () => fetchUltimate())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [tournamentId, hasGroups]);
+
+  // Auto-switch to Afternoon if all Morning matches completed, then Overall if all done
   useEffect(() => {
     if (!hasGroups || teamGroupMap.size === 0 || matches.length === 0) return;
     const morningMatches = matches.filter(m => {
@@ -57,7 +84,17 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1 }: StandingsTa
       const g2 = teamGroupMap.get(m.team2_id);
       return g1 === "Morning" || g2 === "Morning";
     });
-    if (morningMatches.length > 0 && morningMatches.every(m => m.team1_score !== null && m.team2_score !== null)) {
+    const afternoonMatches = matches.filter(m => {
+      const g1 = teamGroupMap.get(m.team1_id);
+      const g2 = teamGroupMap.get(m.team2_id);
+      return g1 === "Afternoon" || g2 === "Afternoon";
+    });
+    const allMorningDone = morningMatches.length > 0 && morningMatches.every(m => m.team1_score !== null && m.team2_score !== null);
+    const allAfternoonDone = afternoonMatches.length > 0 && afternoonMatches.every(m => m.team1_score !== null && m.team2_score !== null);
+
+    if (allMorningDone && allAfternoonDone) {
+      setSelectedTab("Overall");
+    } else if (allMorningDone) {
       setSelectedTab("Afternoon");
     }
   }, [hasGroups, teamGroupMap, matches]);
@@ -115,12 +152,102 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1 }: StandingsTa
     }
   };
 
+  // Compute Overall Standings with Ultimate Round logic
+  const overallStandings = useMemo(() => {
+    if (!hasGroups) return standings;
+
+    // Separate standings by group
+    const morningStandings = standings
+      .filter(s => teamGroupMap.get(s.team_id) === "Morning")
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        const diffA = a.goals_for - a.goals_against;
+        const diffB = b.goals_for - b.goals_against;
+        if (diffB !== diffA) return diffB - diffA;
+        return b.goals_for - a.goals_for;
+      });
+    const afternoonStandings = standings
+      .filter(s => teamGroupMap.get(s.team_id) === "Afternoon")
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        const diffA = a.goals_for - a.goals_against;
+        const diffB = b.goals_for - b.goals_against;
+        if (diffB !== diffA) return diffB - diffA;
+        return b.goals_for - a.goals_for;
+      });
+
+    // Check if any Ultimate Round matches have results
+    const completedUltimate = ultimateMatches.filter(
+      m => m.team1_score !== null && m.team2_score !== null
+    );
+
+    if (completedUltimate.length > 0) {
+      // Phase 2: Final ranking based on Ultimate Round results
+      // Build a map of team positions from ultimate matches
+      const finalRanking: any[] = [];
+      const placedTeamIds = new Set<string>();
+
+      // Sort ultimate matches by field_number (pair rank)
+      const sortedUltimate = [...ultimateMatches].sort((a, b) => a.field_number - b.field_number);
+
+      sortedUltimate.forEach((match) => {
+        const isCompleted = match.team1_score !== null && match.team2_score !== null;
+        
+        if (isCompleted) {
+          // Winner gets odd position, loser gets even
+          const winnerId = match.winner_id;
+          const loserId = match.team1_id === winnerId ? match.team2_id : match.team1_id;
+          
+          const winnerStat = standings.find(s => s.team_id === winnerId);
+          const loserStat = standings.find(s => s.team_id === loserId);
+          
+          if (winnerStat) { finalRanking.push({ ...winnerStat, _ultimateResult: "win" }); placedTeamIds.add(winnerId); }
+          if (loserStat) { finalRanking.push({ ...loserStat, _ultimateResult: "loss" }); placedTeamIds.add(loserId); }
+        } else {
+          // Not yet played: use provisional interleave for this pair
+          const team1Stat = standings.find(s => s.team_id === match.team1_id);
+          const team2Stat = standings.find(s => s.team_id === match.team2_id);
+          
+          // Morning team first (provisional)
+          const t1Group = teamGroupMap.get(match.team1_id);
+          if (t1Group === "Morning") {
+            if (team1Stat) { finalRanking.push({ ...team1Stat, _ultimateResult: "pending" }); placedTeamIds.add(match.team1_id); }
+            if (team2Stat) { finalRanking.push({ ...team2Stat, _ultimateResult: "pending" }); placedTeamIds.add(match.team2_id); }
+          } else {
+            if (team2Stat) { finalRanking.push({ ...team2Stat, _ultimateResult: "pending" }); placedTeamIds.add(match.team2_id); }
+            if (team1Stat) { finalRanking.push({ ...team1Stat, _ultimateResult: "pending" }); placedTeamIds.add(match.team1_id); }
+          }
+        }
+      });
+
+      // Add remaining teams not in Ultimate Round
+      standings.forEach(s => {
+        if (!placedTeamIds.has(s.team_id)) {
+          finalRanking.push(s);
+        }
+      });
+
+      return finalRanking;
+    }
+
+    // Phase 1: Provisional interleaved ranking
+    const interleaved: any[] = [];
+    const maxLen = Math.max(morningStandings.length, afternoonStandings.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < morningStandings.length) interleaved.push(morningStandings[i]);
+      if (i < afternoonStandings.length) interleaved.push(afternoonStandings[i]);
+    }
+    return interleaved;
+  }, [standings, hasGroups, teamGroupMap, ultimateMatches]);
+
   const filteredStandings = useMemo(() => {
-    if (!hasGroups || selectedTab === "Overall") return standings;
+    if (!hasGroups || selectedTab === "Overall") return overallStandings;
     return standings.filter(s => teamGroupMap.get(s.team_id) === selectedTab);
-  }, [standings, hasGroups, selectedTab, teamGroupMap]);
+  }, [standings, overallStandings, hasGroups, selectedTab, teamGroupMap]);
 
   const showGroupColumn = hasGroups && selectedTab === "Overall";
+
+  const isUltimateActive = hasGroups && ultimateMatches.some(m => m.team1_score !== null && m.team2_score !== null);
 
   const renderTable = (data: any[]) => (
     <Table>
@@ -143,6 +270,7 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1 }: StandingsTa
         {data.map((stat, index) => {
           const change = positionChanges.get(stat.team_id);
           const hasChange = change !== undefined;
+          const ultimateResult = stat._ultimateResult;
           return (
             <TableRow
               key={stat.id}
@@ -153,9 +281,17 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1 }: StandingsTa
                   <span>{index + 1}</span>
                   {hasChange && change > 0 && <TrendingUp className="h-4 w-4 text-green-500 animate-in slide-in-from-bottom-2" />}
                   {hasChange && change < 0 && <TrendingDown className="h-4 w-4 text-red-500 animate-in slide-in-from-top-2" />}
+                  {showGroupColumn && ultimateResult === "win" && <Crown className="h-4 w-4 text-primary" />}
                 </div>
               </TableCell>
-              <TableCell className="font-bold">{stat.team?.name}</TableCell>
+              <TableCell className="font-bold">
+                <div className="flex items-center gap-2">
+                  {stat.team?.name}
+                  {showGroupColumn && ultimateResult === "pending" && (
+                    <Badge variant="outline" className="text-xs">Provisional</Badge>
+                  )}
+                </div>
+              </TableCell>
               {showGroupColumn && (
                 <TableCell className="text-muted-foreground text-sm">{teamGroupMap.get(stat.team_id) || "—"}</TableCell>
               )}
@@ -188,7 +324,7 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1 }: StandingsTa
       </div>
 
       {hasGroups && (
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           {["Morning", "Afternoon", "Overall"].map((tab) => (
             <button
               key={tab}
@@ -202,6 +338,21 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1 }: StandingsTa
               {tab === "Overall" ? "Overall Standings" : `${tab} Group`}
             </button>
           ))}
+        </div>
+      )}
+
+      {selectedTab === "Overall" && hasGroups && (
+        <div className="mb-4 p-3 rounded-lg text-sm border">
+          {isUltimateActive ? (
+            <div className="flex items-center gap-2 text-primary">
+              <Crown className="h-4 w-4" />
+              <span className="font-medium">Final ranking based on Ultimate Round results</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span>⏳ Provisional ranking — interleaving group standings. Final positions will be determined by the Ultimate Round.</span>
+            </div>
+          )}
         </div>
       )}
 

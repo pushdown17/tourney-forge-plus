@@ -434,7 +434,7 @@ const Tournament = () => {
           )}
 
           <TabsContent value="standings" className="animate-fade-in">
-            <StandingsTable tournamentId={id!} numberOfGroups={tournament?.number_of_groups || 1} />
+            <StandingsTable tournamentId={id!} numberOfGroups={tournament?.number_of_groups || 1} initialPhase={tournament?.initial_phase || tournament?.current_phase || "round_robin"} />
           </TabsContent>
 
           <TabsContent value="stats" className="animate-fade-in">
