@@ -8,14 +8,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Trash2, Download, Users } from "lucide-react";
+import { GroupedTeamsManager } from "./GroupedTeamsManager";
 
 interface TeamsManagerProps {
   tournamentId: string;
   isClosed?: boolean;
   isCreator?: boolean;
+  numberOfGroups?: number;
 }
 
-export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false }: TeamsManagerProps) => {
+export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false, numberOfGroups = 1 }: TeamsManagerProps) => {
   const [teams, setTeams] = useState<any[]>([]);
   const [teamName, setTeamName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -301,22 +303,32 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
         </Card>
       )}
 
-      <Card className="glass-card p-4 md:p-6">
-        <h2 className="text-xl md:text-2xl font-bold mb-4">Registered Teams ({teams.length})</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-          {teams.map((team) => (
-            <div key={team.id} className="flex items-center justify-between p-3 md:p-4 bg-secondary/20 rounded-lg min-h-[56px]">
-              <span className="font-medium text-sm md:text-base">{team.name}</span>
-              {isCreator && (
-                <Button variant="ghost" size="sm" onClick={() => handleDeleteTeam(team.tournament_team_id)} className="h-10 w-10 p-0" disabled={isClosed}>
-                  <Trash2 className="h-5 w-5 text-destructive" />
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-        {teams.length === 0 && <p className="text-muted-foreground text-center py-8">No teams registered yet</p>}
-      </Card>
+      {numberOfGroups >= 2 ? (
+        <GroupedTeamsManager
+          teams={teams}
+          isCreator={isCreator}
+          isClosed={isClosed}
+          onDeleteTeam={handleDeleteTeam}
+          onTeamsUpdated={fetchTeams}
+        />
+      ) : (
+        <Card className="glass-card p-4 md:p-6">
+          <h2 className="text-xl md:text-2xl font-bold mb-4">Registered Teams ({teams.length})</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+            {teams.map((team) => (
+              <div key={team.id} className="flex items-center justify-between p-3 md:p-4 bg-secondary/20 rounded-lg min-h-[56px]">
+                <span className="font-medium text-sm md:text-base">{team.name}</span>
+                {isCreator && (
+                  <Button variant="ghost" size="sm" onClick={() => handleDeleteTeam(team.tournament_team_id)} className="h-10 w-10 p-0" disabled={isClosed}>
+                    <Trash2 className="h-5 w-5 text-destructive" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          {teams.length === 0 && <p className="text-muted-foreground text-center py-8">No teams registered yet</p>}
+        </Card>
+      )}
     </div>
   );
 };
