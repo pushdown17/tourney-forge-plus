@@ -81,7 +81,9 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
   // Filter matches by selected group
   const filteredMatches = useMemo(() => {
     if (!hasGroups || teamGroupMap.size === 0) return matches.filter(m => m.round_number !== 99);
-    if (selectedGroup === "Ultimate") return matches.filter(m => m.round_number === 99).sort((a, b) => (b.field_number || 0) - (a.field_number || 0));
+    if (selectedGroup === "Ultimate") {
+      return [...matches.filter(m => m.round_number === 99)].sort((a, b) => (b.field_number || 0) - (a.field_number || 0));
+    }
     return matches.filter(m => {
       if (m.round_number === 99) return false;
       const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
@@ -641,19 +643,22 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         {(() => {
           const matchesToShow = hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99);
           const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
-          const waitingMatches = ongoingMatches
+          // Sort: live first, then on station, then waiting. For Ultimate Round, sort by field_number desc (6th first, 1st last)
+          const sortedOngoing = [...ongoingMatches].sort((a, b) => {
+            const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
+            const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
+            if (aLive !== bLive) return aLive - bLive;
+            return (b.field_number || 0) - (a.field_number || 0);
+          });
+          const waitingMatches = sortedOngoing
             .filter(m => !activeStationMatches.has(m.id));
           const onDeckMatch = waitingMatches[0];
           const inTheHoleMatch = waitingMatches[1];
 
-          return ongoingMatches.length > 0 && (
+          return sortedOngoing.length > 0 && (
             <div className="space-y-4 mb-6">
               <h3 className="text-lg font-semibold text-muted-foreground">Ongoing Matches</h3>
-              {ongoingMatches.sort((a, b) => {
-                const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
-                const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
-                return aLive - bLive;
-              }).map((match) => (
+          {sortedOngoing.map((match) => (
                 <MatchCard
                   key={match.id}
                   match={match}
