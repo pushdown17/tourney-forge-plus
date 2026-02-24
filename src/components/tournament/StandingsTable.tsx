@@ -260,10 +260,10 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase 
           <TableHead className="text-center">W</TableHead>
           <TableHead className="text-center">D</TableHead>
           <TableHead className="text-center">L</TableHead>
+          <TableHead className="text-center font-bold">Pts</TableHead>
           <TableHead className="text-center">GF</TableHead>
           <TableHead className="text-center">GA</TableHead>
           <TableHead className="text-center">GD</TableHead>
-          <TableHead className="text-center font-bold">Pts</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -299,13 +299,13 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase 
               <TableCell className="text-center">{stat.wins}</TableCell>
               <TableCell className="text-center">{stat.draws}</TableCell>
               <TableCell className="text-center">{stat.losses}</TableCell>
+              <TableCell className="text-center font-bold text-primary text-lg">{stat.points}</TableCell>
               <TableCell className="text-center">{stat.goals_for}</TableCell>
               <TableCell className="text-center">{stat.goals_against}</TableCell>
               <TableCell className="text-center">
                 {stat.goals_for - stat.goals_against > 0 ? "+" : ""}
                 {stat.goals_for - stat.goals_against}
               </TableCell>
-              <TableCell className="text-center font-bold text-primary">{stat.points}</TableCell>
             </TableRow>
           );
         })}
