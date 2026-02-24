@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,12 +13,22 @@ import { supabase } from "@/integrations/supabase/client";
 const CreateTournament = () => {
   const navigate = useNavigate();
   const [tournamentName, setTournamentName] = useState("");
-  const [format, setFormat] = useState<"round-robin" | "swiss" | "round-robin-single" | "round-robin-double" | "swiss-single" | "swiss-double">("round-robin");
+  const [format, setFormat] = useState<"round-robin" | "swiss" | "round-robin-single" | "round-robin-double" | "swiss-single" | "swiss-double" | "broquil">("round-robin");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [numberOfFields, setNumberOfFields] = useState("1");
   const [teamsForElimination, setTeamsForElimination] = useState("16");
+  const [divideIntoGroups, setDivideIntoGroups] = useState(false);
+  const [numberOfGroups, setNumberOfGroups] = useState("2");
   const [loading, setLoading] = useState(false);
+
+  // When Broquil is selected, force groups on with 2 groups
+  useEffect(() => {
+    if (format === "broquil") {
+      setDivideIntoGroups(true);
+      setNumberOfGroups("2");
+    }
+  }, [format]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -29,6 +40,8 @@ const CreateTournament = () => {
     };
     checkAuth();
   }, [navigate]);
+
+  const hasEliminationPhase = format === "round-robin-single" || format === "round-robin-double" || format === "swiss-single" || format === "swiss-double" || format === "broquil";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,15 +56,17 @@ const CreateTournament = () => {
       }
 
       // Determine initial phase and elimination type
-      const currentPhase = format === "round-robin" || format === "round-robin-single" || format === "round-robin-double" 
-        ? "round_robin" 
-        : "swiss";
-      
-      const eliminationType = format === "round-robin" || format === "swiss"
-        ? null
-        : format.includes("single")
-        ? "single"
-        : "double";
+      let currentPhase: "round_robin" | "swiss" = "round_robin";
+      if (format === "swiss" || format === "swiss-single" || format === "swiss-double") {
+        currentPhase = "swiss";
+      }
+
+      let eliminationType: "single" | "double" | null = null;
+      if (format === "round-robin-single" || format === "swiss-single" || format === "broquil") {
+        eliminationType = "single";
+      } else if (format === "round-robin-double" || format === "swiss-double") {
+        eliminationType = "double";
+      }
 
       const { data, error } = await supabase
         .from("tournaments")
@@ -62,8 +77,9 @@ const CreateTournament = () => {
           current_phase: currentPhase,
           initial_phase: currentPhase,
           elimination_type: eliminationType,
-          teams_for_elimination: eliminationType ? parseInt(teamsForElimination) : null,
+          teams_for_elimination: hasEliminationPhase ? parseInt(teamsForElimination) : null,
           number_of_fields: parseInt(numberOfFields),
+          number_of_groups: divideIntoGroups ? parseInt(numberOfGroups) : 1,
           created_by: session.user.id,
         })
         .select()
@@ -146,8 +162,14 @@ const CreateTournament = () => {
                     <SelectItem value="swiss">Swiss Round Only</SelectItem>
                     <SelectItem value="swiss-single">Swiss Round + Single Elimination</SelectItem>
                     <SelectItem value="swiss-double">Swiss Round + Double Elimination</SelectItem>
+                    <SelectItem value="broquil">Broquil</SelectItem>
                   </SelectContent>
                 </Select>
+                {format === "broquil" && (
+                  <p className="text-xs text-muted-foreground">
+                    Round Robin with teams split into 2 groups (A & B) followed by a Single Elimination phase.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -165,7 +187,35 @@ const CreateTournament = () => {
                 </Select>
               </div>
 
-              {format !== "round-robin" && format !== "swiss" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="divideGroups">Divide teams into groups?</Label>
+                  <Switch
+                    id="divideGroups"
+                    checked={divideIntoGroups}
+                    onCheckedChange={setDivideIntoGroups}
+                    disabled={format === "broquil"}
+                  />
+                </div>
+
+                {divideIntoGroups && (
+                  <div className="space-y-2">
+                    <Label htmlFor="numberOfGroups">Number of groups</Label>
+                    <Input
+                      id="numberOfGroups"
+                      type="number"
+                      min="2"
+                      max="8"
+                      value={numberOfGroups}
+                      onChange={(e) => setNumberOfGroups(e.target.value)}
+                      className="bg-secondary/50"
+                      disabled={format === "broquil"}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {hasEliminationPhase && (
                 <div className="space-y-2">
                   <Label htmlFor="teamsForElimination">Number of Teams Qualifying for Finals</Label>
                   <Input
