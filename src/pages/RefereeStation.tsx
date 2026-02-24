@@ -961,7 +961,7 @@ const RefereeStation = () => {
     // This prevents draws (no winner_id but with scores) from being re-selected
     const { data: allMatches } = await supabase
       .from("matches")
-      .select("id, team1_id, team2_id, winner_id, team1_score, team2_score")
+      .select("id, team1_id, team2_id, winner_id, team1_score, team2_score, round_number, field_number")
       .eq("tournament_id", station.tournament_id)
       .eq("phase", currentPhase)
       .is("team1_score", null)
@@ -991,7 +991,13 @@ const RefereeStation = () => {
       m => m.team1_id && m.team2_id && m.team1_id !== m.team2_id 
         && !activeMatchIds.has(m.id)
         && m.team1_score === null && m.team2_score === null
-    );
+    ).sort((a: any, b: any) => {
+      // For Ultimate Round (round 99), sort by field_number descending (6th vs 6th first, 1st vs 1st last)
+      if (a.round_number === 99 && b.round_number === 99) {
+        return (b.field_number || 0) - (a.field_number || 0);
+      }
+      return 0; // preserve DB order for other matches
+    });
 
     const nextMatch = availableMatches[0] || null;
     console.log("[Auto-advance] Next match selected:", nextMatch?.id || "none");
