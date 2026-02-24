@@ -530,7 +530,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         )}
 
         {/* Group tabs */}
-        {hasGroups && matches.length > 0 && (
+        {hasGroups && (
           <div className="flex gap-2 mb-6">
             {["Morning", "Afternoon"].map((group) => {
               const groupMatches = matches.filter(m => {
