@@ -414,9 +414,9 @@ const Tournament = () => {
 
           <TabsContent value="matches" className="animate-fade-in">
             {(tournament.initial_phase === "swiss" || tournament.current_phase === "swiss") ? (
-              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} />
+              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} numberOfGroups={tournament.number_of_groups || 1} />
             ) : (
-              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} />
+              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} numberOfGroups={tournament.number_of_groups || 1} />
             )}
           </TabsContent>
 
