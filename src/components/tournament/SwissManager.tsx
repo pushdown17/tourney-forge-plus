@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,9 +36,10 @@ interface SwissManagerProps {
   isClosed?: boolean;
   currentPhase?: string;
   isCreator?: boolean;
+  numberOfGroups?: number;
 }
 
-export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false }: SwissManagerProps) => {
+export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false, numberOfGroups = 1 }: SwissManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -56,6 +57,52 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
     pausedAt: string | null;
     elapsedWhenPaused: number;
   }}>({});
+
+  // Group filtering state
+  const hasGroups = numberOfGroups >= 2;
+  const [selectedGroup, setSelectedGroup] = useState<string>("Morning");
+  const [teamGroupMap, setTeamGroupMap] = useState<Map<string, string | null>>(new Map());
+
+  // Fetch team-to-group mapping
+  useEffect(() => {
+    if (!hasGroups) return;
+    const fetchTeamGroups = async () => {
+      const { data } = await supabase
+        .from("tournament_teams")
+        .select("team_id, group_name")
+        .eq("tournament_id", tournamentId);
+      if (data) {
+        const map = new Map<string, string | null>();
+        data.forEach(tt => map.set(tt.team_id, tt.group_name));
+        setTeamGroupMap(map);
+      }
+    };
+    fetchTeamGroups();
+  }, [tournamentId, hasGroups]);
+
+  // Filter matches by selected group
+  const filteredMatches = useMemo(() => {
+    if (!hasGroups || teamGroupMap.size === 0) return matches;
+    return matches.filter(m => {
+      const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
+      const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
+      return g1 === selectedGroup || g2 === selectedGroup;
+    });
+  }, [matches, hasGroups, teamGroupMap, selectedGroup]);
+
+  // Auto-switch to Afternoon if all Morning matches are completed
+  useEffect(() => {
+    if (!hasGroups || teamGroupMap.size === 0 || matches.length === 0) return;
+    const morningMatches = matches.filter(m => {
+      const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
+      const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
+      return g1 === "Morning" || g2 === "Morning";
+    });
+    const allMorningCompleted = morningMatches.length > 0 && morningMatches.every(m => m.team1_score !== null && m.team2_score !== null);
+    if (allMorningCompleted) {
+      setSelectedGroup("Afternoon");
+    }
+  }, [matches, hasGroups, teamGroupMap]);
 
   // Fetch matches currently on referee stations with timer data
   const fetchActiveStationMatches = async () => {
@@ -302,11 +349,24 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
         .from("tournament_teams")
         .select(`
           team_id,
+          group_name,
           teams (id, name)
         `)
         .eq("tournament_id", tournamentId);
 
       if (teamsError) throw teamsError;
+
+      // If groups are active, generate matches per group separately
+      const teamsByGroup: Map<string | null, any[]> = new Map();
+      if (hasGroups) {
+        (tournamentTeams || []).forEach(tt => {
+          const group = tt.group_name;
+          if (!teamsByGroup.has(group)) teamsByGroup.set(group, []);
+          teamsByGroup.get(group)!.push(tt.teams);
+        });
+      } else {
+        teamsByGroup.set(null, (tournamentTeams || []).map(tt => tt.teams).filter(Boolean));
+      }
 
       const teams = tournamentTeams?.map(tt => tt.teams).filter(Boolean) || [];
 
@@ -349,74 +409,64 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
         (stats || []).map(s => [s.team_id, s])
       );
 
-      // Sort teams by their stats (Swiss system)
-      const sortedTeams = teams.sort((a, b) => {
-        const statsA = statsMap.get(a.id) || { points: 0, goals_for: 0, goals_against: 0 };
-        const statsB = statsMap.get(b.id) || { points: 0, goals_for: 0, goals_against: 0 };
-        
-        // Primary: Sort by points
-        if (statsA.points !== statsB.points) {
-          return statsB.points - statsA.points;
-        }
-        // Secondary: Sort by goal difference
-        const diffA = statsA.goals_for - statsA.goals_against;
-        const diffB = statsB.goals_for - statsB.goals_against;
-        if (diffA !== diffB) {
-          return diffB - diffA;
-        }
-        // Tertiary: Sort by goals scored
-        return statsB.goals_for - statsA.goals_for;
-      });
+      // Generate pairings per group
+      const allNewMatches: { tournament_id: string; phase: "swiss"; round_number: number; team1_id: string; team2_id: string; field_number: number; }[] = [];
+      let fieldIdx = 0;
 
-      // Swiss pairing algorithm with backtracking to minimize rematches
-      const teamIds = sortedTeams.map(t => t.id);
-      const teamMap = new Map(sortedTeams.map(t => [t.id, t]));
-      
-      // Try to find a complete pairing with no rematches using recursive backtracking
-      const findBestPairing = (
-        remaining: string[], 
-        currentPairs: [string, string][], 
-        allowRematches: boolean
-      ): [string, string][] | null => {
-        // Filter out the bye team if odd number
-        if (remaining.length <= 1) return currentPairs;
+      for (const [, groupTeams] of teamsByGroup) {
+        if (!groupTeams || groupTeams.length < 2) continue;
+
+        // Sort teams by their stats (Swiss system)
+        const sortedTeams = [...groupTeams].sort((a: any, b: any) => {
+          const statsA = statsMap.get(a.id) || { points: 0, goals_for: 0, goals_against: 0 };
+          const statsB = statsMap.get(b.id) || { points: 0, goals_for: 0, goals_against: 0 };
+          if (statsA.points !== statsB.points) return statsB.points - statsA.points;
+          const diffA = statsA.goals_for - statsA.goals_against;
+          const diffB = statsB.goals_for - statsB.goals_against;
+          if (diffA !== diffB) return diffB - diffA;
+          return statsB.goals_for - statsA.goals_for;
+        });
+
+        const teamIds = sortedTeams.map((t: any) => t.id);
         
-        const first = remaining[0];
-        const rest = remaining.slice(1);
+        const findBestPairing = (
+          remaining: string[], 
+          currentPairs: [string, string][], 
+          allowRematches: boolean
+        ): [string, string][] | null => {
+          if (remaining.length <= 1) return currentPairs;
+          const first = remaining[0];
+          const rest = remaining.slice(1);
+          for (let i = 0; i < rest.length; i++) {
+            const opponent = rest[i];
+            const matchupKey = [first, opponent].sort().join("-");
+            if (!allowRematches && playedMatchups.has(matchupKey)) continue;
+            const nextRemaining = rest.filter((_, idx) => idx !== i);
+            const result = findBestPairing(nextRemaining, [...currentPairs, [first, opponent]], allowRematches);
+            if (result) return result;
+          }
+          return null;
+        };
         
-        for (let i = 0; i < rest.length; i++) {
-          const opponent = rest[i];
-          const matchupKey = [first, opponent].sort().join("-");
-          
-          if (!allowRematches && playedMatchups.has(matchupKey)) continue;
-          
-          const nextRemaining = rest.filter((_, idx) => idx !== i);
-          const result = findBestPairing(
-            nextRemaining, 
-            [...currentPairs, [first, opponent]], 
-            allowRematches
-          );
-          if (result) return result;
+        let pairs = findBestPairing(teamIds, [], false);
+        if (!pairs) {
+          pairs = findBestPairing(teamIds, [], true);
         }
         
-        return null;
-      };
-      
-      // First try without rematches, then allow rematches as fallback
-      let pairs = findBestPairing(teamIds, [], false);
-      if (!pairs) {
-        console.warn('Could not avoid all rematches, allowing some rematches');
-        pairs = findBestPairing(teamIds, [], true);
+        (pairs || []).forEach((pair) => {
+          allNewMatches.push({
+            tournament_id: tournamentId,
+            phase: "swiss" as const,
+            round_number: roundToGenerate,
+            team1_id: pair[0],
+            team2_id: pair[1],
+            field_number: (fieldIdx % numberOfFields) + 1,
+          });
+          fieldIdx++;
+        });
       }
-      
-      const newMatches = (pairs || []).map((pair, idx) => ({
-        tournament_id: tournamentId,
-        phase: "swiss" as const,
-        round_number: roundToGenerate,
-        team1_id: pair[0],
-        team2_id: pair[1],
-        field_number: (idx % numberOfFields) + 1,
-      }));
+
+      const newMatches = allNewMatches;
 
       if (newMatches.length === 0) {
         toast.error("Unable to generate new matches.");
@@ -567,10 +617,38 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           </div>
         )}
 
+        {/* Group tabs */}
+        {hasGroups && matches.length > 0 && (
+          <div className="flex gap-2 mb-4">
+            {["Morning", "Afternoon"].map((group) => {
+              const groupMatches = matches.filter(m => {
+                const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
+                const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
+                return g1 === group || g2 === group;
+              });
+              const completed = groupMatches.filter(m => m.team1_score !== null && m.team2_score !== null).length;
+              return (
+                <button
+                  key={group}
+                  onClick={() => setSelectedGroup(group)}
+                  className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    selectedGroup === group
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {group} Group ({completed}/{groupMatches.length})
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="space-y-4">
           {/* Ongoing matches - includes matches without scores OR matches on a referee station */}
           {(() => {
-            const ongoingMatches = matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
+            const matchesToShow = hasGroups ? filteredMatches : matches;
+            const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
             const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id));
             const onDeckMatch = waitingMatches[0];
             const inTheHoleMatch = waitingMatches[1];
@@ -617,12 +695,14 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
             );
           })()}
           
-          {/* Completed matches - only matches with scores AND not on a referee station */}
-          {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).length > 0 && (
+          {(() => {
+            const matchesToShow = hasGroups ? filteredMatches : matches;
+            const completedMatches = matchesToShow.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id));
+            return completedMatches.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-3 text-muted-foreground">Completed Matches</h3>
               <div className="space-y-2 opacity-60">
-                {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).map((match) => (
+                {completedMatches.map((match) => (
                   <CompletedMatchCard
                     key={match.id}
                     match={match}
@@ -634,9 +714,10 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
                 ))}
               </div>
             </div>
-          )}
+          );
+          })()}
           
-          {matches.length === 0 && (
+          {(hasGroups ? filteredMatches : matches).length === 0 && (
             <p className="text-muted-foreground text-center py-8">
               No matches for this round. Click "Generate" to create matches according to the Swiss system.
             </p>

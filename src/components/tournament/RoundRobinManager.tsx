@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,9 +36,10 @@ interface RoundRobinManagerProps {
   isClosed?: boolean;
   currentPhase?: string;
   isCreator?: boolean;
+  numberOfGroups?: number;
 }
 
-export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false }: RoundRobinManagerProps) => {
+export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false, numberOfGroups = 1 }: RoundRobinManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
@@ -54,8 +55,53 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     pausedAt: string | null;
     elapsedWhenPaused: number;
   }}>({});
+  
+  // Group filtering state
+  const hasGroups = numberOfGroups >= 2;
+  const [selectedGroup, setSelectedGroup] = useState<string>("Morning");
+  const [teamGroupMap, setTeamGroupMap] = useState<Map<string, string | null>>(new Map());
 
-  // Fetch matches currently on referee stations with timer data
+  // Fetch team-to-group mapping
+  useEffect(() => {
+    if (!hasGroups) return;
+    const fetchTeamGroups = async () => {
+      const { data } = await supabase
+        .from("tournament_teams")
+        .select("team_id, group_name")
+        .eq("tournament_id", tournamentId);
+      if (data) {
+        const map = new Map<string, string | null>();
+        data.forEach(tt => map.set(tt.team_id, tt.group_name));
+        setTeamGroupMap(map);
+      }
+    };
+    fetchTeamGroups();
+  }, [tournamentId, hasGroups]);
+
+  // Filter matches by selected group
+  const filteredMatches = useMemo(() => {
+    if (!hasGroups || teamGroupMap.size === 0) return matches;
+    return matches.filter(m => {
+      const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
+      const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
+      return g1 === selectedGroup || g2 === selectedGroup;
+    });
+  }, [matches, hasGroups, teamGroupMap, selectedGroup]);
+
+  // Auto-switch to Afternoon if all Morning matches are completed
+  useEffect(() => {
+    if (!hasGroups || teamGroupMap.size === 0 || matches.length === 0) return;
+    const morningMatches = matches.filter(m => {
+      const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
+      const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
+      return g1 === "Morning" || g2 === "Morning";
+    });
+    const allMorningCompleted = morningMatches.length > 0 && morningMatches.every(m => m.team1_score !== null && m.team2_score !== null);
+    if (allMorningCompleted) {
+      setSelectedGroup("Afternoon");
+    }
+  }, [matches, hasGroups, teamGroupMap]);
+
   const fetchActiveStationMatches = async () => {
     const { data, error } = await supabase
       .from("referee_stations")
@@ -266,12 +312,24 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       // Fetch all teams via tournament_teams
       const { data: tournamentTeams, error: teamsError } = await supabase
         .from("tournament_teams")
-        .select("team_id")
+        .select("team_id, group_name")
         .eq("tournament_id", tournamentId);
       
-      const teams = (tournamentTeams || []).map(tt => ({ id: tt.team_id }));
-
       if (teamsError) throw teamsError;
+
+      // If groups are active, generate matches per group
+      const teamsByGroup: Map<string | null, string[]> = new Map();
+      if (hasGroups) {
+        (tournamentTeams || []).forEach(tt => {
+          const group = tt.group_name;
+          if (!teamsByGroup.has(group)) teamsByGroup.set(group, []);
+          teamsByGroup.get(group)!.push(tt.team_id);
+        });
+      } else {
+        teamsByGroup.set(null, (tournamentTeams || []).map(tt => tt.team_id));
+      }
+
+      const teams = (tournamentTeams || []).map(tt => ({ id: tt.team_id }));
 
       if (!teams || teams.length < 2) {
         toast.error("At least 2 teams are required to create matches");
@@ -293,21 +351,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         return;
       }
 
-      // Use circle method algorithm for balanced scheduling
-      // This ensures teams don't wait too long between matches
-      const teamIds = teams.map(t => t.id);
-      const n = teamIds.length;
-      
-      // If odd number of teams, add a "bye" placeholder
-      const hasBye = n % 2 === 1;
-      if (hasBye) {
-        teamIds.push("BYE");
-      }
-      
-      const totalTeams = teamIds.length;
-      const rounds = totalTeams - 1;
-      const matchesPerRound = totalTeams / 2;
-      
+      // Generate matches per group (or all teams if no groups)
       const allMatches: { 
         tournament_id: string; 
         phase: "round_robin"; 
@@ -315,30 +359,42 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         team1_id: string; 
         team2_id: string; 
       }[] = [];
-      
-      // Create a copy of teams for rotation (excluding first team which stays fixed)
-      const rotatingTeams = [...teamIds];
-      
-      for (let round = 0; round < rounds; round++) {
-        for (let match = 0; match < matchesPerRound; match++) {
-          const home = match === 0 ? rotatingTeams[0] : rotatingTeams[match];
-          const away = rotatingTeams[totalTeams - 1 - match];
-          
-          // Skip matches with the "BYE" placeholder
-          if (home !== "BYE" && away !== "BYE") {
-            allMatches.push({
-              tournament_id: tournamentId,
-              phase: "round_robin" as const,
-              round_number: 1,
-              team1_id: home,
-              team2_id: away,
-            });
-          }
+
+      for (const [, groupTeamIds] of teamsByGroup) {
+        if (groupTeamIds.length < 2) continue;
+        
+        const teamIds = [...groupTeamIds];
+        const n = teamIds.length;
+        
+        if (n % 2 === 1) {
+          teamIds.push("BYE");
         }
         
-        // Rotate teams: keep first team fixed, rotate the rest
-        const lastTeam = rotatingTeams.pop()!;
-        rotatingTeams.splice(1, 0, lastTeam);
+        const totalTeams = teamIds.length;
+        const rounds = totalTeams - 1;
+        const matchesPerRound = totalTeams / 2;
+        
+        const rotatingTeams = [...teamIds];
+        
+        for (let round = 0; round < rounds; round++) {
+          for (let match = 0; match < matchesPerRound; match++) {
+            const home = match === 0 ? rotatingTeams[0] : rotatingTeams[match];
+            const away = rotatingTeams[totalTeams - 1 - match];
+            
+            if (home !== "BYE" && away !== "BYE") {
+              allMatches.push({
+                tournament_id: tournamentId,
+                phase: "round_robin" as const,
+                round_number: 1,
+                team1_id: home,
+                team2_id: away,
+              });
+            }
+          }
+          
+          const lastTeam = rotatingTeams.pop()!;
+          rotatingTeams.splice(1, 0, lastTeam);
+        }
       }
 
       if (allMatches.length === 0) {
@@ -473,9 +529,37 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
           </div>
         )}
 
+        {/* Group tabs */}
+        {hasGroups && matches.length > 0 && (
+          <div className="flex gap-2 mb-6">
+            {["Morning", "Afternoon"].map((group) => {
+              const groupMatches = matches.filter(m => {
+                const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
+                const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
+                return g1 === group || g2 === group;
+              });
+              const completed = groupMatches.filter(m => m.team1_score !== null && m.team2_score !== null).length;
+              return (
+                <button
+                  key={group}
+                  onClick={() => setSelectedGroup(group)}
+                  className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    selectedGroup === group
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {group} Group ({completed}/{groupMatches.length})
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Matchs en cours - includes matches without scores OR matches on a referee station */}
         {(() => {
-          const ongoingMatches = matches.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
+          const matchesToShow = hasGroups ? filteredMatches : matches;
+          const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
           const waitingMatches = ongoingMatches
             .filter(m => !activeStationMatches.has(m.id));
           const onDeckMatch = waitingMatches[0];
@@ -513,13 +597,16 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         })()}
 
         {/* Matchs terminés - only matches with scores AND not on a referee station */}
-        {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).length > 0 && (
+        {(() => {
+          const matchesToShow = hasGroups ? filteredMatches : matches;
+          const completedMatches = matchesToShow.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id));
+          return completedMatches.length > 0 && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
               <Trophy className="h-4 w-4" />
               Completed Matches
             </h3>
-            {matches.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).map((match) => {
+            {completedMatches.map((match) => {
               const highlighted = isMatchHighlighted(match);
               return (
                 <CompletedRRMatchCard
@@ -536,9 +623,10 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
               );
             })}
           </div>
-        )}
+        );
+        })()}
 
-        {matches.length === 0 && (
+        {(hasGroups ? filteredMatches : matches).length === 0 && (
           <p className="text-muted-foreground text-center py-8">
             No matches for this round. Click "Generate" to create matches.
           </p>
