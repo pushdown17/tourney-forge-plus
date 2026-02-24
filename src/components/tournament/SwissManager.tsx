@@ -20,7 +20,6 @@ import { toast } from "sonner";
 import { Trophy, TrendingUp, ChevronDown, ChevronUp, Users, Target, AlertTriangle, Clock, Zap, Monitor, Radio } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { GoalScorerDialog } from "./GoalScorerDialog";
-import { UltimateRoundManager } from "./UltimateRoundManager";
 import { GoalRemoverDialog } from "./GoalRemoverDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
 import { MatchStatsRecap } from "./MatchStatsRecap";
@@ -81,28 +80,45 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
     fetchTeamGroups();
   }, [tournamentId, hasGroups]);
 
-  // Filter matches by selected group (exclude Ultimate Round matches)
+  // Ultimate Round matches (separate fetch for Swiss since it filters by round_number)
+  const [ultimateMatches, setUltimateMatches] = useState<any[]>([]);
+
+  const fetchUltimateMatches = async () => {
+    if (!hasGroups) return;
+    const { data } = await supabase
+      .from("matches")
+      .select(`*, team1:team1_id(id, name), team2:team2_id(id, name)`)
+      .eq("tournament_id", tournamentId)
+      .eq("phase", "swiss")
+      .eq("round_number", 99)
+      .order("field_number", { ascending: false });
+    setUltimateMatches(data || []);
+  };
+
+  useEffect(() => {
+    if (hasGroups) fetchUltimateMatches();
+  }, [tournamentId, hasGroups]);
+
+  // Filter matches by selected group
   const filteredMatches = useMemo(() => {
-    const nonUltimate = matches.filter(m => m.round_number !== 99);
-    if (!hasGroups || teamGroupMap.size === 0) return nonUltimate;
-    if (selectedGroup === "Ultimate") return [];
-    return nonUltimate.filter(m => {
+    if (!hasGroups || teamGroupMap.size === 0) return matches;
+    if (selectedGroup === "Ultimate") return ultimateMatches;
+    return matches.filter(m => {
       const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
       const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
       return g1 === selectedGroup || g2 === selectedGroup;
     });
-  }, [matches, hasGroups, teamGroupMap, selectedGroup]);
+  }, [matches, ultimateMatches, hasGroups, teamGroupMap, selectedGroup]);
 
   // Auto-switch: Morning → Afternoon → Ultimate Round
   useEffect(() => {
     if (!hasGroups || teamGroupMap.size === 0 || matches.length === 0) return;
-    const nonUltimate = matches.filter(m => m.round_number !== 99);
-    const morningMatches = nonUltimate.filter(m => {
+    const morningMatches = matches.filter(m => {
       const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
       const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
       return g1 === "Morning" || g2 === "Morning";
     });
-    const afternoonMatches = nonUltimate.filter(m => {
+    const afternoonMatches = matches.filter(m => {
       const g1 = teamGroupMap.get(m.team1?.id || m.team1_id);
       const g2 = teamGroupMap.get(m.team2?.id || m.team2_id);
       return g1 === "Afternoon" || g2 === "Afternoon";
@@ -207,6 +223,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
         (payload) => {
           console.log('Match update received:', payload);
           fetchMatches();
+          if (hasGroups) fetchUltimateMatches();
         }
       )
       .subscribe();
@@ -545,11 +562,52 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
   };
 
   const canGenerateNextRound = () => {
-    // Check if all matches in current round are completed
     const allMatchesCompleted = matches.every(m => 
       m.team1_score !== null && m.team2_score !== null
     );
     return matches.length > 0 && allMatchesCompleted;
+  };
+
+  const generateUltimateRound = async () => {
+    setLoading(true);
+    try {
+      const { data: existing } = await supabase.from("matches").select("id").eq("tournament_id", tournamentId).eq("round_number", 99).limit(1);
+      if (existing && existing.length > 0) { toast.error("Ultimate Round matches already exist"); setLoading(false); return; }
+
+      const { data: tournamentTeams } = await supabase.from("tournament_teams").select("team_id, group_name").eq("tournament_id", tournamentId);
+      if (!tournamentTeams) throw new Error("No teams found");
+
+      const morningIds = tournamentTeams.filter(t => t.group_name === "Morning").map(t => t.team_id);
+      const afternoonIds = tournamentTeams.filter(t => t.group_name === "Afternoon").map(t => t.team_id);
+
+      const { data: stats } = await supabase.from("team_stats").select("team_id, points, goals_for, goals_against").eq("tournament_id", tournamentId);
+      const statsMap = new Map((stats || []).map(s => [s.team_id, s]));
+
+      const sortByRank = (ids: string[]) => [...ids].sort((a, b) => {
+        const sa = statsMap.get(a) || { points: 0, goals_for: 0, goals_against: 0 };
+        const sb = statsMap.get(b) || { points: 0, goals_for: 0, goals_against: 0 };
+        if (sb.points !== sa.points) return sb.points - sa.points;
+        const diffA = sa.goals_for - sa.goals_against; const diffB = sb.goals_for - sb.goals_against;
+        if (diffB !== diffA) return diffB - diffA;
+        return sb.goals_for - sa.goals_for;
+      });
+
+      const rankedM = sortByRank(morningIds);
+      const rankedA = sortByRank(afternoonIds);
+      const pairCount = Math.min(rankedM.length, rankedA.length);
+      if (pairCount === 0) { toast.error("Not enough teams in both groups"); setLoading(false); return; }
+
+      const newMatches = [];
+      for (let i = 0; i < pairCount; i++) {
+        newMatches.push({ tournament_id: tournamentId, phase: "swiss" as const, round_number: 99, team1_id: rankedM[i], team2_id: rankedA[i], field_number: i + 1 });
+      }
+
+      const { error } = await supabase.from("matches").insert(newMatches);
+      if (error) throw error;
+      toast.success(`${pairCount} Ultimate Round match${pairCount > 1 ? "es" : ""} generated!`);
+      fetchUltimateMatches();
+    } catch (error: any) { toast.error(error.message); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -668,96 +726,109 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           </div>
         )}
 
-        {/* Conditional rendering: group matches vs Ultimate Round */}
-        {selectedGroup === "Ultimate" && hasGroups ? (
-          <UltimateRoundManager
-            tournamentId={tournamentId}
-            phase="swiss"
-            isClosed={isClosed}
-            isCreator={isCreator}
-            currentPhase={currentPhase}
-          />
-        ) : (
-          <div className="space-y-4">
-            {/* Ongoing matches */}
-            {(() => {
-              const matchesToShow = hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99);
-              const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
-              const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id));
-              const onDeckMatch = waitingMatches[0];
-              const inTheHoleMatch = waitingMatches[1];
-
-              return ongoingMatches.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Ongoing Matches</h3>
-                  {ongoingMatches.sort((a, b) => {
-                    const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
-                    const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
-                    return aLive - bLive;
-                  }).map((match) => {
-                    const matchesOnSameField = matches
-                      .filter(m => m.field_number === match.field_number)
-                      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                    
-                    const firstUnfinishedOnField = matchesOnSameField.find(
-                      m => activeStationMatches.has(m.id)
-                    ) || matchesOnSameField.find(
-                      m => m.team1_score === null || m.team2_score === null
-                    );
-                    
-                    const isLockedByPreviousMatch = !activeStationMatches.has(match.id) && firstUnfinishedOnField?.id !== match.id;
-
-                    return (
-                      <MatchCard
-                        key={match.id}
-                        match={match}
-                        tournamentId={tournamentId}
-                        onScoreUpdate={updateScore}
-                        isClosed={isClosed}
-                        isLockedByPreviousMatch={isLockedByPreviousMatch}
-                        isCreator={isCreator}
-                        isOnRefereeStation={activeStationMatches.has(match.id)}
-                        isLive={liveMatches.has(match.id)}
-                        isOnDeck={onDeckMatch?.id === match.id}
-                        isInTheHole={inTheHoleMatch?.id === match.id}
-                        timerState={matchTimers[match.id] || null}
-                        onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
-                      />
-                    );
-                  })}
-                </div>
-              );
-            })()}
-            
-            {(() => {
-              const matchesToShow = hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99);
-              const completedMatches = matchesToShow.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id));
-              return completedMatches.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold mb-3 text-muted-foreground">Completed Matches</h3>
-                <div className="space-y-2 opacity-60">
-                  {completedMatches.map((match) => (
-                    <CompletedMatchCard
-                      key={match.id}
-                      match={match}
-                      isCreator={isCreator}
-                      isClosed={isClosed}
-                      onEditScore={() => setEditingMatch(match)}
-                      onViewStats={() => setSelectedMatch(match)}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-            })()}
-            
-            {(hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99)).length === 0 && (
-              <p className="text-muted-foreground text-center py-8">
-                No matches for this round. Click "Generate" to create matches according to the Swiss system.
-              </p>
-            )}
+        {/* Generate Ultimate Round button */}
+        {selectedGroup === "Ultimate" && hasGroups && isCreator && ultimateMatches.length === 0 && (
+          <div className="mb-4 flex items-center justify-between p-4 border border-dashed border-primary/30 rounded-lg">
+            <div>
+              <p className="font-medium">⚔️ Ultimate Round — Crossover Matches</p>
+              <p className="text-sm text-muted-foreground">Generate crossover matches: 1st Morning vs 1st Afternoon, etc.</p>
+            </div>
+            <Button
+              onClick={generateUltimateRound}
+              disabled={loading || isClosed}
+            >
+              Generate Ultimate Round
+            </Button>
           </div>
         )}
+
+        <div className="space-y-4">
+          {/* Ongoing matches */}
+          {(() => {
+            const matchesToShow = hasGroups ? filteredMatches : matches;
+            const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
+            const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id));
+            const onDeckMatch = waitingMatches[0];
+            const inTheHoleMatch = waitingMatches[1];
+
+            return ongoingMatches.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Ongoing Matches</h3>
+                {ongoingMatches.sort((a, b) => {
+                  const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
+                  const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
+                  return aLive - bLive;
+                }).map((match) => {
+                  const matchesOnSameField = (selectedGroup === "Ultimate" ? ultimateMatches : matches)
+                    .filter(m => m.field_number === match.field_number)
+                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                  
+                  const firstUnfinishedOnField = matchesOnSameField.find(
+                    m => activeStationMatches.has(m.id)
+                  ) || matchesOnSameField.find(
+                    m => m.team1_score === null || m.team2_score === null
+                  );
+                  
+                  const isLockedByPreviousMatch = !activeStationMatches.has(match.id) && firstUnfinishedOnField?.id !== match.id;
+
+                  return (
+                    <MatchCard
+                      key={match.id}
+                      match={match}
+                      tournamentId={tournamentId}
+                      onScoreUpdate={async (matchId: string, s1: number, s2: number) => {
+                        await updateScore(matchId, s1, s2);
+                        if (selectedGroup === "Ultimate") fetchUltimateMatches();
+                      }}
+                      isClosed={isClosed}
+                      isLockedByPreviousMatch={isLockedByPreviousMatch}
+                      isCreator={isCreator}
+                      isOnRefereeStation={activeStationMatches.has(match.id)}
+                      isLive={liveMatches.has(match.id)}
+                      isOnDeck={onDeckMatch?.id === match.id}
+                      isInTheHole={inTheHoleMatch?.id === match.id}
+                      timerState={matchTimers[match.id] || null}
+                      onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })()}
+          
+          {(() => {
+            const matchesToShow = hasGroups ? filteredMatches : matches;
+            const completedMatches = matchesToShow.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id));
+            return completedMatches.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3 text-muted-foreground">Completed Matches</h3>
+              <div className="space-y-2 opacity-60">
+                {completedMatches.map((match) => (
+                  <CompletedMatchCard
+                    key={match.id}
+                    match={match}
+                    isCreator={isCreator}
+                    isClosed={isClosed}
+                    onEditScore={() => setEditingMatch(match)}
+                    onViewStats={() => setSelectedMatch(match)}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+          })()}
+          
+          {filteredMatches.length === 0 && selectedGroup !== "Ultimate" && (
+            <p className="text-muted-foreground text-center py-8">
+              No matches for this round. Click "Generate" to create matches according to the Swiss system.
+            </p>
+          )}
+          {selectedGroup === "Ultimate" && ultimateMatches.length === 0 && !isCreator && (
+            <p className="text-muted-foreground text-center py-8">
+              No Ultimate Round matches yet.
+            </p>
+          )}
+        </div>
       </Card>
 
       {/* Live Match Stats Dialog for visitors */}
