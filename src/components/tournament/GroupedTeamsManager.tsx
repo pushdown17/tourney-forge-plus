@@ -7,23 +7,15 @@ import { Button } from "@/components/ui/button";
 import {
   DndContext,
   DragOverlay,
-  closestCenter,
-  rectIntersection,
   pointerWithin,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
+  useDraggable,
   useDroppable,
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 interface Team {
   id: string;
@@ -60,14 +52,14 @@ function DraggableTeamCard({
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
-  } = useSortable({ id: team.tournament_team_id, disabled: !isCreator || isClosed });
+  } = useDraggable({ id: team.tournament_team_id, disabled: !isCreator || isClosed });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+  const style: React.CSSProperties = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : undefined,
+    position: isDragging ? 'relative' as const : undefined,
   };
 
   return (
@@ -140,27 +132,22 @@ function DroppableColumn({
         </span>
       </div>
 
-      <SortableContext
-        items={teams.map((t) => t.tournament_team_id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <div className="space-y-2 min-h-[60px]">
-          {teams.length === 0 && (
-            <div className="flex items-center justify-center h-[60px] text-muted-foreground/50 text-sm">
-              Drag teams here
-            </div>
-          )}
-          {teams.map((team) => (
-            <DraggableTeamCard
-              key={team.tournament_team_id}
-              team={team}
-              isCreator={isCreator}
-              isClosed={isClosed}
-              onDelete={onDelete}
-            />
-          ))}
-        </div>
-      </SortableContext>
+      <div className="space-y-2 min-h-[60px]">
+        {teams.length === 0 && (
+          <div className="flex items-center justify-center h-[60px] text-muted-foreground/50 text-sm">
+            Drag teams here
+          </div>
+        )}
+        {teams.map((team) => (
+          <DraggableTeamCard
+            key={team.tournament_team_id}
+            team={team}
+            isCreator={isCreator}
+            isClosed={isClosed}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -175,8 +162,7 @@ export const GroupedTeamsManager = ({
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor)
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
   const morningTeams = useMemo(
@@ -200,11 +186,10 @@ export const GroupedTeamsManager = ({
     : null;
 
   const findContainer = (id: string): string | null => {
+    if ([GROUP_MORNING, GROUP_AFTERNOON, GROUP_UNASSIGNED].includes(id)) return id;
     if (morningTeams.some((t) => t.tournament_team_id === id)) return GROUP_MORNING;
     if (afternoonTeams.some((t) => t.tournament_team_id === id)) return GROUP_AFTERNOON;
     if (unassignedTeams.some((t) => t.tournament_team_id === id)) return GROUP_UNASSIGNED;
-    // Check if it's a container id itself
-    if ([GROUP_MORNING, GROUP_AFTERNOON, GROUP_UNASSIGNED].includes(id)) return id;
     return null;
   };
 
@@ -219,25 +204,12 @@ export const GroupedTeamsManager = ({
     if (!over) return;
 
     const activeContainer = findContainer(active.id as string);
-    let overContainer = findContainer(over.id as string);
-
-    // If dropped on a team card, use its container
-    if (!overContainer || ![GROUP_MORNING, GROUP_AFTERNOON, GROUP_UNASSIGNED].includes(overContainer)) {
-      overContainer = findContainer(over.id as string);
-    }
-
-    // If dropped on the container itself
-    if ([GROUP_MORNING, GROUP_AFTERNOON, GROUP_UNASSIGNED].includes(over.id as string)) {
-      overContainer = over.id as string;
-    }
+    const overContainer = findContainer(over.id as string);
 
     if (!overContainer || activeContainer === overContainer) return;
 
     const newGroupName = overContainer === GROUP_UNASSIGNED ? null : overContainer;
-    const team = teams.find((t) => t.tournament_team_id === active.id);
-    if (!team) return;
 
-    // Optimistic update via parent refresh
     try {
       const { error } = await supabase
         .from("tournament_teams")
@@ -299,7 +271,7 @@ export const GroupedTeamsManager = ({
           />
         )}
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={null}>
           {activeTeam && (
             <div className="flex items-center gap-2 p-3 bg-primary/20 border border-primary/50 rounded-lg shadow-lg backdrop-blur-sm">
               <GripVertical className="h-4 w-4 text-primary" />
