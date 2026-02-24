@@ -134,7 +134,7 @@ const CreateTournament = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="format">Final Phase Format</Label>
+                <Label htmlFor="format">Format</Label>
                 <Select value={format} onValueChange={(val: any) => setFormat(val)}>
                   <SelectTrigger id="format" className="bg-secondary/50">
                     <SelectValue />
