@@ -685,7 +685,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         {/* Matchs terminés */}
         {(() => {
           const matchesToShow = hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99);
-          const completedMatches = matchesToShow.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id));
+          const completedMatches = matchesToShow.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
           return completedMatches.length > 0 && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
