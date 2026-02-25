@@ -798,7 +798,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           
           {(() => {
             const matchesToShow = hasGroups ? filteredMatches : matches;
-            const completedMatches = matchesToShow.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id));
+            const completedMatches = matchesToShow.filter(m => m.team1_score !== null && m.team2_score !== null && !activeStationMatches.has(m.id)).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
             return completedMatches.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-3 text-muted-foreground">Completed Matches</h3>
