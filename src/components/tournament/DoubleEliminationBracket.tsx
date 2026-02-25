@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { SendToStationDialog } from "./SendToStationDialog";
 
 interface Team {
   id: string;
@@ -134,6 +135,8 @@ export const DoubleEliminationBracket = ({
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
   const [goalScorerDialogOpen, setGoalScorerDialogOpen] = useState(false);
+  const [stationDialogOpen, setStationDialogOpen] = useState(false);
+  const [stationMatch, setStationMatch] = useState<{ id: string; label: string } | null>(null);
   const [scoringTeam, setScoringTeam] = useState<{ id: string; name: string; matchId: string } | null>(null);
   const [recentlyCompletedMatchId, setRecentlyCompletedMatchId] = useState<string | null>(null);
   const [recentlyAdvancedTeamIds, setRecentlyAdvancedTeamIds] = useState<string[]>([]);
@@ -784,6 +787,11 @@ export const DoubleEliminationBracket = ({
           else setStatsDialogOpen(true);
         }}
         onEditScore={() => { setSelectedMatch(match); setStatsDialogOpen(true); }}
+        onSendToStation={isCreator && !isMatchCompleted && !isClosed ? () => {
+          const label = `${match.team1?.name || "TBD"} vs ${match.team2?.name || "TBD"}`;
+          setStationMatch({ id: match.id, label });
+          setStationDialogOpen(true);
+        } : undefined}
         onIncrementScore={(teamId, teamName) => {
           if (isLocked || isMatchCompleted) { toast.error(isMatchCompleted ? "Match finished" : "Complete previous round first"); return; }
           setScoringTeam({ id: teamId, name: teamName, matchId: match.id });
@@ -1027,6 +1035,11 @@ export const DoubleEliminationBracket = ({
                           else setStatsDialogOpen(true);
                         }}
                         onEditScore={() => { setSelectedMatch(gf); setStatsDialogOpen(true); }}
+                        onSendToStation={isCreator && !gf.winner_id && !isClosed && !resetLocked ? () => {
+                          const label = `${gf.team1?.name || "TBD"} vs ${gf.team2?.name || "TBD"}`;
+                          setStationMatch({ id: gf.id, label });
+                          setStationDialogOpen(true);
+                        } : undefined}
                         onIncrementScore={(teamId, teamName) => {
                           if (resetLocked || gf.winner_id) { toast.error(gf.winner_id ? "Match finished" : "Complete GF #1 first"); return; }
                           setScoringTeam({ id: teamId, name: teamName, matchId: gf.id });
@@ -1093,6 +1106,16 @@ export const DoubleEliminationBracket = ({
           teamId={scoringTeam.id}
           teamName={scoringTeam.name}
           onGoalRecorded={fetchTournamentAndMatches}
+        />
+      )}
+
+      {stationMatch && (
+        <SendToStationDialog
+          open={stationDialogOpen}
+          onOpenChange={setStationDialogOpen}
+          tournamentId={tournamentId}
+          matchId={stationMatch.id}
+          matchLabel={stationMatch.label}
         />
       )}
     </Card>
