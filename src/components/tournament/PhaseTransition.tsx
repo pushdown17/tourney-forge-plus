@@ -53,7 +53,7 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
       if (error) throw error;
 
       toast.success(`${bracketType === "single" ? "Single" : "Double"} elimination phase activated!`);
-      onPhaseChanged();
+      setTimeout(() => onPhaseChanged(), 0);
     } catch (error: any) {
       toast.error("Error activating elimination phase");
       console.error(error);
