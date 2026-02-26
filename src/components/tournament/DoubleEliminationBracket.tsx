@@ -770,8 +770,10 @@ export const DoubleEliminationBracket = ({
         isOnDeck={onDeckMatchId === match.id}
         isInTheHole={inTheHoleMatchId === match.id}
         timerState={matchTimers[match.id] || null}
+        tournamentId={tournamentId}
         team1Players={playersByTeam[match.team1_id] || []}
         team2Players={playersByTeam[match.team2_id] || []}
+        numberOfFields={numberOfFields}
         onStartEdit={() => {
           if (isLocked || isMatchCompleted) {
             toast.error(isMatchCompleted ? "This match is finished" : "Complete the previous round first");
@@ -829,110 +831,129 @@ export const DoubleEliminationBracket = ({
   };
 
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
-    const MATCH_H = 108; // card height px
-    const GAP = 12; // gap between matches in same round px
+    // Use exact same layout system as Single Elimination
+    const matchHeight = 148; // same as EliminationBracket
+    const baseGap = 4;
+    const unit = matchHeight + baseGap;
+    const matchCenterY = 60; // visual center of match card (header ~20px + card center ~40px)
     const COL_W = 200;
-    const CONNECTOR_W = 28;
+    const CONNECTOR_W = 32;
+    const isLastRound = false; // connectors always drawn between bracket rounds
 
     const expectedRounds = getExpectedMatchCounts(isLosers);
-
     if (expectedRounds.length === 0) return null;
 
-    // Build a map of real matches by round
     const matchByRound = new Map<number, Match[]>();
     realMatches.forEach(m => {
       if (!matchByRound.has(m.round_number)) matchByRound.set(m.round_number, []);
       matchByRound.get(m.round_number)!.push(m);
     });
 
-    // For winners bracket: each round's column is vertically spaced proportionally
-    // We use a fixed-slot approach: slot height = (MATCH_H + GAP), slots = max matches in any round
-    const maxMatchesInRound = Math.max(...expectedRounds.map(r => r.count));
-    const SLOT_H = MATCH_H + GAP;
-    const totalContentH = maxMatchesInRound * SLOT_H;
+    // For each column, compute spacingLevel like Single Elimination does
+    // Winners: R1 has most matches, each subsequent round halves
+    // Losers: alternating minor/major rounds with different match counts
 
     return (
-      <div className="overflow-auto" style={{ maxHeight: "75vh" }}>
-        <div className="flex min-w-max" style={{ alignItems: "flex-start" }}>
+      <div className="overflow-x-auto overflow-y-auto pb-4" style={{ maxHeight: "78vh" }}>
+        <div className="flex gap-0 min-w-max px-4 pt-2" style={{ alignItems: "flex-start" }}>
           {expectedRounds.map(({ round, count }, colIdx) => {
             const realRoundMatches = (matchByRound.get(round) || [])
               .sort((a, b) => (a.field_number || 0) - (b.field_number || 0));
 
-            // Slot positions: distribute `count` slots evenly in totalContentH
-            // Center them vertically
-            const slotsForRound: number[] = [];
-            if (count === maxMatchesInRound) {
-              // First round: slots at top
-              for (let i = 0; i < count; i++) slotsForRound.push(i * SLOT_H);
-            } else {
-              // Subsequent rounds: space slots to align with pairs from previous round
-              const prevCount = expectedRounds[colIdx - 1]?.count || count * 2;
-              const prevSlotH = totalContentH / prevCount;
-              for (let i = 0; i < count; i++) {
-                const top = i * prevSlotH * 2 + (prevSlotH - SLOT_H / 2) / 2;
-                slotsForRound.push(Math.max(0, top));
+            const roundName = isLosers ? getLosersRoundName(round, totalTeams) : getWinnersRoundName(round, totalTeams);
+            const isThisLastRound = colIdx === expectedRounds.length - 1;
+
+            // Compute spacingLevel: how many doublings from base
+            // First round (most matches) has spacingLevel=0
+            // Each halving adds 1 to spacingLevel
+            // For losers bracket, consecutive rounds of same count share behavior
+            const firstRoundCount = expectedRounds[0].count;
+            // Find effective spacing based on cumulative halvings
+            let spacingLevel = 0;
+            {
+              let refCount = firstRoundCount;
+              for (let i = 0; i < colIdx; i++) {
+                const prevCount = expectedRounds[i].count;
+                const currCount = expectedRounds[i + 1]?.count ?? prevCount;
+                if (currCount < prevCount) {
+                  // count halved: increment spacing
+                  spacingLevel += Math.log2(prevCount / currCount);
+                }
+                // if same count (losers minor→major transition), keep same spacing
               }
             }
 
-            const roundName = isLosers ? getLosersRoundName(round, totalTeams) : getWinnersRoundName(round, totalTeams);
+            const verticalGap = unit * Math.pow(2, spacingLevel) - matchHeight;
+            const topOffset = unit * (Math.pow(2, spacingLevel) - 1) / 2;
 
             return (
               <div key={`${isLosers ? 'L' : 'W'}-R${round}`} className="flex flex-col" style={{ minWidth: `${COL_W + CONNECTOR_W}px` }}>
-                {/* Sticky column header */}
+                {/* Column header */}
                 <div className={cn(
-                  "sticky top-0 z-10 text-center mb-2 py-1.5 px-2 rounded-lg text-xs font-bold",
-                  isLosers ? "bg-destructive/10 border border-destructive/20 text-destructive" : "bg-primary/10 border border-primary/20 text-primary"
+                  "text-center mb-4 py-2 px-3 rounded-lg text-sm font-bold",
+                  isThisLastRound
+                    ? (isLosers ? "bg-destructive/20 border border-destructive/30 text-destructive" : "bg-primary/20 border border-primary/30 text-primary")
+                    : (isLosers ? "bg-destructive/10 border border-destructive/20 text-destructive/80" : "bg-muted/50 text-foreground")
                 )} style={{ width: COL_W }}>
                   {roundName}
                 </div>
 
-                {/* Column body with positioned matches */}
-                <div className="relative" style={{ height: totalContentH + MATCH_H, width: COL_W + CONNECTOR_W }}>
-                  {/* SVG connectors for winners bracket */}
-                  {!isLosers && colIdx < expectedRounds.length - 1 && (
+                {/* Matches column with same gap+marginTop as Single Elim */}
+                <div
+                  className="flex flex-col relative"
+                  style={{
+                    gap: `${verticalGap}px`,
+                    marginTop: `${topOffset}px`,
+                    width: `${COL_W + CONNECTOR_W}px`,
+                  }}
+                >
+                  {/* SVG connector lines */}
+                  {!isThisLastRound && (
                     <svg
-                      className="absolute pointer-events-none"
-                      style={{ left: COL_W, top: 0, width: CONNECTOR_W, height: totalContentH + MATCH_H, overflow: "visible" }}
+                      className="absolute left-full top-0 pointer-events-none"
+                      style={{ left: COL_W, width: `${CONNECTOR_W}px`, height: "100%", overflow: "visible" }}
                     >
-                      {Array.from({ length: count }).map((_, i) => {
-                        if (i % 2 !== 0) return null;
-                        const y1 = (slotsForRound[i] || 0) + MATCH_H / 2;
-                        const y2 = (slotsForRound[i + 1] || 0) + MATCH_H / 2;
-                        if (y2 === undefined || slotsForRound[i + 1] === undefined) return null;
+                      {Array.from({ length: count }).map((_, matchIndex) => {
+                        // Only draw on even indices (pair start)
+                        if (matchIndex % 2 !== 0) return null;
+                        if (matchIndex + 1 >= count) return null;
+
+                        const totalSlotHeight = matchHeight + verticalGap;
+                        const baseY = matchIndex * totalSlotHeight;
+                        const y1 = baseY + matchCenterY;
+                        const y2 = baseY + totalSlotHeight + matchCenterY;
                         const yMid = (y1 + y2) / 2;
-                        const color = "hsl(var(--primary))";
+
                         return (
-                          <g key={i}>
-                            <line x1="0" y1={y1} x2={CONNECTOR_W / 2} y2={y1} stroke={color} strokeWidth="1.5" opacity="0.35" />
-                            <line x1="0" y1={y2} x2={CONNECTOR_W / 2} y2={y2} stroke={color} strokeWidth="1.5" opacity="0.35" />
-                            <line x1={CONNECTOR_W / 2} y1={y1} x2={CONNECTOR_W / 2} y2={y2} stroke={color} strokeWidth="1.5" opacity="0.35" />
-                            <line x1={CONNECTOR_W / 2} y1={yMid} x2={CONNECTOR_W} y2={yMid} stroke={color} strokeWidth="1.5" opacity="0.35" />
+                          <g key={matchIndex} className="animate-fade-in">
+                            <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                            <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                            <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                            <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
                           </g>
                         );
                       })}
                     </svg>
                   )}
 
-                  {/* Render slots */}
+                  {/* Render match slots */}
                   {Array.from({ length: count }).map((_, slotIdx) => {
                     const realMatch = realRoundMatches[slotIdx];
-                    const top = slotsForRound[slotIdx] || 0;
 
                     if (!realMatch) {
-                      // TBD placeholder
                       return (
                         <div
                           key={`tbd-${round}-${slotIdx}`}
-                          className="absolute rounded-lg border border-dashed border-border/40 bg-muted/20 flex items-center justify-center"
-                          style={{ top, left: 0, width: COL_W, height: MATCH_H }}
+                          className="rounded-lg border border-dashed border-border/30 bg-muted/10 flex items-center justify-center"
+                          style={{ height: `${matchHeight}px`, width: COL_W }}
                         >
-                          <span className="text-xs text-muted-foreground/50 font-medium">TBD</span>
+                          <span className="text-xs text-muted-foreground/40 font-medium">TBD</span>
                         </div>
                       );
                     }
 
                     return (
-                      <div key={realMatch.id} className="absolute" style={{ top, left: 0, width: COL_W }}>
+                      <div key={realMatch.id} style={{ height: `${matchHeight}px`, width: COL_W }}>
                         {renderMatchCard(realMatch, realMatches, isLosers)}
                       </div>
                     );
