@@ -96,27 +96,30 @@ const getLosersRoundsCount = (totalTeams: number): number => {
   return (Math.log2(totalTeams) - 1) * 2;
 };
 
-const getRoundName = (roundNumber: number, totalTeams: number, isLosers: boolean) => {
-  const winnersRounds = Math.log2(totalTeams);
-
-  if (isLosers) {
-    const losersRoundsCount = getLosersRoundsCount(totalTeams);
-    if (roundNumber === losersRoundsCount) return "Losers Final";
-    if (roundNumber === losersRoundsCount - 1) return "Losers Semi";
-    const isMinor = roundNumber % 2 === 1;
-    return `L-R${roundNumber} ${isMinor ? "(Minor)" : "(Major)"}`;
-  }
-
-  if (roundNumber === winnersRounds + 2) return "Grand Final #2 (Reset)";
-  if (roundNumber === winnersRounds + 1) return "Grand Final";
-  if (roundNumber === winnersRounds) return "Winners Final";
-  if (roundNumber === winnersRounds - 1) return "Winners Semi";
-  if (roundNumber === winnersRounds - 2) {
-    if (totalTeams >= 16) return "Winners QF";
-    return "Winners Semi";
-  }
-  if (totalTeams >= 16 && roundNumber === 1) return "Round of 16";
+const getWinnersRoundName = (roundNumber: number, totalTeams: number) => {
+  const w = Math.log2(totalTeams);
+  if (roundNumber === w) return "Winners Final";
+  if (roundNumber === w - 1) return totalTeams >= 16 ? "Winners Semi" : "Winners Final";
+  if (roundNumber === w - 2 && totalTeams >= 16) return "Winners QF";
+  if (roundNumber === 1 && totalTeams >= 16) return "Round of 16";
   return `W-R${roundNumber}`;
+};
+
+const getLosersRoundName = (roundNumber: number, totalTeams: number) => {
+  const lr = getLosersRoundsCount(totalTeams);
+  if (roundNumber === lr) return "Losers Final";
+  if (roundNumber === lr - 1) return "Losers Semi";
+  // Minor rounds (odd): teams from winners drop in
+  // Major rounds (even): survivors play each other
+  const isMinor = roundNumber % 2 === 1;
+  const pairIndex = Math.ceil(roundNumber / 2);
+  // Map to winners round that feeds this losers round
+  const winnersFeederRound = pairIndex; // W-R1 → L-R1 (minor), W-R2 → L-R3 (minor), etc.
+  if (isMinor) {
+    if (roundNumber === 1) return "Losers R1";
+    return `Losers R${roundNumber}`;
+  }
+  return `Losers R${roundNumber}`;
 };
 
 export const DoubleEliminationBracket = ({
@@ -801,66 +804,139 @@ export const DoubleEliminationBracket = ({
     );
   };
 
-  const renderBracket = (bracketMatches: Match[], isLosers: boolean) => {
-    const structure = generateBracketStructure(bracketMatches);
-
-    if (structure.length === 0) {
-      return (
-        <div className="text-center py-12">
-          {isLosers ? <Skull className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" /> : <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />}
-          <p className="text-muted-foreground">
-            {isLosers ? "Complete winners bracket matches to generate losers bracket" : "No matches generated yet"}
-          </p>
-        </div>
-      );
+  // Generate expected number of matches per round for a full bracket structure
+  const getExpectedMatchCounts = (isLosers: boolean): { round: number; count: number }[] => {
+    const rounds: { round: number; count: number }[] = [];
+    if (!isLosers) {
+      // Winners: R1=8, R2=4, R3=2, R4=1 (for 16 teams)
+      for (let r = 1; r <= winnersRoundsCount; r++) {
+        rounds.push({ round: r, count: Math.pow(2, winnersRoundsCount - r) });
+      }
+    } else {
+      // Losers for 16 teams: 6 rounds
+      // L-R1(minor)=4, L-R2(major)=4, L-R3(minor)=2, L-R4(major)=2, L-R5(minor)=1, L-R6(Final)=1
+      const lrCount = getLosersRoundsCount(totalTeams);
+      for (let r = 1; r <= lrCount; r++) {
+        const isMinor = r % 2 === 1;
+        if (r === lrCount) { rounds.push({ round: r, count: 1 }); continue; }
+        // Each pair of rounds halves the count
+        const pairIdx = Math.ceil(r / 2);
+        const count = Math.pow(2, winnersRoundsCount - 1 - pairIdx);
+        rounds.push({ round: r, count: Math.max(1, count) });
+      }
     }
+    return rounds;
+  };
+
+  const renderBracket = (realMatches: Match[], isLosers: boolean) => {
+    const MATCH_H = 108; // card height px
+    const GAP = 12; // gap between matches in same round px
+    const COL_W = 200;
+    const CONNECTOR_W = 28;
+
+    const expectedRounds = getExpectedMatchCounts(isLosers);
+
+    if (expectedRounds.length === 0) return null;
+
+    // Build a map of real matches by round
+    const matchByRound = new Map<number, Match[]>();
+    realMatches.forEach(m => {
+      if (!matchByRound.has(m.round_number)) matchByRound.set(m.round_number, []);
+      matchByRound.get(m.round_number)!.push(m);
+    });
+
+    // For winners bracket: each round's column is vertically spaced proportionally
+    // We use a fixed-slot approach: slot height = (MATCH_H + GAP), slots = max matches in any round
+    const maxMatchesInRound = Math.max(...expectedRounds.map(r => r.count));
+    const SLOT_H = MATCH_H + GAP;
+    const totalContentH = maxMatchesInRound * SLOT_H;
 
     return (
-      <div className="overflow-x-auto pb-4">
-        <div className="flex gap-8 min-w-max px-4">
-          {structure.map((roundMatches, roundIndex) => {
-            const roundNumber = roundMatches[0]?.round_number || roundIndex + 1;
-            const matchHeight = 124;
-            const baseGap = 16;
-            const unit = matchHeight + baseGap;
-            const verticalGap = isLosers ? baseGap : unit * Math.pow(2, roundIndex) - matchHeight;
-            const topOffset = isLosers ? 0 : unit * (Math.pow(2, roundIndex) - 1) / 2;
+      <div className="overflow-auto" style={{ maxHeight: "75vh" }}>
+        <div className="flex min-w-max" style={{ alignItems: "flex-start" }}>
+          {expectedRounds.map(({ round, count }, colIdx) => {
+            const realRoundMatches = (matchByRound.get(round) || [])
+              .sort((a, b) => (a.field_number || 0) - (b.field_number || 0));
+
+            // Slot positions: distribute `count` slots evenly in totalContentH
+            // Center them vertically
+            const slotsForRound: number[] = [];
+            if (count === maxMatchesInRound) {
+              // First round: slots at top
+              for (let i = 0; i < count; i++) slotsForRound.push(i * SLOT_H);
+            } else {
+              // Subsequent rounds: space slots to align with pairs from previous round
+              const prevCount = expectedRounds[colIdx - 1]?.count || count * 2;
+              const prevSlotH = totalContentH / prevCount;
+              for (let i = 0; i < count; i++) {
+                const top = i * prevSlotH * 2 + (prevSlotH - SLOT_H / 2) / 2;
+                slotsForRound.push(Math.max(0, top));
+              }
+            }
+
+            const roundName = isLosers ? getLosersRoundName(round, totalTeams) : getWinnersRoundName(round, totalTeams);
 
             return (
-              <div key={`${isLosers ? 'L' : 'W'}-${roundNumber}`} className="flex flex-col" style={{ minWidth: "220px" }}>
+              <div key={`${isLosers ? 'L' : 'W'}-R${round}`} className="flex flex-col" style={{ minWidth: `${COL_W + CONNECTOR_W}px` }}>
+                {/* Sticky column header */}
                 <div className={cn(
-                  "text-center mb-4 py-2 px-4 rounded-lg",
-                  isLosers ? "bg-destructive/10 border border-destructive/20" : "bg-primary/10 border border-primary/20"
-                )}>
-                  <span className={cn("text-sm font-bold", isLosers ? "text-destructive" : "text-primary")}>
-                    {getRoundName(roundNumber, totalTeams, isLosers)}
-                  </span>
+                  "sticky top-0 z-10 text-center mb-2 py-1.5 px-2 rounded-lg text-xs font-bold",
+                  isLosers ? "bg-destructive/10 border border-destructive/20 text-destructive" : "bg-primary/10 border border-primary/20 text-primary"
+                )} style={{ width: COL_W }}>
+                  {roundName}
                 </div>
 
-                <div className="flex flex-col relative" style={{ gap: `${verticalGap}px`, marginTop: `${topOffset}px` }}>
+                {/* Column body with positioned matches */}
+                <div className="relative" style={{ height: totalContentH + MATCH_H, width: COL_W + CONNECTOR_W }}>
                   {/* SVG connectors for winners bracket */}
-                  {!isLosers && (
-                    <svg className="absolute left-full top-0 pointer-events-none" style={{ width: "32px", height: "100%", overflow: "visible" }}>
-                      {roundMatches.map((_, matchIndex) => {
-                        if (matchIndex % 2 !== 0 || matchIndex + 1 >= roundMatches.length) return null;
-                        const totalHeight = matchHeight + verticalGap;
-                        const baseY = matchIndex * totalHeight;
-                        const y1 = baseY + matchHeight / 2;
-                        const y2 = baseY + totalHeight + matchHeight / 2;
+                  {!isLosers && colIdx < expectedRounds.length - 1 && (
+                    <svg
+                      className="absolute pointer-events-none"
+                      style={{ left: COL_W, top: 0, width: CONNECTOR_W, height: totalContentH + MATCH_H, overflow: "visible" }}
+                    >
+                      {Array.from({ length: count }).map((_, i) => {
+                        if (i % 2 !== 0) return null;
+                        const y1 = (slotsForRound[i] || 0) + MATCH_H / 2;
+                        const y2 = (slotsForRound[i + 1] || 0) + MATCH_H / 2;
+                        if (y2 === undefined || slotsForRound[i + 1] === undefined) return null;
                         const yMid = (y1 + y2) / 2;
                         const color = "hsl(var(--primary))";
                         return (
-                          <g key={matchIndex} className="animate-fade-in">
-                            <line x1="0" y1={y1} x2="16" y2={y1} stroke={color} strokeWidth="2" className="opacity-30" />
-                            <line x1="0" y1={y2} x2="16" y2={y2} stroke={color} strokeWidth="2" className="opacity-30" />
-                            <line x1="16" y1={y1} x2="16" y2={y2} stroke={color} strokeWidth="2" className="opacity-30" />
-                            <line x1="16" y1={yMid} x2="32" y2={yMid} stroke={color} strokeWidth="2" className="opacity-30" />
+                          <g key={i}>
+                            <line x1="0" y1={y1} x2={CONNECTOR_W / 2} y2={y1} stroke={color} strokeWidth="1.5" opacity="0.35" />
+                            <line x1="0" y1={y2} x2={CONNECTOR_W / 2} y2={y2} stroke={color} strokeWidth="1.5" opacity="0.35" />
+                            <line x1={CONNECTOR_W / 2} y1={y1} x2={CONNECTOR_W / 2} y2={y2} stroke={color} strokeWidth="1.5" opacity="0.35" />
+                            <line x1={CONNECTOR_W / 2} y1={yMid} x2={CONNECTOR_W} y2={yMid} stroke={color} strokeWidth="1.5" opacity="0.35" />
                           </g>
                         );
                       })}
                     </svg>
                   )}
-                  {roundMatches.map(match => renderMatchCard(match, bracketMatches, isLosers))}
+
+                  {/* Render slots */}
+                  {Array.from({ length: count }).map((_, slotIdx) => {
+                    const realMatch = realRoundMatches[slotIdx];
+                    const top = slotsForRound[slotIdx] || 0;
+
+                    if (!realMatch) {
+                      // TBD placeholder
+                      return (
+                        <div
+                          key={`tbd-${round}-${slotIdx}`}
+                          className="absolute rounded-lg border border-dashed border-border/40 bg-muted/20 flex items-center justify-center"
+                          style={{ top, left: 0, width: COL_W, height: MATCH_H }}
+                        >
+                          <span className="text-xs text-muted-foreground/50 font-medium">TBD</span>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={realMatch.id} className="absolute" style={{ top, left: 0, width: COL_W }}>
+                        {renderMatchCard(realMatch, realMatches, isLosers)}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -957,12 +1033,7 @@ export const DoubleEliminationBracket = ({
               <h3 className="text-lg font-semibold text-destructive">Losers Bracket</h3>
               <span className="text-sm text-muted-foreground">({losersMatches.length} matches)</span>
             </div>
-            {losersMatches.length === 0 ? (
-              <div className="text-center py-12">
-                <Skull className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-30" />
-                <p className="text-muted-foreground">Complete Round 1 of the Winners Bracket to generate the Losers Bracket</p>
-              </div>
-            ) : renderBracket(losersMatches, true)}
+            {renderBracket(losersMatches, true)}
           </TabsContent>
 
           <TabsContent value="finals">
