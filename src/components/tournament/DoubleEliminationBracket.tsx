@@ -591,18 +591,38 @@ export const DoubleEliminationBracket = ({
         const currentRoundMatches = winnersBracket.filter(m => m.round_number === roundNumber);
         const allCompleted = currentRoundMatches.every(m => m.winner_id);
 
-        // Advance winners to next round ONLY when the ENTIRE round is done
-        // Pair: match[0] winner vs match[1] winner, match[2] winner vs match[3] winner, etc.
+      // Advance winners to next round ONLY when the ENTIRE round is done
+        // Use standard bracket pairing: same recursive logic as seeding
+        // For 8 matches: pairs are (0,7),(1,6),(2,5),(3,4) → winners[0] vs winners[7], etc.
         if (allCompleted && currentRoundMatches.length >= 2) {
           const nextRound = roundNumber + 1;
           const existingNext = winnersBracket.filter(m => m.round_number === nextRound);
 
-          for (let i = 0; i < currentRoundMatches.length; i += 2) {
-            if (i + 1 >= currentRoundMatches.length) break;
-            const w1 = currentRoundMatches[i].winner_id;
-            const w2 = currentRoundMatches[i + 1].winner_id;
-            if (!w1 || !w2) continue;
-            // Check if this specific pairing already exists
+          // Sort by field_number to get deterministic order (field_number was assigned sequentially at creation)
+          const sortedRound = [...currentRoundMatches].sort((a, b) => (a.field_number || 0) - (b.field_number || 0));
+          const winners = sortedRound.map(m => m.winner_id!);
+          const n = winners.length;
+
+          // Apply standard bracket pairing recursively: top[i] vs bottom[i] (bottom reversed)
+          const pairWinners = (ws: string[]): [string, string][] => {
+            if (ws.length === 2) return [[ws[0], ws[1]]];
+            const half = ws.length / 2;
+            const top = ws.slice(0, half);
+            const bottom = ws.slice(half).reverse();
+            const result: [string, string][] = [];
+            const topPairs = pairWinners(top);
+            const bottomPairs = pairWinners(bottom);
+            for (let i = 0; i < topPairs.length; i++) {
+              result.push(topPairs[i]);
+              result.push(bottomPairs[i]);
+            }
+            return result;
+          };
+
+          const nextPairs = pairWinners(winners);
+          nextPairs.forEach((pair, idx) => {
+            const [w1, w2] = pair;
+            if (!w1 || !w2) return;
             const exists = existingNext.some(m =>
               (m.team1_id === w1 && m.team2_id === w2) || (m.team1_id === w2 && m.team2_id === w1)
             );
@@ -611,10 +631,10 @@ export const DoubleEliminationBracket = ({
                 tournament_id: tournamentId, phase: "double_elimination",
                 round_number: nextRound, team1_id: w1, team2_id: w2,
                 is_third_place_match: false,
-                field_number: (Math.floor(i / 2) % (numberOfFields || 1)) + 1,
+                field_number: idx + 1,
               });
             }
-          }
+          });
         }
 
         // ---- INJECT LOSER INTO LOSERS BRACKET ----
