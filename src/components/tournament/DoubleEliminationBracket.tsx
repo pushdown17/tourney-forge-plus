@@ -657,26 +657,26 @@ export const DoubleEliminationBracket = ({
             }
           }
         } else {
-          // W-R2+: loser drops into L "major" round = (roundNumber - 1) * 2
-          // This major round pairs the dropping loser vs a survivor from the previous L minor round
+          // W-R2+: loser drops into L "major" round
+          // W-R2 losers → L-R2, W-R3 losers → L-R4, W-R4 losers → L-R6
+          // Formula: W-Rk loser → L-R(2*(k-1))
           const droppingLoser = loserId;
           const targetLosersRound = (roundNumber - 1) * 2;
           const prevMinorRound = targetLosersRound - 1;
 
-          // Find the minor-round survivor that is "paired" with this dropping loser
-          // The pairing: W losers drop in reverse order vs L minor survivors in order
-          // e.g., for W-R2 (2 losers dropping into L-R2): loser[0] vs minorSurvivor[1], loser[1] vs minorSurvivor[0]
+          // Get all W losers from this round sorted by field_number
           const allCurrentRoundLosers = currentRoundMatches
-            .filter(m => m.winner_id)
+            .sort(sortFn)
             .map(m => m.winner_id === m.team1_id ? m.team2_id : m.team1_id);
           const myLoserIndex = allCurrentRoundLosers.indexOf(droppingLoser);
 
+          // Get L minor survivors from previous minor round, sorted
           const prevMinorMatches = losersBracket.filter(m => m.round_number === prevMinorRound).sort(sortFn);
           const minorSurvivors = prevMinorMatches.filter(m => m.winner_id).map(m => m.winner_id!);
 
-          const totalLosersInRound = currentRoundMatches.length;
-          const pairedSurvivorIndex = totalLosersInRound - 1 - myLoserIndex;
-          const pairedSurvivor = minorSurvivors[pairedSurvivorIndex];
+          // Pair: W-loser[i] vs L-minor-survivor[i] (direct pairing, same index)
+          // This pairs M1 loser with M1 survivor, M2 loser with M2 survivor, etc.
+          const pairedSurvivor = minorSurvivors[myLoserIndex];
 
           if (pairedSurvivor && !matchExists(losersBracket, targetLosersRound, droppingLoser, pairedSurvivor)) {
             matchesToCreate.push({
@@ -690,10 +690,20 @@ export const DoubleEliminationBracket = ({
 
       } else {
         // ========== LOSERS BRACKET ==========
-        // Like single elimination within the losers bracket.
-        // After each win, pair the winner with the next available opponent:
-        //   - Minor rounds (odd L-R): teams from W drop in → winner advances to next major round
-        //   - Major rounds (even L-R): survivors play each other → winner advances to next minor round
+        // Structure for 16 teams (losersRoundsCount = 8):
+        //   L-R1 (minor, 4 matches): losers from W-R1 play each other
+        //   L-R2 (major, 4 matches): L-R1 survivors vs W-R2 (QF) losers
+        //   L-R3 (minor, 2 matches): L-R2 survivors play each other
+        //   L-R4 (major, 2 matches): L-R3 survivors vs W-R3 (Semi) losers
+        //   L-R5 (minor, 1 match):  L-R4 survivors play each other
+        //   L-R6 (major, 1 match):  L-R5 survivor vs W-R4 (Final) loser → Losers Final
+        //
+        // ODD rounds (minor): survivors of previous major round play each other
+        // EVEN rounds (major): minor survivors wait for W dropin
+        //
+        // After a MAJOR round win → check if partner major match done → create next MINOR round
+        // After a MINOR round win → W dropin handles creating the MAJOR match (handled in W side)
+        //                           BUT also check if W dropin already exists in next major round
 
         const currentLosersRound = losersBracket.filter(m => m.round_number === roundNumber).sort(sortFn);
         const myIndex = currentLosersRound.findIndex(m => m.id === completedMatch.id);
@@ -702,11 +712,32 @@ export const DoubleEliminationBracket = ({
         const nextRound = roundNumber + 1;
 
         if (roundNumber < losersRoundsCount) {
-          if (!isMinorRound) {
-            // Major round: pair consecutive winners → next minor round
+          if (isMinorRound) {
+            // Minor round completed: winner needs to go to next MAJOR round
+            // The W dropin for that major round may already be waiting (from W side)
+            // Try to pair this winner with the already-dropped W loser
+            const nextMajorRound = nextRound; // e.g. L-R1 winner → L-R2
+            const existingNextMajorMatches = losersBracket.filter(m => m.round_number === nextMajorRound);
+
+            // Find if there's already a W dropin match created for this slot
+            // The pairing order: L-R minor winner[i] gets paired with W-dropin[reverseIndex]
+            // We check if a match in next major round is missing one side (i.e., a placeholder slot)
+            // Actually, the W-side creates L-R(major) matches when it drops. 
+            // We only need to act if the W-dropin match for THIS survivor is already waiting.
+            // This is covered by W-side logic, so nothing extra needed here.
+
+            // HOWEVER: for the special case where L-Rminor is between two L survivors 
+            // (not W-dropins), the winner directly advances to the next major.
+            // This is already handled on the W side when a W loser drops.
+          } else {
+            // Major round completed: both teams in this match were either W-dropins or L-survivors
+            // Winner advances to next MINOR round (survivors play each other)
+            // We need to pair consecutive major-round winners
             const partnerIndex = myIndex % 2 === 0 ? myIndex + 1 : myIndex - 1;
             const partnerMatch = currentLosersRound[partnerIndex];
+
             if (partnerMatch?.winner_id) {
+              // Both paired major matches done → create next minor match
               const w1 = myIndex % 2 === 0 ? winnerId : partnerMatch.winner_id;
               const w2 = myIndex % 2 === 0 ? partnerMatch.winner_id : winnerId;
               if (!matchExists(losersBracket, nextRound, w1, w2)) {
@@ -717,13 +748,14 @@ export const DoubleEliminationBracket = ({
                   field_number: Math.floor(myIndex / 2) + 1,
                 });
               }
+            } else {
+              // Partner not done yet, but check: if this major round has only 1 match total
+              // (e.g. L-R6 final), then this winner IS the Losers Final winner
+              if (currentLosersRound.length === 1) {
+                // Single match in this major round = this IS the Losers Final
+                // Grand final check is handled below
+              }
             }
-          }
-          // Minor round: winner waits for W dropin to pair them (handled in W side)
-          // But if all minor matches done, check if we need to pair with W dropin already available
-          if (isMinorRound) {
-            // Check if there's a W dropin waiting in the next major round already
-            // (handled on W side), nothing to do here
           }
         }
 
