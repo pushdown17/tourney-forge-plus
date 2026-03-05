@@ -403,34 +403,32 @@ export const DoubleEliminationBracket = ({
         const targetLosersRound = (wRound - 1) * 2; // W-R2→L-R2, W-R3→L-R4...
         const prevMinorRound = targetLosersRound - 1;
 
-        // Check if prev minor round is complete (all existing matches have winners)
-        const existingPrevMinor = [...losersBracket, ...matchesToCreate.map(m => ({ ...m, winner_id: null }))].filter(
-          (m: any) => m.is_third_place_match && m.round_number === prevMinorRound
-        );
-        const prevMinorComplete = existingPrevMinor.length > 0 && existingPrevMinor.every((m: any) => m.winner_id);
+        // Get minor round survivors sorted by field_number (null if not done yet)
+        const existingPrevMinor = [...losersBracket, ...matchesToCreate]
+          .filter((m: any) => m.is_third_place_match && m.round_number === prevMinorRound)
+          .sort((a: any, b: any) => (a.field_number || 0) - (b.field_number || 0));
+        const minorSurvivors = existingPrevMinor.map((m: any) => m.winner_id || null);
 
-        if (prevMinorComplete) {
-          const minorSurvivors = existingPrevMinor
-            .sort((a: any, b: any) => (a.field_number || 0) - (b.field_number || 0))
-            .map((m: any) => m.winner_id);
-
-          if (minorSurvivors.length === droppingLosers.length) {
-            const existingMajor = losersBracket.filter((m: any) => m.round_number === targetLosersRound);
-            for (let i = 0; i < droppingLosers.length; i++) {
-              const dl = droppingLosers[i];
-              const ms = minorSurvivors[i];
-              const exists = existingMajor.some((m: any) =>
-                (m.team1_id === dl && m.team2_id === ms) || (m.team1_id === ms && m.team2_id === dl)
-              );
-              if (!exists && dl && ms) {
-                matchesToCreate.push({
-                  tournament_id: tournamentId, phase: "double_elimination",
-                  round_number: targetLosersRound, team1_id: dl, team2_id: ms,
-                  is_third_place_match: true,
-                  field_number: i % (numberOfFields || 1) + 1,
-                });
-              }
-            }
+        // Pair each W-loser[i] with L-minor-survivor[i], ONLY when BOTH are available
+        const existingMajor = losersBracket.filter((m: any) => m.round_number === targetLosersRound);
+        for (let i = 0; i < droppingLosers.length; i++) {
+          const dl = droppingLosers[i];
+          const ms = minorSurvivors[i];
+          if (!dl || !ms) continue;
+          const exists = existingMajor.some((m: any) =>
+            (m.team1_id === dl && m.team2_id === ms) || (m.team1_id === ms && m.team2_id === dl)
+          );
+          const alreadyQueued = matchesToCreate.some((m: any) =>
+            m.round_number === targetLosersRound &&
+            ((m.team1_id === dl && m.team2_id === ms) || (m.team1_id === ms && m.team2_id === dl))
+          );
+          if (!exists && !alreadyQueued) {
+            matchesToCreate.push({
+              tournament_id: tournamentId, phase: "double_elimination",
+              round_number: targetLosersRound, team1_id: dl, team2_id: ms,
+              is_third_place_match: true,
+              field_number: i % (numberOfFields || 1) + 1,
+            });
           }
         }
       }
@@ -660,26 +658,24 @@ export const DoubleEliminationBracket = ({
           // W-R2+: loser drops into L "major" round
           // W-R2 losers → L-R2, W-R3 losers → L-R4, W-R4 losers → L-R6
           // Formula: W-Rk loser → L-R(2*(k-1))
-          const droppingLoser = loserId;
           const targetLosersRound = (roundNumber - 1) * 2;
           const prevMinorRound = targetLosersRound - 1;
 
-          // Get all W losers from this round sorted by field_number
+          // Get ALL W losers from this round sorted by field_number (including not-yet-completed ones)
           const allCurrentRoundLosers = currentRoundMatches
             .sort(sortFn)
-            .map(m => m.winner_id === m.team1_id ? m.team2_id : m.team1_id);
-          const myLoserIndex = allCurrentRoundLosers.indexOf(droppingLoser);
+            .map(m => m.winner_id ? (m.winner_id === m.team1_id ? m.team2_id : m.team1_id) : null);
 
-          // Get L minor survivors from previous minor round, sorted
+          // Get L minor survivors from previous minor round, sorted by field_number
           const prevMinorMatches = losersBracket.filter(m => m.round_number === prevMinorRound).sort(sortFn);
-          const minorSurvivors = prevMinorMatches.filter(m => m.winner_id).map(m => m.winner_id!);
+          const minorSurvivors = prevMinorMatches.map(m => m.winner_id || null);
 
-          // Pair each W-loser[i] with the available L-minor-survivor[i]
-          // Create ALL available pairings, not just this one loser's slot
+          // Only create a major match when BOTH the W-loser[i] AND L-minor-survivor[i] are available
           const existingMajor = losersBracket.filter(m => m.round_number === targetLosersRound);
           for (let i = 0; i < allCurrentRoundLosers.length; i++) {
             const dl = allCurrentRoundLosers[i];
             const ms = minorSurvivors[i];
+            // BOTH must be available - no match without both opponents
             if (!dl || !ms) continue;
             if (!matchExists(existingMajor, targetLosersRound, dl, ms) && !matchExists(matchesToCreate, targetLosersRound, dl, ms)) {
               matchesToCreate.push({
@@ -725,19 +721,22 @@ export const DoubleEliminationBracket = ({
             // Which Winners round feeds this major round?
             const wFeederRound = nextMajorRound / 2 + 1; // L-R2 ← W-R2, L-R4 ← W-R3
 
-            // Get all minor round winners sorted by field_number
-            const allMinorMatches = currentLosersRound.filter(m => m.winner_id).sort(sortFn);
-            const allMinorWinners = allMinorMatches.map(m => m.winner_id!);
-            // Include current completed match
-            if (!allMinorWinners.includes(winnerId!)) allMinorWinners.splice(myIndex, 0, winnerId!);
+            // Get all minor round matches sorted by field_number, map winner (or null if not done)
+            const allMinorMatches = currentLosersRound.sort(sortFn);
+            const allMinorWinners = allMinorMatches.map(m => {
+              if (m.id === completedMatch.id) return winnerId;
+              return m.winner_id || null;
+            });
 
-            // Get W-losers from the feeder Winners round, sorted by field_number
-            const wFeederMatches = winnersBracket.filter(m => m.round_number === wFeederRound && m.winner_id).sort(sortFn);
-            const wDropinLosers = wFeederMatches.map(m => m.winner_id === m.team1_id ? m.team2_id : m.team1_id);
+            // Get W-losers from the feeder Winners round: include all matches (use null if not complete)
+            const wFeederMatches = winnersBracket.filter(m => m.round_number === wFeederRound).sort(sortFn);
+            const wDropinLosers = wFeederMatches.map(m =>
+              m.winner_id ? (m.winner_id === m.team1_id ? m.team2_id : m.team1_id) : null
+            );
 
-            // For each available pair (minor survivor[i] + w-dropin[i]), create if not exists
+            // Only create a match when BOTH the minor-survivor[i] AND w-dropin[i] are available
             const existingMajor = losersBracket.filter(m => m.round_number === nextMajorRound);
-            for (let i = 0; i < Math.min(allMinorWinners.length, wDropinLosers.length); i++) {
+            for (let i = 0; i < allMinorWinners.length; i++) {
               const ms = allMinorWinners[i];
               const wl = wDropinLosers[i];
               if (!ms || !wl) continue;
