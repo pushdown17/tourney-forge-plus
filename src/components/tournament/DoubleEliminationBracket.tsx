@@ -350,41 +350,49 @@ export const DoubleEliminationBracket = ({
       const winnersRoundsCount = Math.log2(totalTeams);
       const losersRoundsCount = getLosersRoundsCount(totalTeams);
 
-      // Sort by creation order to preserve original seeding
+      // Sort winners bracket by field_number to preserve seeding order (M1=field1, M2=field2...)
       const winnersBracket = allMatchesData
         .filter(m => !m.is_third_place_match && m.round_number <= winnersRoundsCount)
-        .sort((a: any, b: any) => a.created_at.localeCompare(b.created_at));
+        .sort((a: any, b: any) => (a.field_number || 0) - (b.field_number || 0));
       const losersBracket = allMatchesData
         .filter(m => m.is_third_place_match)
-        .sort((a: any, b: any) => a.created_at.localeCompare(b.created_at));
+        .sort((a: any, b: any) => (a.field_number || 0) - (b.field_number || 0));
 
       const matchesToCreate: any[] = [];
 
-      // --- Repair L-R1: pair up losers from completed W-R1 matches ---
-      const completedR1 = winnersBracket
-        .filter(m => m.round_number === 1 && m.winner_id);
+      // --- Repair L-R1: pair up losers from completed W-R1 matches using spread logic ---
+      // W-R1 has N matches sorted by field_number. Spread: M1 loser vs MN loser, M2 loser vs M(N-1) loser...
+      // Only create an L-R1 match when BOTH partners in a spread pair have completed their W-R1 match.
+      const allR1 = winnersBracket.filter(m => m.round_number === 1);
+      const totalR1 = allR1.length; // e.g. 8 for 16 teams
 
-      if (completedR1.length >= 2) {
-        const allR1Losers = completedR1.map((m: any) =>
-          m.winner_id === m.team1_id ? m.team2_id : m.team1_id
+      for (let i = 0; i < Math.floor(totalR1 / 2); i++) {
+        const mLow = allR1[i];           // M1, M2, M3, M4
+        const mHigh = allR1[totalR1 - 1 - i]; // M8, M7, M6, M5
+
+        // Only create the L-R1 match if BOTH W-R1 matches are completed
+        if (!mLow?.winner_id || !mHigh?.winner_id) continue;
+
+        const l1 = mLow.winner_id === mLow.team1_id ? mLow.team2_id : mLow.team1_id;
+        const l2 = mHigh.winner_id === mHigh.team1_id ? mHigh.team2_id : mHigh.team1_id;
+
+        if (!l1 || !l2) continue;
+
+        const exists = losersBracket.some((m: any) =>
+          m.round_number === 1 &&
+          ((m.team1_id === l1 && m.team2_id === l2) || (m.team1_id === l2 && m.team2_id === l1))
         );
-        const n = allR1Losers.length;
-        for (let i = 0; i < Math.floor(n / 2); i++) {
-          const l1 = allR1Losers[i];
-          const l2 = allR1Losers[n - 1 - i];
-          if (!l1 || !l2) continue;
-          const exists = losersBracket.some((m: any) =>
-            m.round_number === 1 &&
-            ((m.team1_id === l1 && m.team2_id === l2) || (m.team1_id === l2 && m.team2_id === l1))
-          );
-          if (!exists) {
-            matchesToCreate.push({
-              tournament_id: tournamentId, phase: "double_elimination",
-              round_number: 1, team1_id: l1, team2_id: l2,
-              is_third_place_match: true,
-              field_number: (i % (numberOfFields || 1)) + 1,
-            });
-          }
+        const alreadyQueued = matchesToCreate.some((m: any) =>
+          m.round_number === 1 &&
+          ((m.team1_id === l1 && m.team2_id === l2) || (m.team1_id === l2 && m.team2_id === l1))
+        );
+        if (!exists && !alreadyQueued) {
+          matchesToCreate.push({
+            tournament_id: tournamentId, phase: "double_elimination",
+            round_number: 1, team1_id: l1, team2_id: l2,
+            is_third_place_match: true,
+            field_number: i + 1,
+          });
         }
       }
 
