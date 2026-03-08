@@ -1243,6 +1243,12 @@ export const DoubleEliminationBracket = ({
       matchByRound.get(m.round_number)!.push(m);
     });
 
+    // Pre-compute pending teams for every round
+    const pendingByRound = new Map<number, ReturnType<typeof getPendingTeamsForRound>>();
+    getExpectedMatchCounts(isLosers).forEach(({ round }) => {
+      pendingByRound.set(round, getPendingTeamsForRound(isLosers, round));
+    });
+
     // For each column, compute spacingLevel like Single Elimination does
     // Winners: R1 has most matches, each subsequent round halves
     // Losers: alternating minor/major rounds with different match counts
