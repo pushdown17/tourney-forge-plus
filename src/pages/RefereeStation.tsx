@@ -981,7 +981,7 @@ const RefereeStation = () => {
     // This prevents draws (no winner_id but with scores) from being re-selected
     const { data: allMatches } = await supabase
       .from("matches")
-      .select("id, team1_id, team2_id, winner_id, team1_score, team2_score, round_number, field_number")
+      .select("id, team1_id, team2_id, winner_id, team1_score, team2_score, round_number, field_number, is_third_place_match")
       .eq("tournament_id", station.tournament_id)
       .eq("phase", currentPhase)
       .is("team1_score", null)
@@ -1016,7 +1016,17 @@ const RefereeStation = () => {
       if (a.round_number === 99 && b.round_number === 99) {
         return (b.field_number || 0) - (a.field_number || 0);
       }
-      return 0; // preserve DB order for other matches
+      // For double elimination: Winners bracket matches (is_third_place_match=false) 
+      // must always come before Losers bracket matches (is_third_place_match=true)
+      if (currentPhase === 'double_elimination') {
+        const aIsLoser = a.is_third_place_match ? 1 : 0;
+        const bIsLoser = b.is_third_place_match ? 1 : 0;
+        if (aIsLoser !== bIsLoser) return aIsLoser - bIsLoser;
+        // Within the same bracket, sort by round then field_number
+        if (a.round_number !== b.round_number) return a.round_number - b.round_number;
+        return (a.field_number || 0) - (b.field_number || 0);
+      }
+      return 0; // preserve DB order for other phases
     });
 
     const nextMatch = availableMatches[0] || null;
