@@ -1343,28 +1343,57 @@ export const DoubleEliminationBracket = ({
                     const realMatch = realRoundMatches[slotIdx];
 
                     if (!realMatch) {
-                      // For Losers R1, show pending loser waiting for spread partner
-                      const pendingLoser = (isLosers && round === 1) ? pendingLosersR1.get(slotIdx) : undefined;
+                      const pendingSlot = pendingByRound.get(round)?.get(slotIdx);
+                      const t1 = pendingSlot?.team1 ?? null;
+                      const t2 = pendingSlot?.team2 ?? null;
+                      const hasPending = !!(t1 || t2);
+                      const isLoserSlot = isLosers;
+
                       return (
                         <div
                           key={`tbd-${round}-${slotIdx}`}
                           className={cn(
                             "rounded-lg border flex flex-col justify-center px-3",
-                            pendingLoser
-                              ? "border-destructive/40 bg-destructive/5"
+                            hasPending
+                              ? (isLoserSlot ? "border-destructive/40 bg-destructive/5" : "border-primary/30 bg-primary/5")
                               : "border-dashed border-border/30 bg-muted/10 items-center"
                           )}
                           style={{ height: `${matchHeight}px`, width: COL_W }}
                         >
-                          {pendingLoser ? (
+                          {hasPending ? (
                             <>
-                              <p className="text-xs text-muted-foreground mb-2 font-medium">Waiting for opponent…</p>
-                              <div className="flex items-center gap-2 py-1.5 px-2 rounded bg-destructive/10 border border-destructive/20">
-                                <Skull className="h-3 w-3 text-destructive shrink-0" />
-                                <span className="text-sm font-semibold text-foreground truncate">{pendingLoser.name}</span>
+                              <p className="text-xs text-muted-foreground mb-1.5 font-medium">En attente…</p>
+                              {/* Team 1 slot */}
+                              <div className={cn(
+                                "flex items-center gap-2 py-1.5 px-2 rounded border mb-1",
+                                t1
+                                  ? (isLoserSlot ? "bg-destructive/10 border-destructive/20" : "bg-primary/10 border-primary/20")
+                                  : "bg-muted/20 border-dashed border-border/30"
+                              )}>
+                                {t1 ? (
+                                  <>
+                                    {isLoserSlot && <Skull className="h-3 w-3 text-destructive shrink-0" />}
+                                    <span className="text-sm font-semibold text-foreground truncate">{t1.name}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic">TBD</span>
+                                )}
                               </div>
-                              <div className="flex items-center gap-2 py-1.5 px-2 rounded bg-muted/30 border border-dashed border-border/30 mt-1">
-                                <span className="text-xs text-muted-foreground">vs TBD</span>
+                              {/* Team 2 slot */}
+                              <div className={cn(
+                                "flex items-center gap-2 py-1.5 px-2 rounded border",
+                                t2
+                                  ? (isLoserSlot ? "bg-destructive/10 border-destructive/20" : "bg-primary/10 border-primary/20")
+                                  : "bg-muted/20 border-dashed border-border/30"
+                              )}>
+                                {t2 ? (
+                                  <>
+                                    {isLoserSlot && <Skull className="h-3 w-3 text-destructive shrink-0" />}
+                                    <span className="text-sm font-semibold text-foreground truncate">{t2.name}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic">TBD</span>
+                                )}
                               </div>
                             </>
                           ) : (
