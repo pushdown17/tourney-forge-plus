@@ -1327,11 +1327,13 @@ export const DoubleEliminationBracket = ({
         if (count > 0) rounds.push({ round: r, count });
       }
     } else {
-      // Losers bracket sizes based on bracketSize
-      const lrCount = getLosersRoundsCount(bracketSize);
+      // Losers bracket sizes based on bracketSize (for play-in: use byeCount-aware count)
+      const lrCount = getLosersRoundsCount(bracketSize, byeCount);
+      // For play-in brackets, effective winners rounds = log2(bracketSize/2)
+      const effectiveWRounds = byeCount > 0 ? winnersRoundsCount - 1 : winnersRoundsCount;
       for (let r = 1; r <= lrCount; r++) {
         const pairIdx = Math.ceil(r / 2);
-        const count = Math.max(1, Math.pow(2, winnersRoundsCount - 1 - pairIdx));
+        const count = Math.max(1, Math.pow(2, effectiveWRounds - 1 - pairIdx));
         rounds.push({ round: r, count });
       }
     }
