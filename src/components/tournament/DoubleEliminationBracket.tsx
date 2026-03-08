@@ -1520,12 +1520,76 @@ export const DoubleEliminationBracket = ({
               )}
             </div>
 
-            {grandFinalMatches.length === 0 ? (
-              <div className="text-center py-12">
-                <Trophy className="h-12 w-12 text-yellow-500/30 mx-auto mb-4" />
-                <p className="text-muted-foreground">The Grand Final will be generated once both brackets have a champion</p>
-              </div>
-            ) : (
+            {grandFinalMatches.length === 0 ? (() => {
+              // Show pending Grand Final with known teams
+              const winnersChampion = winnersMatches.find(m => m.round_number === winnersRoundsCount && m.winner_id);
+              const losersChampion = losersMatches.find(m => m.round_number === getLosersRoundsCount(totalTeams) && m.winner_id);
+              const wTeam = winnersChampion ? (winnersChampion.winner_id === winnersChampion.team1_id ? winnersChampion.team1 : winnersChampion.team2) : null;
+              const lTeam = losersChampion ? (losersChampion.winner_id === losersChampion.team1_id ? losersChampion.team1 : losersChampion.team2) : null;
+
+              return (
+                <div className="flex flex-col items-center gap-6 max-w-sm mx-auto">
+                  <div className="text-center text-xs text-muted-foreground mb-0 font-medium">Grand Final</div>
+                  {/* Pending Grand Final card */}
+                  <div className="w-full rounded-xl border-2 border-yellow-500/40 bg-yellow-500/5 overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 border-b border-yellow-500/20">
+                      <Trophy className="h-4 w-4 text-yellow-500" />
+                      <span className="text-sm font-bold text-yellow-500">Grande Finale</span>
+                    </div>
+                    <div className="p-4 flex flex-col gap-2">
+                      {/* Winners side */}
+                      <div className={cn(
+                        "flex items-center gap-2 py-2 px-3 rounded-lg border",
+                        wTeam ? "bg-primary/10 border-primary/30" : "bg-muted/20 border-dashed border-border/30"
+                      )}>
+                        <Shield className="h-3.5 w-3.5 text-primary shrink-0" />
+                        {wTeam ? (
+                          <span className="text-sm font-semibold text-foreground truncate">{wTeam.name}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">En attente du champion Winners…</span>
+                        )}
+                      </div>
+                      <div className="text-center text-xs text-muted-foreground font-bold">VS</div>
+                      {/* Losers side */}
+                      <div className={cn(
+                        "flex items-center gap-2 py-2 px-3 rounded-lg border",
+                        lTeam ? "bg-destructive/10 border-destructive/30" : "bg-muted/20 border-dashed border-border/30"
+                      )}>
+                        <Skull className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        {lTeam ? (
+                          <span className="text-sm font-semibold text-foreground truncate">{lTeam.name}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">En attente du champion Losers…</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="px-4 pb-3">
+                      <p className="text-xs text-muted-foreground/70 text-center leading-relaxed">
+                        Si le champion Winners gagne → 🏆 Champion<br/>
+                        Si le champion Losers gagne → 🔁 Bracket Reset (M2)
+                      </p>
+                    </div>
+                  </div>
+                  {/* Reset placeholder */}
+                  <div className="w-full rounded-xl border border-dashed border-destructive/30 bg-destructive/5 overflow-hidden opacity-60">
+                    <div className="flex items-center gap-2 px-4 py-2 border-b border-destructive/20">
+                      <RotateCcw className="h-3.5 w-3.5 text-destructive" />
+                      <span className="text-sm font-semibold text-destructive/80">Bracket Reset (M2)</span>
+                      <span className="text-xs text-muted-foreground ml-auto">Si nécessaire</span>
+                    </div>
+                    <div className="p-4 flex flex-col gap-2">
+                      <div className="flex items-center gap-2 py-2 px-3 rounded-lg border bg-muted/10 border-dashed border-border/30">
+                        <span className="text-xs text-muted-foreground italic">TBD</span>
+                      </div>
+                      <div className="text-center text-xs text-muted-foreground font-bold">VS</div>
+                      <div className="flex items-center gap-2 py-2 px-3 rounded-lg border bg-muted/10 border-dashed border-border/30">
+                        <span className="text-xs text-muted-foreground italic">TBD</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })() : (
               <div className="flex flex-col items-center gap-6 max-w-sm mx-auto">
                 {grandFinalMatches.map((gf, idx) => {
                   const isResetMatch = gf.round_number === winnersRoundsCount + 2;
