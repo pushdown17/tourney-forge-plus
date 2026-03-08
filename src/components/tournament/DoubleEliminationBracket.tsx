@@ -374,7 +374,7 @@ export const DoubleEliminationBracket = ({
           .order("round_number", { ascending: true }),
         supabase
           .from("team_stats")
-          .select("team_id, points, goals_for, goals_against")
+          .select(`team_id, points, goals_for, goals_against, team:team_id(id, name)`)
           .eq("tournament_id", tournamentId)
           .order("points", { ascending: false })
           .order("goals_for", { ascending: false })
@@ -383,11 +383,16 @@ export const DoubleEliminationBracket = ({
       if (matchesResult.error) throw matchesResult.error;
 
       const seedMap = new Map<string, number>();
+      const orderedTeams: { teamId: string; name: string }[] = [];
       if (standingsResult.data) {
-        standingsResult.data.forEach((stat, index) => {
+        standingsResult.data.forEach((stat: any, index) => {
           seedMap.set(stat.team_id, index + 1);
+          if (stat.team?.name) {
+            orderedTeams.push({ teamId: stat.team_id, name: stat.team.name });
+          }
         });
       }
+      setStandingsTeams(orderedTeams);
 
       const matchesWithSeeds = (matchesResult.data || []).map(match => ({
         ...match,
