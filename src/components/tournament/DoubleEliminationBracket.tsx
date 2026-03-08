@@ -1117,41 +1117,111 @@ export const DoubleEliminationBracket = ({
     return rounds;
   };
 
+  const sortFnField = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || (a.created_at || '').localeCompare(b.created_at || '');
+
   /**
-   * For Losers R1: compute which losers are already known from W-R1 but don't have
-   * a Losers match yet (consecutive pair partner not done yet).
-   * Consecutive pairing: allR1[2k] pairs with allR1[2k+1] → LR1 slot k.
-   * Returns a map of slotIndex → { name, teamId } for the known loser in each pending pair.
+   * Returns a map of slotIndex → { team1: PendingTeam | null, team2: PendingTeam | null }
+   * for each slot that does not yet have a real match in the DB.
+   * Covers all rounds in both Winners and Losers brackets.
    */
-  const getPendingLosersR1 = (): Map<number, { name: string; teamId: string }> => {
-    const pending = new Map<number, { name: string; teamId: string }>();
-    const allR1 = winnersMatches
-      .filter(m => m.round_number === 1)
-      .sort((a, b) => (a.field_number || 0) - (b.field_number || 0));
+  const getPendingTeamsForRound = (isLosers: boolean, round: number): Map<number, { team1: { name: string; teamId: string } | null; team2: { name: string; teamId: string } | null }> => {
+    const pending = new Map<number, { team1: { name: string; teamId: string } | null; team2: { name: string; teamId: string } | null }>();
+    const allW = winnersMatches.sort(sortFnField);
+    const allL = losersMatches.sort(sortFnField);
 
-    for (let k = 0; k < Math.floor(allR1.length / 2); k++) {
-      const mA = allR1[k * 2];
-      const mB = allR1[k * 2 + 1];
+    const teamFromMatch = (m: Match, role: 'winner' | 'loser'): { name: string; teamId: string } | null => {
+      if (!m.winner_id) return null;
+      const isTeam1Winner = m.winner_id === m.team1_id;
+      if (role === 'winner') {
+        const team = isTeam1Winner ? m.team1 : m.team2;
+        const id = isTeam1Winner ? m.team1_id : m.team2_id;
+        return team ? { name: team.name, teamId: id } : null;
+      } else {
+        const team = isTeam1Winner ? m.team2 : m.team1;
+        const id = isTeam1Winner ? m.team2_id : m.team1_id;
+        return team ? { name: team.name, teamId: id } : null;
+      }
+    };
 
-      // Both done → real match should exist in DB (not pending)
-      if (mA?.winner_id && mB?.winner_id) continue;
+    const isAlreadyInRound = (arr: Match[], r: number, teamId: string) =>
+      arr.some(m => m.round_number === r && (m.team1_id === teamId || m.team2_id === teamId));
 
-      // One done, one not → show the known loser as "waiting"
-      const doneMatch = mA?.winner_id ? mA : (mB?.winner_id ? mB : null);
-      if (!doneMatch) continue;
+    if (!isLosers) {
+      // ── Winners bracket: pair-based advancement ──
+      // Each round r has slots 0..n-1 ; pairs (0,1),(2,3)… from round r-1 feed slot i in round r
+      const prevRoundMatches = allW.filter(m => m.round_number === round - 1).sort(sortFnField);
+      const currentRoundMatches = allW.filter(m => m.round_number === round).sort(sortFnField);
+      const expectedCount = Math.pow(2, winnersRoundsCount - round);
 
-      const loserId = doneMatch.winner_id === doneMatch.team1_id ? doneMatch.team2_id : doneMatch.team1_id;
-      const loserTeam = doneMatch.winner_id === doneMatch.team1_id ? doneMatch.team2 : doneMatch.team1;
-      if (!loserId || !loserTeam) continue;
+      for (let slot = 0; slot < expectedCount; slot++) {
+        // Skip if real match already exists for this slot
+        if (currentRoundMatches[slot]) continue;
 
-      // Check if this loser already has a Losers R1 match in DB
-      const alreadyPlaced = losersMatches.some(
-        lm => lm.round_number === 1 && (lm.team1_id === loserId || lm.team2_id === loserId)
-      );
-      if (alreadyPlaced) continue;
+        const srcA = prevRoundMatches[slot * 2];
+        const srcB = prevRoundMatches[slot * 2 + 1];
+        const t1 = srcA ? teamFromMatch(srcA, 'winner') : null;
+        const t2 = srcB ? teamFromMatch(srcB, 'winner') : null;
+        if (t1 || t2) {
+          pending.set(slot, { team1: t1, team2: t2 });
+        }
+      }
+    } else {
+      // ── Losers bracket ──
+      const isMinor = round % 2 === 1;
+      const currentLosersRound = allL.filter(m => m.round_number === round);
 
-      pending.set(k, { name: loserTeam.name, teamId: loserId });
+      if (round === 1) {
+        // L-R1 (minor): consecutive W-R1 pair losers → each LR1 slot
+        const wR1 = allW.filter(m => m.round_number === 1).sort(sortFnField);
+        const expectedCount = Math.floor(wR1.length / 2);
+        for (let k = 0; k < expectedCount; k++) {
+          if (currentLosersRound[k]) continue;
+          const mA = wR1[k * 2];
+          const mB = wR1[k * 2 + 1];
+          const t1 = mA ? teamFromMatch(mA, 'loser') : null;
+          const t2 = mB ? teamFromMatch(mB, 'loser') : null;
+          if (t1 || t2) {
+            // Skip if already placed
+            if (t1 && isAlreadyInRound(allL, 1, t1.teamId)) continue;
+            if (t2 && isAlreadyInRound(allL, 1, t2.teamId)) continue;
+            pending.set(k, { team1: t1, team2: t2 });
+          }
+        }
+      } else if (isMinor) {
+        // L-Rn minor (n=3,5,...): survivors of previous major round pair up
+        const prevMajor = allL.filter(m => m.round_number === round - 1).sort(sortFnField);
+        const pairCount = Math.floor(prevMajor.length / 2);
+        for (let k = 0; k < pairCount; k++) {
+          if (currentLosersRound[k]) continue;
+          const mA = prevMajor[k * 2];
+          const mB = prevMajor[k * 2 + 1];
+          const t1 = mA ? teamFromMatch(mA, 'winner') : null;
+          const t2 = mB ? teamFromMatch(mB, 'winner') : null;
+          if (t1 || t2) pending.set(k, { team1: t1, team2: t2 });
+        }
+      } else {
+        // L-Rn major (n=2,4,6,...): W dropin vs L minor survivor
+        // Formula: L-R(2k) ← W-R(k+1) losers vs L-R(2k-1) survivors
+        // k = round/2
+        const k = round / 2;
+        const wFeederRound = k + 1; // L-R2←W-R2, L-R4←W-R3, L-R6←W-R4
+        const prevMinorRound = round - 1;
+
+        const wFeederMatches = allW.filter(m => m.round_number === wFeederRound).sort(sortFnField);
+        const prevMinorMatches = allL.filter(m => m.round_number === prevMinorRound).sort(sortFnField);
+
+        const slotCount = Math.max(wFeederMatches.length, prevMinorMatches.length);
+        for (let slot = 0; slot < slotCount; slot++) {
+          if (currentLosersRound[slot]) continue;
+          const wDrop = wFeederMatches[slot] ? teamFromMatch(wFeederMatches[slot], 'loser') : null;
+          const minorSurvivor = prevMinorMatches[slot] ? teamFromMatch(prevMinorMatches[slot], 'winner') : null;
+          if (wDrop || minorSurvivor) {
+            pending.set(slot, { team1: wDrop, team2: minorSurvivor });
+          }
+        }
+      }
     }
+
     return pending;
   };
 
@@ -1163,9 +1233,6 @@ export const DoubleEliminationBracket = ({
     const matchCenterY = 60; // visual center of match card (header ~20px + card center ~40px)
     const COL_W = 200;
     const CONNECTOR_W = 32;
-    const isLastRound = false; // connectors always drawn between bracket rounds
-
-    const pendingLosersR1 = isLosers ? getPendingLosersR1() : new Map();
 
     const expectedRounds = getExpectedMatchCounts(isLosers);
     if (expectedRounds.length === 0) return null;
@@ -1174,6 +1241,12 @@ export const DoubleEliminationBracket = ({
     realMatches.forEach(m => {
       if (!matchByRound.has(m.round_number)) matchByRound.set(m.round_number, []);
       matchByRound.get(m.round_number)!.push(m);
+    });
+
+    // Pre-compute pending teams for every round
+    const pendingByRound = new Map<number, ReturnType<typeof getPendingTeamsForRound>>();
+    getExpectedMatchCounts(isLosers).forEach(({ round }) => {
+      pendingByRound.set(round, getPendingTeamsForRound(isLosers, round));
     });
 
     // For each column, compute spacingLevel like Single Elimination does
@@ -1270,28 +1343,57 @@ export const DoubleEliminationBracket = ({
                     const realMatch = realRoundMatches[slotIdx];
 
                     if (!realMatch) {
-                      // For Losers R1, show pending loser waiting for spread partner
-                      const pendingLoser = (isLosers && round === 1) ? pendingLosersR1.get(slotIdx) : undefined;
+                      const pendingSlot = pendingByRound.get(round)?.get(slotIdx);
+                      const t1 = pendingSlot?.team1 ?? null;
+                      const t2 = pendingSlot?.team2 ?? null;
+                      const hasPending = !!(t1 || t2);
+                      const isLoserSlot = isLosers;
+
                       return (
                         <div
                           key={`tbd-${round}-${slotIdx}`}
                           className={cn(
                             "rounded-lg border flex flex-col justify-center px-3",
-                            pendingLoser
-                              ? "border-destructive/40 bg-destructive/5"
+                            hasPending
+                              ? (isLoserSlot ? "border-destructive/40 bg-destructive/5" : "border-primary/30 bg-primary/5")
                               : "border-dashed border-border/30 bg-muted/10 items-center"
                           )}
                           style={{ height: `${matchHeight}px`, width: COL_W }}
                         >
-                          {pendingLoser ? (
+                          {hasPending ? (
                             <>
-                              <p className="text-xs text-muted-foreground mb-2 font-medium">Waiting for opponent…</p>
-                              <div className="flex items-center gap-2 py-1.5 px-2 rounded bg-destructive/10 border border-destructive/20">
-                                <Skull className="h-3 w-3 text-destructive shrink-0" />
-                                <span className="text-sm font-semibold text-foreground truncate">{pendingLoser.name}</span>
+                              <p className="text-xs text-muted-foreground mb-1.5 font-medium">En attente…</p>
+                              {/* Team 1 slot */}
+                              <div className={cn(
+                                "flex items-center gap-2 py-1.5 px-2 rounded border mb-1",
+                                t1
+                                  ? (isLoserSlot ? "bg-destructive/10 border-destructive/20" : "bg-primary/10 border-primary/20")
+                                  : "bg-muted/20 border-dashed border-border/30"
+                              )}>
+                                {t1 ? (
+                                  <>
+                                    {isLoserSlot && <Skull className="h-3 w-3 text-destructive shrink-0" />}
+                                    <span className="text-sm font-semibold text-foreground truncate">{t1.name}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic">TBD</span>
+                                )}
                               </div>
-                              <div className="flex items-center gap-2 py-1.5 px-2 rounded bg-muted/30 border border-dashed border-border/30 mt-1">
-                                <span className="text-xs text-muted-foreground">vs TBD</span>
+                              {/* Team 2 slot */}
+                              <div className={cn(
+                                "flex items-center gap-2 py-1.5 px-2 rounded border",
+                                t2
+                                  ? (isLoserSlot ? "bg-destructive/10 border-destructive/20" : "bg-primary/10 border-primary/20")
+                                  : "bg-muted/20 border-dashed border-border/30"
+                              )}>
+                                {t2 ? (
+                                  <>
+                                    {isLoserSlot && <Skull className="h-3 w-3 text-destructive shrink-0" />}
+                                    <span className="text-sm font-semibold text-foreground truncate">{t2.name}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic">TBD</span>
+                                )}
                               </div>
                             </>
                           ) : (
