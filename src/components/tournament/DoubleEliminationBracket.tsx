@@ -993,18 +993,22 @@ export const DoubleEliminationBracket = ({
 
   // generateMajorRound removed — logic now inline in handleChallongeProgression
 
-  const createGrandFinal = async (winnersChampion: string, losersChampion: string, winnersMatches: any[]) => {
-    const totalTeams = tournament?.teams_for_elimination || 8;
+  const createGrandFinal = async (winnersChampion: string, losersChampion: string, _winnersMatches?: any[]) => {
+    const totalTeams = (tournament ?? tournamentRef.current)?.teams_for_elimination || 8;
     const winnersRounds = Math.log2(totalTeams);
     const grandFinalRound = winnersRounds + 1;
 
-    const exists = winnersMatches.some(m =>
-      m.round_number === grandFinalRound &&
-      ((m.team1_id === winnersChampion && m.team2_id === losersChampion) ||
-       (m.team1_id === losersChampion && m.team2_id === winnersChampion))
-    );
+    // Always query DB directly to avoid race conditions with stale in-memory state
+    const { data: existingGF } = await supabase
+      .from("matches")
+      .select("id")
+      .eq("tournament_id", tournamentId)
+      .eq("phase", "double_elimination")
+      .eq("round_number", grandFinalRound)
+      .eq("is_third_place_match", false)
+      .limit(1);
 
-    if (!exists) {
+    if (!existingGF || existingGF.length === 0) {
       const { error } = await supabase.from("matches").insert({
         tournament_id: tournamentId, phase: "double_elimination",
         round_number: grandFinalRound, team1_id: winnersChampion, team2_id: losersChampion,
