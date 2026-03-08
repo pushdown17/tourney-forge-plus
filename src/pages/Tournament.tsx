@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Calendar, Lock, Unlock, Settings, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Lock, Unlock, Settings, Save, Trash2, RotateCcw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { TeamsManager } from "@/components/tournament/TeamsManager";
 import { PlayersManager } from "@/components/tournament/PlayersManager";
