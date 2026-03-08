@@ -672,6 +672,10 @@ export const DoubleEliminationBracket = ({
       const matchExists = (arr: any[], r: number, t1: string, t2: string) =>
         arr.some(m => m.round_number === r && ((m.team1_id === t1 && m.team2_id === t2) || (m.team1_id === t2 && m.team2_id === t1)));
 
+      // Check if a team is already in ANY match of a given round
+      const teamInRound = (arr: any[], r: number, teamId: string) =>
+        arr.some(m => m.round_number === r && (m.team1_id === teamId || m.team2_id === teamId));
+
       if (!isLosersBracket) {
         // ========== WINNERS BRACKET ==========
         // Like single elimination: when winner is known, look for their future opponent.
