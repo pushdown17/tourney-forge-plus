@@ -32,9 +32,17 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
   const byeSeeds = nextPowerOf2 - teamsCount;
   const wildcardSeeds = teamsCount - byeSeeds;
 
+  // For double elimination, only even numbers are supported for non-power-of-2
+  const isOddNonPow2 = teamsCount > 0 && !isPowerOf2 && teamsCount % 2 !== 0;
+  const isDoubleElimination = bracketType === "double";
+
   const handleStartElimination = async () => {
     if (teamsCount < 2) {
       toast.error("At least 2 teams are required");
+      return;
+    }
+    if (isDoubleElimination && isOddNonPow2) {
+      toast.error("Double elimination requires an even number of teams (or a power of 2)");
       return;
     }
     setLoading(true);
@@ -150,8 +158,8 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
             </p>
           </div>
 
-          {/* Preliminary Round Toggle */}
-          {teamsCount > 0 && !isPowerOf2 && (
+          {/* Preliminary Round Toggle — only for Single Elimination */}
+          {teamsCount > 0 && !isPowerOf2 && !isDoubleElimination && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label htmlFor="preliminary" className="flex items-center gap-2">
@@ -178,11 +186,6 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
                       <p className="text-muted-foreground">
                         <span className="font-semibold text-foreground">Seeds {byeSeeds + 1}–{teamsCount}</span> will play a knockout match to enter the main bracket.
                       </p>
-                      {bracketType === "double" && (
-                        <p className="text-muted-foreground mt-1">
-                          The {preliminaryMatchCount} winner{preliminaryMatchCount > 1 ? "s" : ""} will join seeds 1–{byeSeeds} in the <span className="font-semibold text-foreground">Winners Bracket</span>.
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -198,6 +201,26 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* BYE info for Double Elimination */}
+          {teamsCount > 0 && !isPowerOf2 && isDoubleElimination && !isOddNonPow2 && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="text-sm space-y-1">
+                  <p className="font-medium text-foreground">
+                    {byeCount} BYE{byeCount > 1 ? 's' : ''} — bracket size: {nextPowerOf2}
+                  </p>
+                  <p className="text-muted-foreground">
+                    <span className="font-semibold text-foreground">Seeds 1–{byeCount}</span> receive a <span className="font-semibold text-primary">BYE</span> and advance directly to Round 2 of the Winners bracket.
+                  </p>
+                  <p className="text-muted-foreground">
+                    <span className="font-semibold text-foreground">Seeds {byeCount + 1}–{teamsCount}</span> play Round 1 matches normally.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -221,17 +244,33 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
             <ul className="space-y-1 text-muted-foreground">
               <li>• <span className="text-foreground">{bracketType === "single" ? "Single" : "Double"} Elimination</span></li>
               <li>• <span className="text-foreground">{teamsCount}</span> qualifying teams</li>
-              {!isPowerOf2 && teamsCount > 0 && (
-                <li>• <span className="text-foreground">{includePreliminary ? `${preliminaryMatchCount} preliminary match${preliminaryMatchCount > 1 ? "es" : ""}` : `${byeCount} bye${byeCount > 1 ? "s" : ""}`}</span></li>
+              {!isPowerOf2 && teamsCount > 0 && !isOddNonPow2 && (
+                <li>• <span className="text-foreground">{bracketType === "double" ? `${byeCount} BYE${byeCount > 1 ? 's' : ''} (direct R2)` : includePreliminary ? `${preliminaryMatchCount} preliminary match${preliminaryMatchCount > 1 ? "es" : ""}` : `${byeCount} bye${byeCount > 1 ? "s" : ""}`}</span></li>
               )}
               <li>• Seeding from <span className="text-foreground">Overall Standings</span></li>
             </ul>
           </div>
 
+          {/* Odd number warning for Double Elimination */}
+          {isDoubleElimination && isOddNonPow2 && teamsCount > 0 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                <div className="text-sm space-y-1">
+                  <p className="font-medium text-destructive">Odd number not supported for Double Elimination</p>
+                  <p className="text-muted-foreground">
+                    Double elimination requires an even number of teams (e.g., {teamsCount - 1} or {teamsCount + 1}).
+                    Try a number like 6, 10, 12, 14, 20, 24…
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Start Button */}
           <Button
             onClick={handleStartElimination}
-            disabled={loading || teamsCount < 2}
+            disabled={loading || teamsCount < 2 || (isDoubleElimination && isOddNonPow2)}
             className="w-full"
             size="lg"
           >

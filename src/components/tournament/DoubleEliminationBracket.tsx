@@ -78,12 +78,21 @@ function getStandardSeedingPairs(count: number): [number, number][] {
   return pairs;
 }
 
-const getLosersRoundsCount = (totalTeams: number): number => {
-  return (Math.log2(totalTeams) - 1) * 2;
+/** Next power of 2 ≥ n */
+const nextPow2 = (n: number): number => Math.pow(2, Math.ceil(Math.log2(n)));
+
+/**
+ * For a given teamsCount, the bracket size is the next power of 2.
+ * For power-of-2 counts it's the same value.
+ */
+const getBracketSize = (teamsCount: number): number => nextPow2(teamsCount);
+
+const getLosersRoundsCount = (bracketSize: number): number => {
+  return (Math.log2(bracketSize) - 1) * 2;
 };
 
-const getWinnersRoundName = (roundNumber: number, totalTeams: number) => {
-  const w = Math.log2(totalTeams);
+const getWinnersRoundName = (roundNumber: number, bracketSize: number) => {
+  const w = Math.log2(bracketSize);
   if (roundNumber === w) return "Winners Final";
   if (roundNumber === w - 1) return w >= 3 ? "Winners Semi" : "Winners Final";
   if (roundNumber === w - 2 && w >= 4) return "Winners QF";
@@ -93,8 +102,8 @@ const getWinnersRoundName = (roundNumber: number, totalTeams: number) => {
   return `W-R${roundNumber}`;
 };
 
-const getLosersRoundName = (roundNumber: number, totalTeams: number) => {
-  const lr = getLosersRoundsCount(totalTeams);
+const getLosersRoundName = (roundNumber: number, bracketSize: number) => {
+  const lr = getLosersRoundsCount(bracketSize);
   if (roundNumber === lr) return "Losers Final";
   if (roundNumber === lr - 1) return "Losers Semi";
   return `Losers R${roundNumber}`;
@@ -161,8 +170,9 @@ export const DoubleEliminationBracket = ({
   useEffect(() => {
     if (!tournament || !isCreator) return;
     const totalT = tournament.teams_for_elimination || 8;
-    const wRounds = Math.log2(totalT);
-    const lRounds = getLosersRoundsCount(totalT);
+    const bracketSz = getBracketSize(totalT);
+    const wRounds = Math.log2(bracketSz);
+    const lRounds = getLosersRoundsCount(bracketSz);
     const grandFinalRound = wRounds + 1;
 
     const wFinal = matches.find(m => !m.is_third_place_match && m.round_number === wRounds && m.winner_id);
@@ -441,7 +451,8 @@ export const DoubleEliminationBracket = ({
   const repairLosersBracket = async (allMatchesData: any[], teamsCount?: number) => {
     try {
       const totalTeams = teamsCount ?? (tournament ?? tournamentRef.current)?.teams_for_elimination ?? 8;
-      const winnersRoundsCount = Math.log2(totalTeams);
+      const bracketSz = getBracketSize(totalTeams);
+      const winnersRoundsCount = Math.log2(bracketSz);
 
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
 
@@ -539,7 +550,7 @@ export const DoubleEliminationBracket = ({
         // --- Repair L minor round after this major (if not last losers round) ---
         // L-R3 comes after L-R2, L-R5 comes after L-R4; but NOT after L-R6 (final)
         const minorRoundAfter = majorRound + 1;
-        const losersRoundsCount = getLosersRoundsCount(totalTeams);
+        const losersRoundsCount = getLosersRoundsCount(bracketSz);
         if (majorRound < losersRoundsCount) {
           // Get all major round matches (db + just queued) with their winners
           const allMajorMatches = getLosersRound(majorRound);
@@ -583,6 +594,12 @@ export const DoubleEliminationBracket = ({
   const generateBracket = async (teamsCount: number) => {
     setGenerating(true);
     try {
+      const bracketSz = getBracketSize(teamsCount);
+      const byeCount = bracketSz - teamsCount;
+      // For non-power-of-2, seeds 1..byeCount get BYEs (they skip R1)
+      // Actual R1 matches involve seeds (byeCount+1)..teamsCount
+      const realMatchCount = teamsCount - byeCount; // = 2*teamsCount - bracketSz
+
       const { data: standings, error: standingsError } = await supabase
         .from("team_stats")
         .select(`*, team:team_id(id, name)`)
@@ -598,22 +615,115 @@ export const DoubleEliminationBracket = ({
         return;
       }
 
-      // Use standard seeding pairs - assign sequential field numbers 1..n to preserve seeding order
-      const pairs = getStandardSeedingPairs(teamsCount);
-      const allMatches = pairs.map((pair, i) => ({
-        tournament_id: tournamentId,
-        phase: "double_elimination" as const,
-        round_number: 1,
-        team1_id: standings[pair[0] - 1].team_id,
-        team2_id: standings[pair[1] - 1].team_id,
-        field_number: i + 1, // sequential: M1=1, M2=2, M3=3... preserves seeding order via creation_at
-        is_third_place_match: false,
-      }));
+      if (byeCount === 0) {
+        // Perfect power-of-2: standard bracket generation
+        const pairs = getStandardSeedingPairs(teamsCount);
+        const allMatches = pairs.map((pair, i) => ({
+          tournament_id: tournamentId,
+          phase: "double_elimination" as const,
+          round_number: 1,
+          team1_id: standings[pair[0] - 1].team_id,
+          team2_id: standings[pair[1] - 1].team_id,
+          field_number: i + 1,
+          is_third_place_match: false,
+        }));
+        const { error: insertError } = await supabase.from("matches").insert(allMatches);
+        if (insertError) throw insertError;
+      } else {
+        // BYE bracket: bracketSz slots, top `byeCount` seeds get BYEs
+        // Standard seeding on bracketSz slots determines positions
+        // Seeds 1..byeCount fill positions with BYEs (no match needed in R1)
+        // Seeds (byeCount+1)..teamsCount play R1 matches filling the remaining positions
+        //
+        // Standard seeding pairs for the full bracketSz bracket:
+        const fullPairs = getStandardSeedingPairs(bracketSz);
+        // Remap: seed k maps to standings[k-1] if k <= teamsCount, else BYE
+        const teamBySeed = (seed: number) => seed <= teamsCount ? standings[seed - 1].team_id : null;
 
-      const { error: insertError } = await supabase.from("matches").insert(allMatches);
-      if (insertError) throw insertError;
+        // R1 matches: only slots where BOTH seeds > byeCount (real teams play)
+        // Slots where one or both seeds ≤ byeCount → that team gets a BYE → auto-advances to R2
+        const r1Matches: any[] = [];
+        const r1ByeWinners: { slotIdx: number; teamId: string }[] = []; // teams auto-advancing to R2
 
-      toast.success("Double elimination bracket generated!");
+        fullPairs.forEach((pair, slotIdx) => {
+          const [s1, s2] = pair;
+          const t1 = teamBySeed(s1);
+          const t2 = teamBySeed(s2);
+
+          if (t1 && t2) {
+            // Both real teams → real match
+            r1Matches.push({
+              tournament_id: tournamentId,
+              phase: "double_elimination" as const,
+              round_number: 1,
+              team1_id: t1,
+              team2_id: t2,
+              field_number: r1Matches.length + 1,
+              is_third_place_match: false,
+            });
+          } else if (t1 && !t2) {
+            // t1 gets BYE → auto-advances to R2
+            r1ByeWinners.push({ slotIdx, teamId: t1 });
+          } else if (!t1 && t2) {
+            // t2 gets BYE → auto-advances to R2
+            r1ByeWinners.push({ slotIdx, teamId: t2 });
+          }
+          // Both null: impossible with valid even teamsCount
+        });
+
+        if (r1Matches.length !== realMatchCount) {
+          console.warn(`[generateBracket] Expected ${realMatchCount} R1 matches, got ${r1Matches.length}`);
+        }
+
+        // Insert R1 real matches
+        if (r1Matches.length > 0) {
+          const { error: insertError } = await supabase.from("matches").insert(r1Matches);
+          if (insertError) throw insertError;
+        }
+
+        // Auto-generate R2 matches for BYE winners
+        // BYE winners are paired from the fullPairs structure:
+        // R2 slot k pairs fullPairs[k*2] winner vs fullPairs[k*2+1] winner
+        // For BYE slots, the winner is already known; for real R1 matches, winner is unknown yet
+        // So R2 can only be created when both "contributors" to a R2 slot are known.
+        // We pair BYE winners vs their R2 opponent (which may be another BYE winner or a R1 real match winner)
+        // For simplicity, we create R2 slots immediately for BYE vs BYE pairs.
+        // BYE vs R1-match pairs will be created by handleChallongeProgression as usual.
+        const byePairs: { w1: string; w2: string; fieldNum: number }[] = [];
+        // fullPairs[0,1] → R2 slot 0, fullPairs[2,3] → R2 slot 1, etc.
+        const r2SlotCount = bracketSz / 4;
+        for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
+          const srcA = fullPairs[r2Slot * 2];
+          const srcB = fullPairs[r2Slot * 2 + 1];
+          const [sA1, sA2] = srcA;
+          const [sB1, sB2] = srcB;
+          const tA1 = teamBySeed(sA1), tA2 = teamBySeed(sA2);
+          const tB1 = teamBySeed(sB1), tB2 = teamBySeed(sB2);
+          // Winner of srcA slot: known only if one is BYE
+          const srcAWinner = !tA2 ? tA1 : !tA1 ? tA2 : null;
+          // Winner of srcB slot: known only if one is BYE
+          const srcBWinner = !tB2 ? tB1 : !tB1 ? tB2 : null;
+          // If both R2 contributors are BYE-winners, create R2 match now
+          if (srcAWinner && srcBWinner) {
+            byePairs.push({ w1: srcAWinner, w2: srcBWinner, fieldNum: r2Slot + 1 });
+          }
+        }
+        if (byePairs.length > 0) {
+          const r2ByeMatches = byePairs.map(bp => ({
+            tournament_id: tournamentId,
+            phase: "double_elimination" as const,
+            round_number: 2,
+            team1_id: bp.w1,
+            team2_id: bp.w2,
+            field_number: bp.fieldNum,
+            is_third_place_match: false,
+          }));
+          const { error: r2Err } = await supabase.from("matches").insert(r2ByeMatches);
+          if (r2Err) throw r2Err;
+        }
+      }
+
+      toast.success(`Double elimination bracket generated! (${teamsCount} teams${byeCount > 0 ? `, ${byeCount} BYE${byeCount > 1 ? 's' : ''}` : ''})`);
       await fetchTournamentAndMatches();
     } catch (error: any) {
       toast.error("Error generating bracket");
@@ -706,7 +816,8 @@ export const DoubleEliminationBracket = ({
       const isLosersBracket = completedMatch.is_third_place_match;
       const roundNumber = completedMatch.round_number;
       const totalTeams = (tournament ?? tournamentRef.current)?.teams_for_elimination || 8;
-      const winnersRounds = Math.log2(totalTeams);
+      const bracketSz = getBracketSize(totalTeams);
+      const winnersRounds = Math.log2(bracketSz);
 
       const { data: allMatches, error: matchesError } = await supabase
         .from("matches")
@@ -722,7 +833,7 @@ export const DoubleEliminationBracket = ({
       const losersBracket = (allMatches?.filter(m => m.is_third_place_match) || []).sort(sortFn);
 
       const grandFinalRound1 = winnersRounds + 1;
-      const losersRoundsCount = getLosersRoundsCount(totalTeams);
+      const losersRoundsCount = getLosersRoundsCount(bracketSz);
 
       // ---- GRAND FINAL / RESET ----
       if (!isLosersBracket && roundNumber >= grandFinalRound1) {
@@ -994,7 +1105,8 @@ export const DoubleEliminationBracket = ({
 
   const createGrandFinal = async (winnersChampion: string, losersChampion: string, _winnersMatches?: any[]) => {
     const totalTeams = (tournament ?? tournamentRef.current)?.teams_for_elimination || 8;
-    const winnersRounds = Math.log2(totalTeams);
+    const bracketSz = getBracketSize(totalTeams);
+    const winnersRounds = Math.log2(bracketSz);
     const grandFinalRound = winnersRounds + 1;
 
     // Always query DB directly to avoid race conditions with stale in-memory state
@@ -1020,7 +1132,8 @@ export const DoubleEliminationBracket = ({
 
   const createGrandFinalReset = async (winnersChampion: string, losersChampion: string) => {
     const totalTeams = tournament?.teams_for_elimination || 8;
-    const winnersRounds = Math.log2(totalTeams);
+    const bracketSz = getBracketSize(totalTeams);
+    const winnersRounds = Math.log2(bracketSz);
     const resetRound = winnersRounds + 2;
 
     // Query DB directly to avoid stale in-memory snapshot of winnersMatches
@@ -1051,7 +1164,8 @@ export const DoubleEliminationBracket = ({
   };
 
   const totalTeams = tournament?.teams_for_elimination || 8;
-  const winnersRoundsCount = Math.log2(totalTeams);
+  const bracketSize = getBracketSize(totalTeams);
+  const winnersRoundsCount = Math.log2(bracketSize);
 
   const grandFinalMatches = matches
     .filter(m => !m.is_third_place_match && m.round_number > winnersRoundsCount)
@@ -1065,7 +1179,7 @@ export const DoubleEliminationBracket = ({
   // Only show the champion banner when ALL grand final matches are done AND
   // if a reset was triggered (GF#1 won by Losers champ), GF#2 must exist before declaring winner.
   const gf1 = grandFinalMatches[0] ?? null;
-  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(totalTeams) && m.winner_id)?.winner_id === gf1.winner_id;
+  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize) && m.winner_id)?.winner_id === gf1.winner_id;
   const resetExpected = gf1?.winner_id && gf1WinnerIsLosersChamp && !hasReset;
   const allGrandFinalsCompleted = grandFinalMatches.length > 0 && grandFinalMatches.every(m => m.winner_id) && !resetExpected;
   const decidingFinal = allGrandFinalsCompleted ? grandFinalMatches[grandFinalMatches.length - 1] : null;
@@ -1152,23 +1266,19 @@ export const DoubleEliminationBracket = ({
   };
 
   // Generate expected number of matches per round for a full bracket structure
+  // Uses bracketSize (power of 2) to determine slot counts; BYE slots show as TBD placeholders
   const getExpectedMatchCounts = (isLosers: boolean): { round: number; count: number }[] => {
     const rounds: { round: number; count: number }[] = [];
     if (!isLosers) {
-      // Winners: R1=8, R2=4, R3=2, R4=1 (for 16 teams)
+      // Winners: R1 = bracketSize/2 slots, R2 = bracketSize/4, etc.
       for (let r = 1; r <= winnersRoundsCount; r++) {
         rounds.push({ round: r, count: Math.pow(2, winnersRoundsCount - r) });
       }
     } else {
-      // For 16 teams (winnersRoundsCount=4):
-      // L-R1(minor)=4, L-R2(major)=4, L-R3(minor)=2, L-R4(major)=2, L-R5(minor)=1, L-R6(Final)=1
-      // Pattern: pairs of (minor, major) rounds, count halves per pair
-      // pair 1: L-R1=W/2, L-R2=W/2
-      // pair 2: L-R3=W/4, L-R4=W/4
-      // etc.
-      const lrCount = getLosersRoundsCount(totalTeams);
+      // Losers bracket sizes based on bracketSize
+      const lrCount = getLosersRoundsCount(bracketSize);
       for (let r = 1; r <= lrCount; r++) {
-        const pairIdx = Math.ceil(r / 2); // pair 1 for r=1,2; pair 2 for r=3,4; etc.
+        const pairIdx = Math.ceil(r / 2);
         const count = Math.max(1, Math.pow(2, winnersRoundsCount - 1 - pairIdx));
         rounds.push({ round: r, count });
       }
@@ -1319,7 +1429,7 @@ export const DoubleEliminationBracket = ({
             const realRoundMatches = (matchByRound.get(round) || [])
               .sort((a, b) => (a.field_number || 0) - (b.field_number || 0));
 
-            const roundName = isLosers ? getLosersRoundName(round, totalTeams) : getWinnersRoundName(round, totalTeams);
+            const roundName = isLosers ? getLosersRoundName(round, bracketSize) : getWinnersRoundName(round, bracketSize);
             const isThisLastRound = colIdx === expectedRounds.length - 1;
 
             // Compute spacingLevel based purely on match count
