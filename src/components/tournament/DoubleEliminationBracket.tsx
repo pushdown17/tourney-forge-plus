@@ -376,7 +376,7 @@ export const DoubleEliminationBracket = ({
         await generateBracket(tournamentData.teams_for_elimination);
       } else {
         // Retroactively repair losers bracket if W-R1 completed matches exist but no L-R1 matches
-        await repairLosersBracket(matchesResult.data);
+        await repairLosersBracket(matchesResult.data, tournamentData.teams_for_elimination);
       }
     } catch (error: any) {
       toast.error("Error loading bracket");
@@ -390,9 +390,9 @@ export const DoubleEliminationBracket = ({
    * Repair missing losers bracket matches by retroactively processing
    * all completed winners bracket rounds.
    */
-  const repairLosersBracket = async (allMatchesData: any[]) => {
+  const repairLosersBracket = async (allMatchesData: any[], teamsCount?: number) => {
     try {
-      const totalTeams = tournament?.teams_for_elimination || 8;
+      const totalTeams = teamsCount ?? (tournament ?? tournamentRef.current)?.teams_for_elimination ?? 8;
       const winnersRoundsCount = Math.log2(totalTeams);
 
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
