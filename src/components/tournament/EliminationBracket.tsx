@@ -60,7 +60,8 @@ export const EliminationBracket = ({
   currentPhase,
   onPhaseChanged,
   isClosed = false,
-  isCreator = false
+  isCreator = false,
+  resetTrigger = 0
 }: EliminationBracketProps) => {
   // If double elimination, use dedicated component
   if (eliminationType === "double" || currentPhase === "double_elimination") {
@@ -71,6 +72,7 @@ export const EliminationBracket = ({
         onPhaseChanged={onPhaseChanged}
         isClosed={isClosed}
         isCreator={isCreator}
+        resetTrigger={resetTrigger}
       />
     );
   }
