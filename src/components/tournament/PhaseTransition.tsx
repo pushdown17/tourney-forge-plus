@@ -32,6 +32,10 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
   const byeSeeds = nextPowerOf2 - teamsCount;
   const wildcardSeeds = teamsCount - byeSeeds;
 
+  // For double elimination, only even numbers are supported for non-power-of-2
+  const isOddNonPow2 = teamsCount > 0 && !isPowerOf2 && teamsCount % 2 !== 0;
+  const isDoubleElimination = bracketType === "double";
+
   const handleStartElimination = async () => {
     if (teamsCount < 2) {
       toast.error("At least 2 teams are required");
