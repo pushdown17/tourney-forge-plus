@@ -616,7 +616,7 @@ export const DoubleEliminationBracket = ({
     try {
       const isLosersBracket = completedMatch.is_third_place_match;
       const roundNumber = completedMatch.round_number;
-      const totalTeams = tournament?.teams_for_elimination || 8;
+      const totalTeams = (tournament ?? tournamentRef.current)?.teams_for_elimination || 8;
       const winnersRounds = Math.log2(totalTeams);
 
       const { data: allMatches, error: matchesError } = await supabase
