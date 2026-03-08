@@ -640,9 +640,13 @@ export const DoubleEliminationBracket = ({
       setRecentlyAdvancedTeamIds([winnerId]);
       setTimeout(() => { setRecentlyCompletedMatchId(null); setRecentlyAdvancedTeamIds([]); }, 2000);
 
+      // Update local state immediately — no full reload needed
+      setMatches(prev => prev.map(m =>
+        m.id === matchId ? { ...m, team1_score: team1Score, team2_score: team2Score, winner_id: winnerId } : m
+      ));
+
       toast.success("Score updated");
       setEditingMatchId(null);
-      await fetchTournamentAndMatches();
       await handleChallongeProgression(match, winnerId, loserId);
     } catch (error: any) {
       toast.error("Error updating score");
@@ -684,7 +688,7 @@ export const DoubleEliminationBracket = ({
             setActiveTab("finals");
           }
         }
-        await fetchTournamentAndMatches();
+        // Realtime listeners handle UI update — no full reload needed
         return;
       }
 
@@ -931,11 +935,9 @@ export const DoubleEliminationBracket = ({
       if (matchesToCreate.length > 0) {
         const { error: insertError } = await supabase.from("matches").insert(matchesToCreate);
         if (insertError) throw insertError;
-        toast.success("Next match(es) generated!");
-        await fetchTournamentAndMatches();
-      } else {
-        await fetchTournamentAndMatches();
+        // New matches will be picked up by the realtime INSERT listener — no full reload needed
       }
+      // Grand final tab switch handled above; no reload needed for other progressions
     } catch (error: any) {
       console.error("Error handling progression:", error);
     }
