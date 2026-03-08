@@ -1304,8 +1304,8 @@ export const DoubleEliminationBracket = ({
                 <div className={cn(
                   "text-center mb-4 py-2 px-3 rounded-lg text-sm font-bold",
                   isThisLastRound
-                    ? (isLosers ? "bg-destructive/20 border border-destructive/30 text-destructive" : "bg-primary/20 border border-primary/30 text-primary")
-                    : (isLosers ? "bg-destructive/10 border border-destructive/20 text-destructive/80" : "bg-muted/50 text-foreground")
+                    ? (isLosers ? "bg-orange-500/20 border border-orange-500/30 text-orange-500" : "bg-primary/20 border border-primary/30 text-primary")
+                    : (isLosers ? "bg-orange-500/10 border border-orange-500/20 text-orange-500/80" : "bg-muted/50 text-foreground")
                 )} style={{ width: COL_W }}>
                   {roundName}
                 </div>
@@ -1379,7 +1379,7 @@ export const DoubleEliminationBracket = ({
                           className={cn(
                             "rounded-lg border flex flex-col justify-center px-3",
                             hasPending
-                              ? (isLoserSlot ? "border-destructive/40 bg-destructive/5" : "border-primary/30 bg-primary/5")
+                              ? (isLoserSlot ? "border-orange-500/40 bg-orange-500/5" : "border-primary/30 bg-primary/5")
                               : "border-dashed border-border/30 bg-muted/10 items-center"
                           )}
                           style={{ height: `${matchHeight}px`, width: COL_W }}
