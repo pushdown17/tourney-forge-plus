@@ -1031,9 +1031,15 @@ export const DoubleEliminationBracket = ({
   const winnersMatches = matches.filter(m => !m.is_third_place_match && m.round_number <= winnersRoundsCount);
   const losersMatches = matches.filter(m => m.is_third_place_match);
 
-  const allGrandFinalsCompleted = grandFinalMatches.length > 0 && grandFinalMatches.every(m => m.winner_id);
-  const decidingFinal = allGrandFinalsCompleted ? grandFinalMatches[grandFinalMatches.length - 1] : null;
   const hasReset = grandFinalMatches.length >= 2;
+  // GF#1 winner is the Losers champion → a reset match (GF#2) must be created first
+  // Only show the champion banner when ALL grand final matches are done AND
+  // if a reset was triggered (GF#1 won by Losers champ), GF#2 must exist before declaring winner.
+  const gf1 = grandFinalMatches[0] ?? null;
+  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(totalTeams) && m.winner_id)?.winner_id === gf1.winner_id;
+  const resetExpected = gf1?.winner_id && gf1WinnerIsLosersChamp && !hasReset;
+  const allGrandFinalsCompleted = grandFinalMatches.length > 0 && grandFinalMatches.every(m => m.winner_id) && !resetExpected;
+  const decidingFinal = allGrandFinalsCompleted ? grandFinalMatches[grandFinalMatches.length - 1] : null;
 
   const waitingMatches = matches
     .filter(m => !m.winner_id && !activeStationMatches.has(m.id) && m.team1 && m.team2 && !m.isPlaceholder)
