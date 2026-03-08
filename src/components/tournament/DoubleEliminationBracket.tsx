@@ -1071,32 +1071,12 @@ export const DoubleEliminationBracket = ({
         if (roundNumber < losersRoundsCount) {
           if (isMinorRound) {
             // Minor round completed: winner goes to next MAJOR round.
-            // Check if the W-dropin for that major round is ALREADY available.
-            // W-feeder formula: L-major-R(2k) is fed by W-R(k) losers
-            // e.g. L-R1 (minor) → L-R2 (major, k=1) ← W-R1 losers... wait:
-            //   L-R2 = 2k → k=1 → W-R(1) — but W-R1 losers go to L-R1 (minor), not L-R2!
-            //   Actually:
-            //   L-R2 (major) ← W-R2 (QF) losers  → k=2 → wFeeder = nextMajorRound/2 = 1... wrong
-            //   Correct mapping: L-R(2j) major ← W-R(j+1) losers
-            //   j = nextMajorRound/2 → wFeederRound = nextMajorRound/2 + 1... also wrong for L-R6
-            //
-            // True mapping (from spec):
-            //   L-R2 ← W-R2 losers (QF losers)
-            //   L-R4 ← W-R3 losers (Semi losers)
-            //   L-R6 ← W-R4 losers (Final loser)
-            // Formula: wFeederRound = nextMajorRound / 2   (L-R2→W-R1? No)
-            // L-R2=2 → W-R2, L-R4=4 → W-R3, L-R6=6 → W-R4
-            // Pattern: wFeederRound = nextMajorRound / 2  gives 1,2,3 — off by 1
-            // Correct: wFeederRound = nextMajorRound / 2 + 1? L-R2→W-R2✓, L-R4→W-R3✓, L-R6→W-R4✓
-            // Wait: 2/2+1=2✓, 4/2+1=3✓, 6/2+1=4✓ — YES this formula IS correct.
-            // The previous audit was wrong — let's verify once more:
-            //   nextMajorRound=2: 2/2+1=2 → W-R2 ✅
-            //   nextMajorRound=4: 4/2+1=3 → W-R3 ✅
-            //   nextMajorRound=6: 6/2+1=4 → W-R4 ✅
-            // The formula was actually correct. The real bug was in repairLosersBracket (now fixed).
+            // Standard formula: L-R2←W-R2, L-R4←W-R3, L-R6←W-R4 → wFeederRound = nextMajorRound/2 + 1
+            // Play-in formula: L-R2←W-R3, L-R4←W-R4 → wFeederRound = nextMajorRound/2 + 2
             const nextMajorRound = nextRound;
-            // wFeederRound: L-R(2k) ← W-R(k+1) losers → k = nextMajorRound/2 → wFeederRound = k+1
-            const wFeederRound = nextMajorRound / 2 + 1; // L-R2←W-R2, L-R4←W-R3, L-R6←W-R4
+            const wFeederRound = byeCount > 0
+              ? nextMajorRound / 2 + 2  // Play-in: L-R2←W-R3, L-R4←W-R4
+              : nextMajorRound / 2 + 1; // Standard: L-R2←W-R2, L-R4←W-R3, L-R6←W-R4
 
             // Get all minor round matches sorted by field_number, map winner (or null if not done)
             const allMinorMatches = currentLosersRound.sort(sortFn);
