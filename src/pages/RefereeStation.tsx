@@ -1016,14 +1016,23 @@ const RefereeStation = () => {
       if (a.round_number === 99 && b.round_number === 99) {
         return (b.field_number || 0) - (a.field_number || 0);
       }
-      // For double elimination: Winners bracket matches (is_third_place_match=false) 
-      // must always come before Losers bracket matches (is_third_place_match=true)
+      // For double elimination: respect the correct interleaving sequence.
+      // The rule: Losers Round N must be completed before Winners Round N+1.
+      // We assign each match a "global sequence number":
+      //   Winners R1 → seq 1
+      //   Losers R1  → seq 2
+      //   Winners R2 → seq 3
+      //   Losers R2  → seq 4
+      //   Winners R3 → seq 5
+      //   ... and so on.
+      // Formula: Winners Rn → seq = 2n - 1 ; Losers Rn → seq = 2n
       if (currentPhase === 'double_elimination') {
         const aIsLoser = a.is_third_place_match ? 1 : 0;
         const bIsLoser = b.is_third_place_match ? 1 : 0;
-        if (aIsLoser !== bIsLoser) return aIsLoser - bIsLoser;
-        // Within the same bracket, sort by round then field_number
-        if (a.round_number !== b.round_number) return a.round_number - b.round_number;
+        const aSeq = aIsLoser === 0 ? 2 * a.round_number - 1 : 2 * a.round_number;
+        const bSeq = bIsLoser === 0 ? 2 * b.round_number - 1 : 2 * b.round_number;
+        if (aSeq !== bSeq) return aSeq - bSeq;
+        // Within the same sequence slot, sort by field_number
         return (a.field_number || 0) - (b.field_number || 0);
       }
       return 0; // preserve DB order for other phases
