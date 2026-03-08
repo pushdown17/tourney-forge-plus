@@ -158,8 +158,8 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
             </p>
           </div>
 
-          {/* Preliminary Round Toggle */}
-          {teamsCount > 0 && !isPowerOf2 && (
+          {/* Preliminary Round Toggle — only for Single Elimination */}
+          {teamsCount > 0 && !isPowerOf2 && !isDoubleElimination && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label htmlFor="preliminary" className="flex items-center gap-2">
@@ -186,11 +186,6 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
                       <p className="text-muted-foreground">
                         <span className="font-semibold text-foreground">Seeds {byeSeeds + 1}–{teamsCount}</span> will play a knockout match to enter the main bracket.
                       </p>
-                      {bracketType === "double" && (
-                        <p className="text-muted-foreground mt-1">
-                          The {preliminaryMatchCount} winner{preliminaryMatchCount > 1 ? "s" : ""} will join seeds 1–{byeSeeds} in the <span className="font-semibold text-foreground">Winners Bracket</span>.
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -206,6 +201,26 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* BYE info for Double Elimination */}
+          {teamsCount > 0 && !isPowerOf2 && isDoubleElimination && !isOddNonPow2 && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="text-sm space-y-1">
+                  <p className="font-medium text-foreground">
+                    {byeCount} BYE{byeCount > 1 ? 's' : ''} — bracket size: {nextPowerOf2}
+                  </p>
+                  <p className="text-muted-foreground">
+                    <span className="font-semibold text-foreground">Seeds 1–{byeCount}</span> receive a <span className="font-semibold text-primary">BYE</span> and advance directly to Round 2 of the Winners bracket.
+                  </p>
+                  <p className="text-muted-foreground">
+                    <span className="font-semibold text-foreground">Seeds {byeCount + 1}–{teamsCount}</span> play Round 1 matches normally.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
