@@ -115,9 +115,15 @@ export const BracketMatch = ({
   // Only show edit controls if user is the creator
   // Creators can edit completed matches to correct errors
   const canEdit = isCreator && !isClosed && (!isMatchLocked || isCompleted);
+
+  // Highlight logic: does this match involve the highlighted team?
+  const matchInvolvesHighlight = highlightedTeamId
+    ? match.team1_id === highlightedTeamId || match.team2_id === highlightedTeamId
+    : false;
+  const isDimmed = !!highlightedTeamId && !matchInvolvesHighlight;
   
   return (
-    <div className="animate-fade-in flex flex-col">
+    <div className={cn("animate-fade-in flex flex-col transition-opacity duration-200", isDimmed && "opacity-25")}>
       {/* Match header */}
       <div className="flex items-center justify-center gap-2 mb-1">
         <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
@@ -179,7 +185,8 @@ export const BracketMatch = ({
               isMatchLocked && !isCompleted && "opacity-60 cursor-not-allowed",
               hasWinner && "ring-1 ring-primary/30",
               isFinal && "ring-2 ring-yellow-500/50",
-              isRecentlyCompleted && "animate-pulse ring-2 ring-primary shadow-lg shadow-primary/30"
+              isRecentlyCompleted && "animate-pulse ring-2 ring-primary shadow-lg shadow-primary/30",
+              matchInvolvesHighlight && "ring-2 ring-primary shadow-lg shadow-primary/40"
             )}
             onClick={(e) => {
               if (isPlaceholder) return;
