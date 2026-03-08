@@ -103,7 +103,7 @@ const getLosersRoundsCount = (bracketSize: number, byeCount = 0): number => {
 const getWinnersRoundName = (roundNumber: number, bracketSize: number, byeCount = 0) => {
   const w = Math.log2(bracketSize);
   // Round 1 is "Play-in" for non-power-of-2 brackets
-  if (roundNumber === 1 && byeCount > 0) return "Play-in";
+  if (roundNumber === 1 && byeCount > 0) return "Preliminary Round";
   if (roundNumber === w) return "Winners Final";
   if (roundNumber === w - 1) return w >= 3 ? "Winners Semi" : "Winners Final";
   if (roundNumber === w - 2 && w >= 4) return "Winners QF";
