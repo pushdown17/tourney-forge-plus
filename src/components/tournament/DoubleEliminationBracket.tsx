@@ -166,8 +166,10 @@ export const DoubleEliminationBracket = ({
   // Refs to always have the latest state inside broadcast closures
   const matchesRef = useRef<Match[]>([]);
   const tournamentRef = useRef<any>(null);
+  const standingsTeamsRef = useRef<{ teamId: string; name: string }[]>([]);
   useEffect(() => { matchesRef.current = matches; }, [matches]);
   useEffect(() => { tournamentRef.current = tournament; }, [tournament]);
+  useEffect(() => { standingsTeamsRef.current = standingsTeams; }, [standingsTeams]);
 
   useEffect(() => {
     if (currentPhase !== "double_elimination") return;
