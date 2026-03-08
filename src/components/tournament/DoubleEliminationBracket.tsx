@@ -614,6 +614,26 @@ export const DoubleEliminationBracket = ({
     }
   };
 
+  const handleResetBracket = async () => {
+    setResetting(true);
+    try {
+      const { error } = await supabase
+        .from("matches")
+        .delete()
+        .eq("tournament_id", tournamentId)
+        .eq("phase", "double_elimination");
+      if (error) throw error;
+      setMatches([]);
+      toast.success("Bracket reset! Regenerating...");
+      await generateBracket(tournament?.teams_for_elimination || totalTeams);
+    } catch (error: any) {
+      toast.error("Error resetting bracket");
+      console.error(error);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const handleScoreUpdate = async (matchId: string) => {
     const matchScores = scores[matchId];
     if (!matchScores) return;
