@@ -855,18 +855,22 @@ export const DoubleEliminationBracket = ({
     }
   };
 
-  const createGrandFinalReset = async (winnersChampion: string, losersChampion: string, winnersMatches: any[]) => {
+  const createGrandFinalReset = async (winnersChampion: string, losersChampion: string) => {
     const totalTeams = tournament?.teams_for_elimination || 8;
     const winnersRounds = Math.log2(totalTeams);
     const resetRound = winnersRounds + 2;
 
-    const exists = winnersMatches.some(m =>
-      m.round_number === resetRound &&
-      ((m.team1_id === winnersChampion && m.team2_id === losersChampion) ||
-       (m.team1_id === losersChampion && m.team2_id === winnersChampion))
-    );
+    // Query DB directly to avoid stale in-memory snapshot of winnersMatches
+    const { data: existingReset } = await supabase
+      .from("matches")
+      .select("id")
+      .eq("tournament_id", tournamentId)
+      .eq("phase", "double_elimination")
+      .eq("round_number", resetRound)
+      .eq("is_third_place_match", false)
+      .limit(1);
 
-    if (!exists) {
+    if (!existingReset || existingReset.length === 0) {
       const { error } = await supabase.from("matches").insert({
         tournament_id: tournamentId, phase: "double_elimination",
         round_number: resetRound, team1_id: winnersChampion, team2_id: losersChampion,
