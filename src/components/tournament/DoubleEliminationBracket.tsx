@@ -417,23 +417,20 @@ export const DoubleEliminationBracket = ({
           .sort(sortFn);
 
       // ---------------------------------------------------------------
-      // L-R1 (minor): W-R1 losers, FIXED spread pairing by position.
-      // allR1[i] is paired with allR1[totalR1-1-i] — positions never change.
-      // A pair's Losers match is created only when BOTH partners have a winner.
-      // This prevents wrong cross-pairings when matches finish out of order.
+      // L-R1 (minor): CONSECUTIVE pairing.
+      // allR1[2k] pairs with allR1[2k+1] → Losers R1 match k+1.
+      // Both must have a winner before creating the match.
       // ---------------------------------------------------------------
-      const allR1 = winnersBracket.filter(m => m.round_number === 1); // sorted by sortFn (field_number)
+      const allR1 = winnersBracket.filter(m => m.round_number === 1); // sorted by sortFn
       const totalR1 = allR1.length;
 
-      for (let i = 0; i < Math.floor(totalR1 / 2); i++) {
-        const mLow  = allR1[i];
-        const mHigh = allR1[totalR1 - 1 - i];
+      for (let k = 0; k < Math.floor(totalR1 / 2); k++) {
+        const mA = allR1[k * 2];
+        const mB = allR1[k * 2 + 1];
+        if (!mA?.winner_id || !mB?.winner_id) continue;
 
-        // Both partners must be done — wait for the spread partner even if not complete yet
-        if (!mLow?.winner_id || !mHigh?.winner_id) continue;
-
-        const l1 = mLow.winner_id  === mLow.team1_id  ? mLow.team2_id  : mLow.team1_id;
-        const l2 = mHigh.winner_id === mHigh.team1_id ? mHigh.team2_id : mHigh.team1_id;
+        const l1 = mA.winner_id === mA.team1_id ? mA.team2_id : mA.team1_id;
+        const l2 = mB.winner_id === mB.team1_id ? mB.team2_id : mB.team1_id;
         if (!l1 || !l2 || l1 === l2) continue;
 
         const alreadyInLosersBracket = [...losersBracket, ...matchesToCreate].some(
@@ -444,7 +441,7 @@ export const DoubleEliminationBracket = ({
           matchesToCreate.push({
             tournament_id: tournamentId, phase: "double_elimination",
             round_number: 1, team1_id: l1, team2_id: l2,
-            is_third_place_match: true, field_number: i + 1,
+            is_third_place_match: true, field_number: k + 1,
           });
         }
       }
@@ -723,23 +720,21 @@ export const DoubleEliminationBracket = ({
         // W-Rk losers → L-R(k-1)*2 major round
 
         if (roundNumber === 1) {
-          // W-R1: FIXED spread pairing by position in the full allR1 array.
-          // Find where the current match sits, pair it with its mirror (totalR1-1-myPos).
-          // Only create the Losers match when BOTH spread partners have a winner.
+          // W-R1: CONSECUTIVE pairing. allR1[2k] pairs with allR1[2k+1].
+          // Find which pair slot this match belongs to, then check its partner.
           const allR1Sorted = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
-          const totalR1 = allR1Sorted.length;
           const myPosInR1 = allR1Sorted.findIndex(m => m.id === completedMatch.id);
-          const partnerPosInR1 = totalR1 - 1 - myPosInR1;
+          // Even pos pairs with pos+1, odd pos pairs with pos-1
+          const partnerPosInR1 = myPosInR1 % 2 === 0 ? myPosInR1 + 1 : myPosInR1 - 1;
           const partnerMatchR1 = allR1Sorted[partnerPosInR1];
 
           if (partnerMatchR1?.winner_id) {
-            // Both this match and its spread partner are done → create Losers R1 match
             const l1 = loserId; // loser of current match
             const l2 = partnerMatchR1.winner_id === partnerMatchR1.team1_id
               ? partnerMatchR1.team2_id
               : partnerMatchR1.team1_id;
+            const fieldNum = Math.floor(Math.min(myPosInR1, partnerPosInR1) / 2) + 1;
             if (l1 && l2 && l1 !== l2 && !matchExists(losersBracket, 1, l1, l2)) {
-              const fieldNum = Math.min(myPosInR1, partnerPosInR1) + 1;
               matchesToCreate.push({
                 tournament_id: tournamentId, phase: "double_elimination",
                 round_number: 1, team1_id: l1, team2_id: l2,
@@ -1091,35 +1086,38 @@ export const DoubleEliminationBracket = ({
 
   /**
    * For Losers R1: compute which losers are already known from W-R1 but don't have
-   * a Losers match yet (spread partner not done). Returns a map of slotIndex → {loserName}.
-   * slotIndex = Math.min(posInAllR1, totalR1-1-posInAllR1) for each completed W-R1 match.
+   * a Losers match yet (consecutive pair partner not done yet).
+   * Consecutive pairing: allR1[2k] pairs with allR1[2k+1] → LR1 slot k.
+   * Returns a map of slotIndex → { name, teamId } for the known loser in each pending pair.
    */
   const getPendingLosersR1 = (): Map<number, { name: string; teamId: string }> => {
     const pending = new Map<number, { name: string; teamId: string }>();
     const allR1 = winnersMatches
       .filter(m => m.round_number === 1)
       .sort((a, b) => (a.field_number || 0) - (b.field_number || 0));
-    const totalR1 = allR1.length;
 
-    for (let i = 0; i < totalR1; i++) {
-      const m = allR1[i];
-      if (!m.winner_id) continue;
-      const loserId = m.winner_id === m.team1_id ? m.team2_id : m.team1_id;
-      const loserTeam = m.winner_id === m.team1_id ? m.team2 : m.team1;
+    for (let k = 0; k < Math.floor(allR1.length / 2); k++) {
+      const mA = allR1[k * 2];
+      const mB = allR1[k * 2 + 1];
+
+      // Both done → real match should exist in DB (not pending)
+      if (mA?.winner_id && mB?.winner_id) continue;
+
+      // One done, one not → show the known loser as "waiting"
+      const doneMatch = mA?.winner_id ? mA : (mB?.winner_id ? mB : null);
+      if (!doneMatch) continue;
+
+      const loserId = doneMatch.winner_id === doneMatch.team1_id ? doneMatch.team2_id : doneMatch.team1_id;
+      const loserTeam = doneMatch.winner_id === doneMatch.team1_id ? doneMatch.team2 : doneMatch.team1;
       if (!loserId || !loserTeam) continue;
 
-      // Check if this loser already has a Losers R1 match
+      // Check if this loser already has a Losers R1 match in DB
       const alreadyPlaced = losersMatches.some(
         lm => lm.round_number === 1 && (lm.team1_id === loserId || lm.team2_id === loserId)
       );
       if (alreadyPlaced) continue;
 
-      // Slot index = min(i, totalR1-1-i) (the lower position of the pair)
-      const slotIdx = Math.min(i, totalR1 - 1 - i);
-      // Only add the pending slot entry once per pair (use the one not already there)
-      if (!pending.has(slotIdx)) {
-        pending.set(slotIdx, { name: loserTeam.name, teamId: loserId });
-      }
+      pending.set(k, { name: loserTeam.name, teamId: loserId });
     }
     return pending;
   };
