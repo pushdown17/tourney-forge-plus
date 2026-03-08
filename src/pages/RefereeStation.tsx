@@ -1298,12 +1298,12 @@ const RefereeStation = () => {
       if (currentPhase === 'double_elimination') {
         const getSeq = (m: any): number => {
           if (!m.is_third_place_match) {
-            // Winners bracket explicit seq: R1→1, R2→3, R3→6, R4→8
-            const wSeq: Record<number, number> = { 1: 1, 2: 3, 3: 6, 4: 8 };
+            // Winners bracket explicit seq: R1→1, R2→3, R3→6, R4→9
+            const wSeq: Record<number, number> = { 1: 1, 2: 3, 3: 6, 4: 9 };
             return wSeq[m.round_number] ?? (m.round_number * 2 + 5);
           } else {
-            // Losers bracket explicit seq: R1→2, R2→4, R3→5, R4→7, R5→9, R6→10
-            const lSeq: Record<number, number> = { 1: 2, 2: 4, 3: 5, 4: 7, 5: 9, 6: 10 };
+            // Losers bracket explicit seq: R1→2, R2→4, R3→5, R4→7, R5→8, R6→10
+            const lSeq: Record<number, number> = { 1: 2, 2: 4, 3: 5, 4: 7, 5: 8, 6: 10 };
             return lSeq[m.round_number] ?? (m.round_number * 2 + 4);
           }
         };
