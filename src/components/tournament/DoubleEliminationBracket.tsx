@@ -743,7 +743,8 @@ export const DoubleEliminationBracket = ({
               ? partnerMatchR1.team2_id
               : partnerMatchR1.team1_id;
             const fieldNum = Math.floor(Math.min(myPosInR1, partnerPosInR1) / 2) + 1;
-            if (l1 && l2 && l1 !== l2 && !matchExists(losersBracket, 1, l1, l2)) {
+            // Use team-level dedup: prevent adding a team already in ANY L-R1 match
+            if (l1 && l2 && l1 !== l2 && !teamInRound(losersBracket, 1, l1) && !teamInRound(losersBracket, 1, l2) && !teamInRound(matchesToCreate.filter(m => m.round_number === 1), 1, l1) && !teamInRound(matchesToCreate.filter(m => m.round_number === 1), 1, l2)) {
               matchesToCreate.push({
                 tournament_id: tournamentId, phase: "double_elimination",
                 round_number: 1, team1_id: l1, team2_id: l2,
