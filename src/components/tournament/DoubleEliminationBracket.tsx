@@ -410,6 +410,10 @@ export const DoubleEliminationBracket = ({
       const matchExists = (arr: any[], r: number, t1: string, t2: string) =>
         arr.some(m => m.round_number === r && ((m.team1_id === t1 && m.team2_id === t2) || (m.team1_id === t2 && m.team2_id === t1)));
 
+      // Check if a team is ALREADY in ANY match of a given round (prevents duplicate entries for same team)
+      const teamInRound = (arr: any[], r: number, teamId: string) =>
+        arr.some(m => m.round_number === r && (m.team1_id === teamId || m.team2_id === teamId));
+
       // Helper: get all matches for a given losers round (db + queued)
       const getLosersRound = (r: number) =>
         [...losersBracket, ...matchesToCreate]
@@ -419,7 +423,7 @@ export const DoubleEliminationBracket = ({
       // ---------------------------------------------------------------
       // L-R1 (minor): CONSECUTIVE pairing.
       // allR1[2k] pairs with allR1[2k+1] → Losers R1 match k+1.
-      // Both must have a winner before creating the match.
+      // BOTH W-R1 matches in the pair must be done before creating L-R1.
       // ---------------------------------------------------------------
       const allR1 = winnersBracket.filter(m => m.round_number === 1); // sorted by sortFn
       const totalR1 = allR1.length;
@@ -427,17 +431,18 @@ export const DoubleEliminationBracket = ({
       for (let k = 0; k < Math.floor(totalR1 / 2); k++) {
         const mA = allR1[k * 2];
         const mB = allR1[k * 2 + 1];
+        // Skip if either W-R1 match in the pair is not yet completed
         if (!mA?.winner_id || !mB?.winner_id) continue;
 
         const l1 = mA.winner_id === mA.team1_id ? mA.team2_id : mA.team1_id;
         const l2 = mB.winner_id === mB.team1_id ? mB.team2_id : mB.team1_id;
         if (!l1 || !l2 || l1 === l2) continue;
 
-        const alreadyInLosersBracket = [...losersBracket, ...matchesToCreate].some(
-          m => m.round_number === 1 &&
-               ((m.team1_id === l1 && m.team2_id === l2) || (m.team1_id === l2 && m.team2_id === l1))
-        );
-        if (!alreadyInLosersBracket) {
+        const allLosersR1 = [...losersBracket, ...matchesToCreate].filter(m => m.round_number === 1);
+        // Skip if either team is ALREADY in any L-R1 match (prevents duplicates)
+        const l1AlreadyPlaced = teamInRound(allLosersR1, 1, l1);
+        const l2AlreadyPlaced = teamInRound(allLosersR1, 1, l2);
+        if (!l1AlreadyPlaced && !l2AlreadyPlaced) {
           matchesToCreate.push({
             tournament_id: tournamentId, phase: "double_elimination",
             round_number: 1, team1_id: l1, team2_id: l2,
