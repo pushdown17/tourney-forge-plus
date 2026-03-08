@@ -137,6 +137,12 @@ export const DoubleEliminationBracket = ({
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: TimerState }>({});
   const [playersByTeam, setPlayersByTeam] = useState<Record<string, string[]>>({});
 
+  // Refs to always have the latest state inside broadcast closures
+  const matchesRef = useRef<Match[]>([]);
+  const tournamentRef = useRef<any>(null);
+  useEffect(() => { matchesRef.current = matches; }, [matches]);
+  useEffect(() => { tournamentRef.current = tournament; }, [tournament]);
+
   useEffect(() => {
     if (currentPhase !== "double_elimination") return;
     fetchTournamentAndMatches();
