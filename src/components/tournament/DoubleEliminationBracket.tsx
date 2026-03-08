@@ -83,9 +83,11 @@ const getLosersRoundsCount = (totalTeams: number): number => {
 const getWinnersRoundName = (roundNumber: number, totalTeams: number) => {
   const w = Math.log2(totalTeams);
   if (roundNumber === w) return "Winners Final";
-  if (roundNumber === w - 1) return totalTeams >= 16 ? "Winners Semi" : "Winners Final";
-  if (roundNumber === w - 2 && totalTeams >= 16) return "Winners QF";
-  if (roundNumber === 1 && totalTeams >= 16) return "Round of 16";
+  if (roundNumber === w - 1) return w >= 3 ? "Winners Semi" : "Winners Final";
+  if (roundNumber === w - 2 && w >= 4) return "Winners QF";
+  if (roundNumber === 1 && w >= 5) return "Round of 32";
+  if (roundNumber === 1 && w >= 4) return "Round of 16";
+  if (roundNumber === 1 && w >= 3) return "Round of 8";
   return `W-R${roundNumber}`;
 };
 
@@ -93,16 +95,6 @@ const getLosersRoundName = (roundNumber: number, totalTeams: number) => {
   const lr = getLosersRoundsCount(totalTeams);
   if (roundNumber === lr) return "Losers Final";
   if (roundNumber === lr - 1) return "Losers Semi";
-  // Minor rounds (odd): teams from winners drop in
-  // Major rounds (even): survivors play each other
-  const isMinor = roundNumber % 2 === 1;
-  const pairIndex = Math.ceil(roundNumber / 2);
-  // Map to winners round that feeds this losers round
-  const winnersFeederRound = pairIndex; // W-R1 → L-R1 (minor), W-R2 → L-R3 (minor), etc.
-  if (isMinor) {
-    if (roundNumber === 1) return "Losers R1";
-    return `Losers R${roundNumber}`;
-  }
   return `Losers R${roundNumber}`;
 };
 
