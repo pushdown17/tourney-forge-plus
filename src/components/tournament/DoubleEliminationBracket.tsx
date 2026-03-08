@@ -223,13 +223,34 @@ export const DoubleEliminationBracket = ({
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tournamentId}` },
-        // New match inserted = new bracket round generated, need full refetch
-        () => { fetchTournamentAndMatches(); }
+        async (payload) => {
+          // Silently merge the new match without triggering loading state
+          const inserted = payload.new as any;
+          if (!inserted || inserted.phase !== 'double_elimination') return;
+          // Fetch team names for the new match
+          const { data: newMatch } = await supabase
+            .from("matches")
+            .select(`*, team1:teams!matches_team1_id_fkey(id, name), team2:teams!matches_team2_id_fkey(id, name)`)
+            .eq("id", inserted.id)
+            .single();
+          if (newMatch) {
+            setMatches(prev => {
+              // Avoid duplicates
+              if (prev.some(m => m.id === newMatch.id)) return prev;
+              return [...prev, newMatch];
+            });
+          }
+        }
       )
       .on(
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tournamentId}` },
-        () => { fetchTournamentAndMatches(); }
+        (payload) => {
+          const deleted = payload.old as any;
+          if (deleted?.id) {
+            setMatches(prev => prev.filter(m => m.id !== deleted.id));
+          }
+        }
       )
       .on(
         'postgres_changes',
