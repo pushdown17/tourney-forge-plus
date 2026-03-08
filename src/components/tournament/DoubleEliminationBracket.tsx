@@ -1132,7 +1132,8 @@ export const DoubleEliminationBracket = ({
 
   const createGrandFinalReset = async (winnersChampion: string, losersChampion: string) => {
     const totalTeams = tournament?.teams_for_elimination || 8;
-    const winnersRounds = Math.log2(totalTeams);
+    const bracketSz = getBracketSize(totalTeams);
+    const winnersRounds = Math.log2(bracketSz);
     const resetRound = winnersRounds + 2;
 
     // Query DB directly to avoid stale in-memory snapshot of winnersMatches
@@ -1428,7 +1429,7 @@ export const DoubleEliminationBracket = ({
             const realRoundMatches = (matchByRound.get(round) || [])
               .sort((a, b) => (a.field_number || 0) - (b.field_number || 0));
 
-            const roundName = isLosers ? getLosersRoundName(round, totalTeams) : getWinnersRoundName(round, totalTeams);
+            const roundName = isLosers ? getLosersRoundName(round, bracketSize) : getWinnersRoundName(round, bracketSize);
             const isThisLastRound = colIdx === expectedRounds.length - 1;
 
             // Compute spacingLevel based purely on match count
