@@ -1459,6 +1459,10 @@ export const DoubleEliminationBracket = ({
   const pendingLosersMatches = losersMatches.filter(m => !m.winner_id).length;
   const pendingFinalsMatches = grandFinalMatches.filter(m => !m.winner_id).length;
 
+  const liveWinnersMatches = winnersMatches.some(m => activeStationMatches.has(m.id));
+  const liveLosersMatches = losersMatches.some(m => activeStationMatches.has(m.id));
+  const liveFinalsMatches = grandFinalMatches.some(m => activeStationMatches.has(m.id));
+
   return (
     <Card className="glass-card p-6">
       <div className="flex items-center justify-between mb-6">
