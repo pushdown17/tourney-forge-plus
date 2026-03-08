@@ -484,17 +484,16 @@ export const DoubleEliminationBracket = ({
           .sort(sortFn);
 
       // ---------------------------------------------------------------
-      // L-R1 (minor): CROSS/SNAKE pairing.
-      // allR1[k] pairs with allR1[totalR1-1-k] → preserves seeding (worst vs worst)
+      // L-R1 (minor): CONSECUTIVE pairing.
+      // allR1[2k] pairs with allR1[2k+1] → Losers R1 match k+1.
       // BOTH W-R1 matches in the pair must be done before creating L-R1.
       // ---------------------------------------------------------------
-      const allR1 = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
+      const allR1 = winnersBracket.filter(m => m.round_number === 1); // sorted by sortFn
       const totalR1 = allR1.length;
-      const halfR1 = Math.floor(totalR1 / 2);
 
-      for (let k = 0; k < halfR1; k++) {
-        const mA = allR1[k];
-        const mB = allR1[totalR1 - 1 - k];
+      for (let k = 0; k < Math.floor(totalR1 / 2); k++) {
+        const mA = allR1[k * 2];
+        const mB = allR1[k * 2 + 1];
         // Skip if either W-R1 match in the pair is not yet completed
         if (!mA?.winner_id || !mB?.winner_id) continue;
 
@@ -917,15 +916,12 @@ export const DoubleEliminationBracket = ({
         // W-Rk losers → L-R(k-1)*2 major round
 
         if (roundNumber === 1) {
-          // W-R1: CROSS/SNAKE pairing. loser[k] pairs with loser[totalR1-1-k].
-          // Find which position this match is in W-R1, then pair with mirror position.
+          // W-R1: CONSECUTIVE pairing. allR1[2k] pairs with allR1[2k+1].
+          // Find which pair slot this match belongs to, then check its partner.
           const allR1Sorted = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
-          const totalR1 = allR1Sorted.length;
           const myPosInR1 = allR1Sorted.findIndex(m => m.id === completedMatch.id);
-          // Cross pairing: pos k pairs with pos (totalR1 - 1 - k)
-          const partnerPosInR1 = totalR1 - 1 - myPosInR1;
-          // Only process from the "lower" index to avoid double-creation
-          if (myPosInR1 > partnerPosInR1) return; // handled by the partner's trigger
+          // Even pos pairs with pos+1, odd pos pairs with pos-1
+          const partnerPosInR1 = myPosInR1 % 2 === 0 ? myPosInR1 + 1 : myPosInR1 - 1;
           const partnerMatchR1 = allR1Sorted[partnerPosInR1];
 
           if (partnerMatchR1?.winner_id) {
@@ -933,7 +929,7 @@ export const DoubleEliminationBracket = ({
             const l2 = partnerMatchR1.winner_id === partnerMatchR1.team1_id
               ? partnerMatchR1.team2_id
               : partnerMatchR1.team1_id;
-            const fieldNum = myPosInR1 + 1;
+            const fieldNum = Math.floor(Math.min(myPosInR1, partnerPosInR1) / 2) + 1;
             // Use team-level dedup: prevent adding a team already in ANY L-R1 match
             if (l1 && l2 && l1 !== l2 && !teamInRound(losersBracket, 1, l1) && !teamInRound(losersBracket, 1, l2) && !teamInRound(matchesToCreate.filter(m => m.round_number === 1), 1, l1) && !teamInRound(matchesToCreate.filter(m => m.round_number === 1), 1, l2)) {
               matchesToCreate.push({
