@@ -170,8 +170,7 @@ export const DoubleEliminationBracket = ({
     const grandFinalExists = matches.some(m => !m.is_third_place_match && m.round_number === grandFinalRound);
 
     if (wFinal?.winner_id && lFinal?.winner_id && !grandFinalExists) {
-      const winnersBracketMatches = matches.filter(m => !m.is_third_place_match);
-      createGrandFinal(wFinal.winner_id, lFinal.winner_id, winnersBracketMatches).then(() => {
+      createGrandFinal(wFinal.winner_id, lFinal.winner_id).then(() => {
         setActiveTab("finals");
       });
     }
