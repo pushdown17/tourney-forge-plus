@@ -904,7 +904,9 @@ export const DoubleEliminationBracket = ({
               // Lower slot index → team1 (top of the match card), higher → team2
               const r2t1 = partnerSlot < matchSlot ? byeTeamId : winnerId;
               const r2t2 = partnerSlot < matchSlot ? winnerId : byeTeamId;
-              if (!matchExists(winnersBracket, nextRound, r2t1, r2t2)) {
+              const alreadyInR2 = teamInRound(winnersBracket.filter(m => m.round_number === nextRound), nextRound, r2t1)
+                                || teamInRound(winnersBracket.filter(m => m.round_number === nextRound), nextRound, r2t2);
+              if (!matchExists(winnersBracket, nextRound, r2t1, r2t2) && !alreadyInR2) {
                 matchesToCreate.push({
                   tournament_id: tournamentId, phase: "double_elimination" as const,
                   round_number: nextRound, team1_id: r2t1, team2_id: r2t2,
@@ -920,7 +922,9 @@ export const DoubleEliminationBracket = ({
               if (partnerMatch?.winner_id) {
                 const lowerSlotWinner = partnerSlot < matchSlot ? partnerMatch.winner_id : winnerId;
                 const higherSlotWinner = partnerSlot < matchSlot ? winnerId : partnerMatch.winner_id;
-                if (!matchExists(winnersBracket, nextRound, lowerSlotWinner, higherSlotWinner)) {
+                const alreadyInR2b = teamInRound(winnersBracket.filter(m => m.round_number === nextRound), nextRound, lowerSlotWinner)
+                                  || teamInRound(winnersBracket.filter(m => m.round_number === nextRound), nextRound, higherSlotWinner);
+                if (!matchExists(winnersBracket, nextRound, lowerSlotWinner, higherSlotWinner) && !alreadyInR2b) {
                   matchesToCreate.push({
                     tournament_id: tournamentId, phase: "double_elimination" as const,
                     round_number: nextRound, team1_id: lowerSlotWinner, team2_id: higherSlotWinner,
