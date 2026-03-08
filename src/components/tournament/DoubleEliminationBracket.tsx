@@ -51,45 +51,29 @@ interface TimerState {
 }
 
 /**
- * Standard seeding pairs for a bracket of given size.
- * e.g. 8 teams: [1,8],[4,5],[3,6],[2,7]
+ * Same standard seeding as single elimination:
+ * recursively places #1 vs #last, ensuring top seeds are in opposite halves.
+ * e.g. 8 teams:  [1,8],[4,5],[3,6],[2,7]
  * e.g. 16 teams: [1,16],[8,9],[5,12],[4,13],[3,14],[6,11],[7,10],[2,15]
  */
-function getStandardSeedingPairs(count: number): [number, number][] {
-  const pairs: [number, number][] = [];
-  const buildBracket = (seeds: number[]): [number, number][] => {
-    if (seeds.length === 2) return [[seeds[0], seeds[1]]];
-    const half = seeds.length / 2;
-    const top: number[] = [];
-    const bottom: number[] = [];
-    for (let i = 0; i < seeds.length; i++) {
-      if (i % 2 === 0) top.push(seeds[i]);
-      else bottom.push(seeds[i]);
-    }
-    const result: [number, number][] = [];
-    const topPairs = buildBracket(top);
-    const bottomPairs = buildBracket(bottom.reverse());
-    for (let i = 0; i < topPairs.length; i++) {
-      result.push(topPairs[i]);
-      result.push(bottomPairs[i]);
-    }
-    return result;
-  };
+function getStandardSeeding(size: number): number[] {
+  if (size === 1) return [1];
+  const prev = getStandardSeeding(size / 2);
+  const result: number[] = [];
+  for (const seed of prev) {
+    result.push(seed);
+    result.push(size + 1 - seed);
+  }
+  return result;
+}
 
-  // Build initial seed list and create standard bracket
-  const seeds = Array.from({ length: count }, (_, i) => i + 1);
-  // Standard bracket: 1 vs last, then recurse
-  const makePairs = (s: number[]): [number, number][] => {
-    if (s.length === 2) return [[s[0], s[1]]];
-    const result: [number, number][] = [];
-    const top = s.slice(0, s.length / 2);
-    const bottom = s.slice(s.length / 2).reverse();
-    for (let i = 0; i < top.length; i++) {
-      result.push(...makePairs([top[i], bottom[i]]));
-    }
-    return result;
-  };
-  return makePairs(seeds);
+function getStandardSeedingPairs(count: number): [number, number][] {
+  const seeding = getStandardSeeding(count);
+  const pairs: [number, number][] = [];
+  for (let i = 0; i < seeding.length; i += 2) {
+    pairs.push([seeding[i], seeding[i + 1]]);
+  }
+  return pairs;
 }
 
 const getLosersRoundsCount = (totalTeams: number): number => {
