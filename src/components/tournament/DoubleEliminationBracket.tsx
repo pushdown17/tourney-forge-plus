@@ -1507,13 +1507,13 @@ export const DoubleEliminationBracket = ({
                 <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{pendingWinnersMatches}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="losers" className="gap-2 data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">
+            <TabsTrigger value="losers" className="gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white">
               <Skull className="h-4 w-4" />
               <span className="hidden sm:inline">Losers</span>
               {liveLosersMatches && (
                 <span className="relative flex h-2 w-2 ml-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
                 </span>
               )}
               {pendingLosersMatches > 0 && (
