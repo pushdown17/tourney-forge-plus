@@ -137,6 +137,8 @@ export const DoubleEliminationBracket = ({
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  // Ordered standings: index 0 = seed #1, used to resolve BYE team names
+  const [standingsTeams, setStandingsTeams] = useState<{ teamId: string; name: string }[]>([]);
 
   // Trigger reset from parent (Tournament settings popover)
   const prevResetTrigger = useRef(resetTrigger);
@@ -372,7 +374,7 @@ export const DoubleEliminationBracket = ({
           .order("round_number", { ascending: true }),
         supabase
           .from("team_stats")
-          .select("team_id, points, goals_for, goals_against")
+          .select(`team_id, points, goals_for, goals_against, team:team_id(id, name)`)
           .eq("tournament_id", tournamentId)
           .order("points", { ascending: false })
           .order("goals_for", { ascending: false })
@@ -381,11 +383,16 @@ export const DoubleEliminationBracket = ({
       if (matchesResult.error) throw matchesResult.error;
 
       const seedMap = new Map<string, number>();
+      const orderedTeams: { teamId: string; name: string }[] = [];
       if (standingsResult.data) {
-        standingsResult.data.forEach((stat, index) => {
+        standingsResult.data.forEach((stat: any, index) => {
           seedMap.set(stat.team_id, index + 1);
+          if (stat.team?.name) {
+            orderedTeams.push({ teamId: stat.team_id, name: stat.team.name });
+          }
         });
       }
+      setStandingsTeams(orderedTeams);
 
       const matchesWithSeeds = (matchesResult.data || []).map(match => ({
         ...match,
@@ -1332,22 +1339,9 @@ export const DoubleEliminationBracket = ({
 
       if (round === 2 && byeCount > 0) {
         // R2 with BYEs: show pending slots for each bracketSize/4 R2 slot.
-        // BYE teams never had an R1 match — identify them by checking who's NOT in any R1 match.
+        // BYE teams = top byeCount seeds from standings (they skip R1 entirely).
+        // standingsTeams[0] = seed #1 ... standingsTeams[byeCount-1] = seed #byeCount
         const r1Matches = allW.filter(m => m.round_number === 1).sort(sortFnField);
-        const allTeamsInR1 = new Set<string>();
-        r1Matches.forEach(m => { allTeamsInR1.add(m.team1_id); allTeamsInR1.add(m.team2_id); });
-
-        // BYE teams = teams in any W match (including R2) that never appeared in R1, ordered by appearance
-        const byeTeamsList: { name: string; teamId: string }[] = [];
-        const seenBye = new Set<string>();
-        allW.forEach(m => {
-          [{ team: m.team1, id: m.team1_id }, { team: m.team2, id: m.team2_id }].forEach(({ team, id }) => {
-            if (team && id && !allTeamsInR1.has(id) && !seenBye.has(id)) {
-              byeTeamsList.push({ name: team.name, teamId: id });
-              seenBye.add(id);
-            }
-          });
-        });
 
         // Use standard seeding to determine which R2 slot each BYE team belongs to
         const fullPairs = getStandardSeedingPairs(bracketSize);
@@ -1359,7 +1353,9 @@ export const DoubleEliminationBracket = ({
           (s1 <= totalTeams && s2 > totalTeams) || (s2 <= totalTeams && s1 > totalTeams)
         );
 
-        // Assign byeTeamsList entries to BYE slots in order
+        // Assign BYE teams (top byeCount seeds from standings) to BYE slots in standard seeding order
+        // standingsTeams is ordered by seed: [0]=seed1, [1]=seed2, ...
+        const byeTeamsList = standingsTeams.slice(0, byeCount); // top seeds get BYEs
         let byeTeamIdx = 0;
         const byeSlotToTeam = new Map<number, { name: string; teamId: string }>();
         fullPairs.forEach((_pair, pairIdx) => {
