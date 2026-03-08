@@ -1819,22 +1819,6 @@ export const DoubleEliminationBracket = ({
         />
       )}
 
-      <AlertDialog open={refreshConfirmOpen} onOpenChange={setRefreshConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Rafraîchir le bracket ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cela va recharger toutes les données depuis la base. Les modifications non sauvegardées seront perdues.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setRefreshConfirmOpen(false); fetchTournamentAndMatches(); }}>
-              Rafraîchir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
         <AlertDialogContent>
