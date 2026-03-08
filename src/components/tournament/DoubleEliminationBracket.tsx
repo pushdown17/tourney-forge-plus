@@ -6,7 +6,8 @@ import { MatchStatsDialog } from "./MatchStatsDialog";
 import { MatchStatsRecapDialog } from "./MatchStatsRecapDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trophy, Shield, Skull, RefreshCw, RotateCcw } from "lucide-react";
+import { Trophy, Shield, Skull, RefreshCw, RotateCcw, Settings } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -124,7 +125,6 @@ export const DoubleEliminationBracket = ({
   const [recapDialogOpen, setRecapDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("winners");
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
-  const [refreshConfirmOpen, setRefreshConfirmOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
 
@@ -1505,12 +1505,29 @@ export const DoubleEliminationBracket = ({
         </div>
         <div className="flex items-center gap-2">
           {isCreator && !isClosed && (
-            <Button variant="outline" size="sm" onClick={() => setResetConfirmOpen(true)} disabled={resetting} className="gap-2 border-destructive/50 text-destructive hover:bg-destructive/10">
-              <RotateCcw className="h-4 w-4" />
-              Reset
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56">
+                <div className="space-y-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={() => setResetConfirmOpen(true)}
+                    disabled={resetting}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    {resetting ? "Réinitialisation..." : "Réinitialiser le bracket"}
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
-          <Button variant="outline" size="sm" onClick={() => setRefreshConfirmOpen(true)} className="gap-2">
+          <Button variant="outline" size="sm" onClick={fetchTournamentAndMatches} className="gap-2">
             <RefreshCw className="h-4 w-4" />
             Refresh
           </Button>
@@ -1802,22 +1819,6 @@ export const DoubleEliminationBracket = ({
         />
       )}
 
-      <AlertDialog open={refreshConfirmOpen} onOpenChange={setRefreshConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Rafraîchir le bracket ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cela va recharger toutes les données depuis la base. Les modifications non sauvegardées seront perdues.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setRefreshConfirmOpen(false); fetchTournamentAndMatches(); }}>
-              Rafraîchir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
         <AlertDialogContent>
