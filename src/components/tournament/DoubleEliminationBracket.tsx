@@ -1002,7 +1002,8 @@ export const DoubleEliminationBracket = ({
           const prevMinorRound = targetLosersRound - 1;
 
           // Get ALL W losers from this round sorted by field_number (including not-yet-completed ones)
-          const allCurrentRoundLosers = currentRoundMatches
+          const currentRoundMatchesForLosers = winnersBracket.filter(m => m.round_number === roundNumber);
+          const allCurrentRoundLosers = currentRoundMatchesForLosers
             .sort(sortFn)
             .map(m => m.winner_id ? (m.winner_id === m.team1_id ? m.team2_id : m.team1_id) : null);
 
