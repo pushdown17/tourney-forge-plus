@@ -1296,15 +1296,27 @@ const RefereeStation = () => {
       // Key: L-R3 (seq 5) comes BEFORE W-R3 (seq 6) as requested.
       //      L-R1 (seq 2) correctly comes AFTER W-R1 (seq 1).
       if (currentPhase === 'double_elimination') {
+        // Build dynamic interleaving sequence for any number of teams (4, 8, 16, 32...)
+        // Formula for W-Rk seq: k=1→1, k>=2→3*(k-1)
+        // Formula for L-Rr: r odd (minor, k=ceil(r/2)) → W-seq(k+1)-1; r even (major, k=r/2) → W-seq(k)+1 (except last)
+        const wSeq = (k: number): number => k === 1 ? 1 : 3 * (k - 1);
         const getSeq = (m: any): number => {
           if (!m.is_third_place_match) {
-            // Winners bracket explicit seq: R1→1, R2→3, R3→6, R4→9
-            const wSeq: Record<number, number> = { 1: 1, 2: 3, 3: 6, 4: 9 };
-            return wSeq[m.round_number] ?? (m.round_number * 2 + 5);
+            // Winners bracket: W-Rk → seq = 1 if k=1, else 3*(k-1)
+            return wSeq(m.round_number);
           } else {
-            // Losers bracket explicit seq: R1→2, R2→4, R3→5, R4→7, R5→8, R6→10
-            const lSeq: Record<number, number> = { 1: 2, 2: 4, 3: 5, 4: 7, 5: 8, 6: 10 };
-            return lSeq[m.round_number] ?? (m.round_number * 2 + 4);
+            const r = m.round_number;
+            const isMinor = r % 2 === 1;
+            const k = Math.ceil(r / 2);
+            if (isMinor) {
+              // Minor Losers round: comes just before the next Winners round of the same level
+              // seq = W-seq(k+1) - 1
+              return wSeq(k + 1) - 1;
+            } else {
+              // Major Losers round: comes just after the Winners round that drops in
+              // seq = W-seq(k) + 1
+              return wSeq(k) + 1;
+            }
           }
         };
         const aSeq = getSeq(a);
