@@ -1396,7 +1396,7 @@ export const DoubleEliminationBracket = ({
                               )}>
                                 {t1 ? (
                                   <>
-                                    {isLoserSlot && <Skull className="h-3 w-3 text-destructive shrink-0" />}
+                                    {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
                                     <span className="text-sm font-semibold text-foreground truncate">{t1.name}</span>
                                   </>
                                 ) : (
@@ -1407,7 +1407,7 @@ export const DoubleEliminationBracket = ({
                               <div className={cn(
                                 "flex items-center gap-2 py-1.5 px-2 rounded border",
                                 t2
-                                  ? (isLoserSlot ? "bg-destructive/10 border-destructive/20" : "bg-primary/10 border-primary/20")
+                                  ? (isLoserSlot ? "bg-orange-500/10 border-orange-500/20" : "bg-primary/10 border-primary/20")
                                   : "bg-muted/20 border-dashed border-border/30"
                               )}>
                                 {t2 ? (
