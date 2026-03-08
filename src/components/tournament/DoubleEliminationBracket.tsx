@@ -1224,7 +1224,7 @@ export const DoubleEliminationBracket = ({
   // Only show the champion banner when ALL grand final matches are done AND
   // if a reset was triggered (GF#1 won by Losers champ), GF#2 must exist before declaring winner.
   const gf1 = grandFinalMatches[0] ?? null;
-  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize) && m.winner_id)?.winner_id === gf1.winner_id;
+  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize, byeCount) && m.winner_id)?.winner_id === gf1.winner_id;
   const resetExpected = gf1?.winner_id && gf1WinnerIsLosersChamp && !hasReset;
   const allGrandFinalsCompleted = grandFinalMatches.length > 0 && grandFinalMatches.every(m => m.winner_id) && !resetExpected;
   const decidingFinal = allGrandFinalsCompleted ? grandFinalMatches[grandFinalMatches.length - 1] : null;
