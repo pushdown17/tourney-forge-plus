@@ -130,6 +130,15 @@ export const DoubleEliminationBracket = ({
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
 
+  // Trigger reset from parent (Tournament settings popover)
+  const prevResetTrigger = useRef(resetTrigger);
+  useEffect(() => {
+    if (resetTrigger > 0 && resetTrigger !== prevResetTrigger.current) {
+      prevResetTrigger.current = resetTrigger;
+      handleResetBracket();
+    }
+  }, [resetTrigger]);
+
   // Real-time timer states
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
