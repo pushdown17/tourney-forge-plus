@@ -1481,7 +1481,7 @@ export const DoubleEliminationBracket = ({
             {totalTeams} teams — Lose twice to be eliminated
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchTournamentAndMatches} className="gap-2">
+        <Button variant="outline" size="sm" onClick={() => setRefreshConfirmOpen(true)} className="gap-2">
           <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>
