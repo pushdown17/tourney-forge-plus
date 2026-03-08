@@ -223,14 +223,38 @@ const CreateTournament = () => {
                     type="number"
                     min="2"
                     max="64"
-                    placeholder="e.g., 8, 14, 16..."
+                    placeholder="e.g., 8, 12, 16..."
                     value={teamsForElimination}
                     onChange={(e) => setTeamsForElimination(e.target.value)}
                     className="bg-secondary/50"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Choose any number (2-64). Non-power-of-2 numbers will have byes in the first round.
-                  </p>
+                  {(() => {
+                    const n = parseInt(teamsForElimination) || 0;
+                    const isDoubleElim = format === "round-robin-double" || format === "swiss-double";
+                    const isPow2 = n > 0 && Number.isInteger(Math.log2(n));
+                    const isOdd = n > 0 && !isPow2 && n % 2 !== 0;
+                    if (isDoubleElim && isOdd) {
+                      return (
+                        <p className="text-xs text-destructive font-medium">
+                          ⚠️ Double elimination requires an even number. Try {n - 1} or {n + 1}.
+                        </p>
+                      );
+                    }
+                    if (isDoubleElim && !isPow2 && n > 0) {
+                      const nextP2 = Math.pow(2, Math.ceil(Math.log2(n)));
+                      const byes = nextP2 - n;
+                      return (
+                        <p className="text-xs text-muted-foreground">
+                          {byes} BYE{byes > 1 ? 's' : ''} — top {byes} seed{byes > 1 ? 's' : ''} advance directly to Round 2.
+                        </p>
+                      );
+                    }
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        {isDoubleElim ? "Even numbers recommended. " : ""}Choose any number (2-64). Non-power-of-2 numbers will have byes.
+                      </p>
+                    );
+                  })()}
                 </div>
               )}
 
