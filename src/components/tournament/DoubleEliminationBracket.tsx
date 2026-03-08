@@ -513,12 +513,18 @@ export const DoubleEliminationBracket = ({
       }
 
       if (matchesToCreate.length > 0) {
+        console.log("[repairLosersBracket] Inserting matches:", matchesToCreate);
         const { error } = await supabase.from("matches").insert(matchesToCreate);
-        if (error) throw error;
+        if (error) {
+          console.error("[repairLosersBracket] Insert error:", error);
+          throw error;
+        }
         await fetchTournamentAndMatches();
+      } else {
+        console.log("[repairLosersBracket] No matches to create. completedR1:", winnersBracket.filter(m => m.round_number === 1 && m.winner_id).length);
       }
     } catch (error: any) {
-      console.error("Error repairing losers bracket:", error);
+      console.error("[repairLosersBracket] Error:", error);
     }
   };
 
