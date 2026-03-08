@@ -640,9 +640,13 @@ export const DoubleEliminationBracket = ({
       setRecentlyAdvancedTeamIds([winnerId]);
       setTimeout(() => { setRecentlyCompletedMatchId(null); setRecentlyAdvancedTeamIds([]); }, 2000);
 
+      // Update local state immediately — no full reload needed
+      setMatches(prev => prev.map(m =>
+        m.id === matchId ? { ...m, team1_score: team1Score, team2_score: team2Score, winner_id: winnerId } : m
+      ));
+
       toast.success("Score updated");
       setEditingMatchId(null);
-      await fetchTournamentAndMatches();
       await handleChallongeProgression(match, winnerId, loserId);
     } catch (error: any) {
       toast.error("Error updating score");
