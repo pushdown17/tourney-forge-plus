@@ -1353,7 +1353,9 @@ export const DoubleEliminationBracket = ({
           (s1 <= totalTeams && s2 > totalTeams) || (s2 <= totalTeams && s1 > totalTeams)
         );
 
-        // Assign byeTeamsList entries to BYE slots in order
+        // Assign BYE teams (top byeCount seeds from standings) to BYE slots in standard seeding order
+        // standingsTeams is ordered by seed: [0]=seed1, [1]=seed2, ...
+        const byeTeamsList = standingsTeams.slice(0, byeCount); // top seeds get BYEs
         let byeTeamIdx = 0;
         const byeSlotToTeam = new Map<number, { name: string; teamId: string }>();
         fullPairs.forEach((_pair, pairIdx) => {
