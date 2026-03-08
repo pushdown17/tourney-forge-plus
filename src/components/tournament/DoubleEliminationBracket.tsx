@@ -467,6 +467,7 @@ export const DoubleEliminationBracket = ({
     try {
       const totalTeams = teamsCount ?? (tournament ?? tournamentRef.current)?.teams_for_elimination ?? 8;
       const bracketSz = getBracketSize(totalTeams);
+      const byeCount = bracketSz - totalTeams;
       const winnersRoundsCount = Math.log2(bracketSz);
 
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
@@ -474,7 +475,6 @@ export const DoubleEliminationBracket = ({
       const winnersBracket = allMatchesData
         .filter(m => !m.is_third_place_match && m.round_number <= winnersRoundsCount)
         .sort(sortFn);
-      // losersBracket is mutable: we add newly queued matches so later rounds can reference them
       const losersBracket = allMatchesData
         .filter(m => m.is_third_place_match)
         .sort(sortFn);
@@ -484,39 +484,36 @@ export const DoubleEliminationBracket = ({
       const matchExists = (arr: any[], r: number, t1: string, t2: string) =>
         arr.some(m => m.round_number === r && ((m.team1_id === t1 && m.team2_id === t2) || (m.team1_id === t2 && m.team2_id === t1)));
 
-      // Check if a team is ALREADY in ANY match of a given round (prevents duplicate entries for same team)
       const teamInRound = (arr: any[], r: number, teamId: string) =>
         arr.some(m => m.round_number === r && (m.team1_id === teamId || m.team2_id === teamId));
 
-      // Helper: get all matches for a given losers round (db + queued)
       const getLosersRound = (r: number) =>
         [...losersBracket, ...matchesToCreate]
           .filter((m: any) => m.round_number === r)
           .sort(sortFn);
 
       // ---------------------------------------------------------------
-      // L-R1 (minor): CONSECUTIVE pairing.
-      // allR1[2k] pairs with allR1[2k+1] → Losers R1 match k+1.
-      // BOTH W-R1 matches in the pair must be done before creating L-R1.
+      // PLAY-IN brackets (byeCount > 0):
+      //   W-R1 losers are ELIMINATED — skip L-R1 from W-R1
+      //   W-R2 losers → L-R1 (minor, pair them up)
+      //   W-R(k≥3) losers → L-R((k-2)*2) major round
+      // STANDARD brackets (byeCount = 0):
+      //   W-R1 losers → L-R1 (minor, pair them up)
+      //   W-R(k≥2) losers → L-R((k-1)*2) major round
       // ---------------------------------------------------------------
-      const allR1 = winnersBracket.filter(m => m.round_number === 1); // sorted by sortFn
-      const totalR1 = allR1.length;
+      const loserFirstWRound = byeCount > 0 ? 2 : 1; // First W round whose losers enter L bracket
 
-      for (let k = 0; k < Math.floor(totalR1 / 2); k++) {
-        const mA = allR1[k * 2];
-        const mB = allR1[k * 2 + 1];
-        // Skip if either W-R1 match in the pair is not yet completed
+      // L-R1 minor: losers from W-R(loserFirstWRound) paired consecutively
+      const allR1W = winnersBracket.filter(m => m.round_number === loserFirstWRound);
+      for (let k = 0; k < Math.floor(allR1W.length / 2); k++) {
+        const mA = allR1W[k * 2];
+        const mB = allR1W[k * 2 + 1];
         if (!mA?.winner_id || !mB?.winner_id) continue;
-
         const l1 = mA.winner_id === mA.team1_id ? mA.team2_id : mA.team1_id;
         const l2 = mB.winner_id === mB.team1_id ? mB.team2_id : mB.team1_id;
         if (!l1 || !l2 || l1 === l2) continue;
-
         const allLosersR1 = [...losersBracket, ...matchesToCreate].filter(m => m.round_number === 1);
-        // Skip if either team is ALREADY in any L-R1 match (prevents duplicates)
-        const l1AlreadyPlaced = teamInRound(allLosersR1, 1, l1);
-        const l2AlreadyPlaced = teamInRound(allLosersR1, 1, l2);
-        if (!l1AlreadyPlaced && !l2AlreadyPlaced) {
+        if (!teamInRound(allLosersR1, 1, l1) && !teamInRound(allLosersR1, 1, l2)) {
           matchesToCreate.push({
             tournament_id: tournamentId, phase: "double_elimination",
             round_number: 1, team1_id: l1, team2_id: l2,
@@ -525,13 +522,9 @@ export const DoubleEliminationBracket = ({
         }
       }
 
-      // ---------------------------------------------------------------
-      // For each W-round 2+ → repair L major round, then next L minor
-      // W-R2 → L-R2 (major), then L-R3 (minor)
-      // W-R3 → L-R4 (major), then L-R5 (minor)
-      // W-R4 → L-R6 (major = Losers Final, no minor after)
-      // ---------------------------------------------------------------
-      for (let wRound = 2; wRound <= winnersRoundsCount; wRound++) {
+      // For each subsequent W-round → repair L major round, then next L minor
+      const losersRoundsCount = getLosersRoundsCount(bracketSz, byeCount);
+      for (let wRound = loserFirstWRound + 1; wRound <= winnersRoundsCount; wRound++) {
         const completedWRound = winnersBracket
           .filter((m: any) => m.round_number === wRound && m.winner_id)
           .sort(sortFn);
@@ -541,10 +534,10 @@ export const DoubleEliminationBracket = ({
           m.winner_id === m.team1_id ? m.team2_id : m.team1_id
         );
 
-        const majorRound  = (wRound - 1) * 2; // W-R2→L-R2, W-R3→L-R4, W-R4→L-R6
+        // L major round formula: W-R(k) → L-R((k - loserFirstWRound) * 2)
+        const majorRound = (wRound - loserFirstWRound) * 2;
         const prevMinorRound = majorRound - 1;
 
-        // --- Repair L major round ---
         const prevMinorMatches = getLosersRound(prevMinorRound);
         const minorSurvivors = prevMinorMatches.map((m: any) => m.winner_id || null);
 
@@ -562,16 +555,10 @@ export const DoubleEliminationBracket = ({
           }
         }
 
-        // --- Repair L minor round after this major (if not last losers round) ---
-        // L-R3 comes after L-R2, L-R5 comes after L-R4; but NOT after L-R6 (final)
         const minorRoundAfter = majorRound + 1;
-        const losersRoundsCount = getLosersRoundsCount(bracketSz);
         if (majorRound < losersRoundsCount) {
-          // Get all major round matches (db + just queued) with their winners
           const allMajorMatches = getLosersRound(majorRound);
           const completedMajor = allMajorMatches.filter((m: any) => m.winner_id);
-
-          // Pair consecutive winners: [0+1], [2+3], ...
           for (let i = 0; i < Math.floor(completedMajor.length / 2); i++) {
             const mA = completedMajor[i * 2];
             const mB = completedMajor[i * 2 + 1];
