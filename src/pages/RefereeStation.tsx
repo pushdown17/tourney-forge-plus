@@ -702,42 +702,63 @@ const RefereeStation = () => {
     }
   };
 
+  const getLosersRoundsCount = (totalTeams: number) => (Math.log2(totalTeams) - 1) * 2;
+
   const validateMatch = async () => {
     if (!match || !station?.tournament_id) return;
     
     await saveStats();
 
-    // Broadcast match ended to bracket viewers
-    const channel = supabase.channel(`tournament-live-${station.tournament_id}`);
-    await channel.send({
-      type: 'broadcast',
-      event: 'match_ended',
-      payload: { matchId: match.id }
-    });
+    const currentPhase = match.phase as any;
 
-    // For double elimination, broadcast progression event so the bracket
-    // can trigger handleChallongeProgression in real-time without a full reload
-    if (match.phase === 'double_elimination') {
+    // For double elimination: handle bracket progression directly in the station
+    // (broadcast channels created on-the-fly are not subscribed and cannot send messages)
+    if (currentPhase === 'double_elimination') {
       const t1Score = team1?.score ?? 0;
       const t2Score = team2?.score ?? 0;
       const winnerId = t1Score > t2Score ? match.team1_id : t2Score > t1Score ? match.team2_id : null;
       const loserId = winnerId ? (winnerId === match.team1_id ? match.team2_id : match.team1_id) : null;
+
       if (winnerId && loserId) {
-        await channel.send({
+        try {
+          await handleDoubleEliminationProgression(match, winnerId, loserId);
+        } catch (err) {
+          console.error("[DE progression] Error:", err);
+        }
+      }
+
+      // Use the persistent broadcast channel to notify viewers (no new channel creation)
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.send({
           type: 'broadcast',
-          event: 'de_match_completed',
-          payload: {
-            matchId: match.id,
-            winnerId,
-            loserId,
-            roundNumber: match.round_number,
-            isLosersBracket: (match as any).is_third_place_match ?? false,
-          }
+          event: 'match_ended',
+          payload: { matchId: match.id }
+        });
+        if (winnerId && loserId) {
+          broadcastChannelRef.current.send({
+            type: 'broadcast',
+            event: 'de_match_completed',
+            payload: {
+              matchId: match.id,
+              winnerId,
+              loserId,
+              roundNumber: match.round_number,
+              isLosersBracket: (match as any).is_third_place_match ?? false,
+            }
+          });
+        }
+      }
+    } else {
+      // Non-DE phases: use persistent channel for match_ended broadcast
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.send({
+          type: 'broadcast',
+          event: 'match_ended',
+          payload: { matchId: match.id }
         });
       }
     }
 
-    const currentPhase = match.phase as any;
     let skipAutoAdvance = false;
 
     // For elimination phases, generate next round matches if needed
