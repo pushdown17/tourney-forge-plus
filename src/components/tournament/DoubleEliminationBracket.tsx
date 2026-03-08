@@ -789,7 +789,7 @@ export const DoubleEliminationBracket = ({
         if (roundNumber === winnersRounds && winnerId) {
           const losersFinal = losersBracket.find(m => m.round_number === losersRoundsCount && m.winner_id);
           if (losersFinal?.winner_id) {
-            await createGrandFinal(winnerId, losersFinal.winner_id, winnersBracket);
+            await createGrandFinal(winnerId, losersFinal.winner_id);
             setActiveTab("finals");
           }
         }
@@ -973,7 +973,7 @@ export const DoubleEliminationBracket = ({
         if (roundNumber === losersRoundsCount && winnerId) {
           const winnersFinal = winnersBracket.find(m => m.round_number === winnersRounds && m.winner_id);
           if (winnersFinal?.winner_id) {
-            await createGrandFinal(winnersFinal.winner_id, winnerId, winnersBracket);
+            await createGrandFinal(winnersFinal.winner_id, winnerId);
             setActiveTab("finals");
           }
         }
