@@ -484,16 +484,17 @@ export const DoubleEliminationBracket = ({
           .sort(sortFn);
 
       // ---------------------------------------------------------------
-      // L-R1 (minor): CONSECUTIVE pairing.
-      // allR1[2k] pairs with allR1[2k+1] → Losers R1 match k+1.
+      // L-R1 (minor): CROSS/SNAKE pairing.
+      // allR1[k] pairs with allR1[totalR1-1-k] → preserves seeding (worst vs worst)
       // BOTH W-R1 matches in the pair must be done before creating L-R1.
       // ---------------------------------------------------------------
-      const allR1 = winnersBracket.filter(m => m.round_number === 1); // sorted by sortFn
+      const allR1 = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
       const totalR1 = allR1.length;
+      const halfR1 = Math.floor(totalR1 / 2);
 
-      for (let k = 0; k < Math.floor(totalR1 / 2); k++) {
-        const mA = allR1[k * 2];
-        const mB = allR1[k * 2 + 1];
+      for (let k = 0; k < halfR1; k++) {
+        const mA = allR1[k];
+        const mB = allR1[totalR1 - 1 - k];
         // Skip if either W-R1 match in the pair is not yet completed
         if (!mA?.winner_id || !mB?.winner_id) continue;
 
