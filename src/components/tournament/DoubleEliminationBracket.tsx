@@ -1209,6 +1209,7 @@ export const DoubleEliminationBracket = ({
 
   const totalTeams = tournament?.teams_for_elimination || 8;
   const bracketSize = getBracketSize(totalTeams);
+  const byeCount = bracketSize - totalTeams;
   const winnersRoundsCount = Math.log2(bracketSize);
 
   const grandFinalMatches = matches
