@@ -125,7 +125,6 @@ export const DoubleEliminationBracket = ({
   const [recapDialogOpen, setRecapDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("winners");
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
-  const [refreshConfirmOpen, setRefreshConfirmOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
 
