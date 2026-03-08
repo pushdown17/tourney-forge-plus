@@ -871,14 +871,23 @@ export const DoubleEliminationBracket = ({
 
         if (roundNumber === 1 && byeCount > 0) {
           // ── Non-power-of-2 R1: BYE-aware pairing via full bracket slot mapping ──
-          // For 12 teams: fullPairs slots [0]=Alfa(BYE), [1]=Hotel vs India, [2]=Echo vs Lima,
-          //   [3]=Delta(BYE), [4]=Charlie(BYE), [5]=Foxtrot vs Kilo, [6]=Golf vs Juliet, [7]=Bravo(BYE)
-          // R2 slot k = winner(fullPairs[2k]) vs winner(fullPairs[2k+1])
-          // So winner(Hotel vs India) must face Alfa(BYE) in R2, NOT winner(Echo vs Lima).
+          // Fetch fresh standings from DB to avoid any closure/state staleness issues
+          const { data: freshStandings } = await supabase
+            .from("team_stats")
+            .select(`team_id, points, goals_for, goals_against`)
+            .eq("tournament_id", tournamentId)
+            .order("points", { ascending: false })
+            .order("goals_for", { ascending: false })
+            .limit(totalTeams);
+
+          if (!freshStandings || freshStandings.length === 0) {
+            console.error("[handleChallongeProgression] Could not fetch standings for BYE mapping");
+            return;
+          }
+
           const fullPairs = getStandardSeedingPairs(bracketSz);
-          const currentStandings = standingsTeamsRef.current.length > 0 ? standingsTeamsRef.current : standingsTeams;
           const teamBySeed = (seed: number): string | null =>
-            seed <= totalTeams ? (currentStandings[seed - 1]?.teamId ?? null) : null;
+            seed <= totalTeams ? (freshStandings[seed - 1]?.team_id ?? null) : null;
 
           // Find the completed match's slot in fullPairs by matching its two team IDs
           const matchSlot = fullPairs.findIndex(([s1, s2]) => {
