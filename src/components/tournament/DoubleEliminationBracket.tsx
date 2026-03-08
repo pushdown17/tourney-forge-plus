@@ -1515,29 +1515,6 @@ export const DoubleEliminationBracket = ({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {isCreator && !isClosed && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56">
-                <div className="space-y-2">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="w-full gap-2"
-                    onClick={() => setResetConfirmOpen(true)}
-                    disabled={resetting}
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    {resetting ? "Réinitialisation..." : "Réinitialiser le bracket"}
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
           <Button variant="outline" size="sm" onClick={fetchTournamentAndMatches} className="gap-2">
             <RefreshCw className="h-4 w-4" />
             Refresh
