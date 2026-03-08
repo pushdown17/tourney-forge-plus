@@ -579,7 +579,7 @@ export const DoubleEliminationBracket = ({
           const winnersFinalWinner = winnersBracket.find(m => m.round_number === winnersRounds)?.winner_id;
           const losersFinalWinner = losersBracket.find(m => m.round_number === losersRoundsCount)?.winner_id;
           if (winnersFinalWinner && losersFinalWinner && winnerId === losersFinalWinner && winnerId !== winnersFinalWinner) {
-            await createGrandFinalReset(winnersFinalWinner, losersFinalWinner, winnersBracket);
+            await createGrandFinalReset(winnersFinalWinner, losersFinalWinner);
             toast.success("🔁 Bracket Reset! Grand Final #2 created!", { duration: 5000 });
             setActiveTab("finals");
           }
