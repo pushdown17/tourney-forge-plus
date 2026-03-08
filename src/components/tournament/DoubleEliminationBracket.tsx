@@ -1339,22 +1339,9 @@ export const DoubleEliminationBracket = ({
 
       if (round === 2 && byeCount > 0) {
         // R2 with BYEs: show pending slots for each bracketSize/4 R2 slot.
-        // BYE teams never had an R1 match — identify them by checking who's NOT in any R1 match.
+        // BYE teams = top byeCount seeds from standings (they skip R1 entirely).
+        // standingsTeams[0] = seed #1 ... standingsTeams[byeCount-1] = seed #byeCount
         const r1Matches = allW.filter(m => m.round_number === 1).sort(sortFnField);
-        const allTeamsInR1 = new Set<string>();
-        r1Matches.forEach(m => { allTeamsInR1.add(m.team1_id); allTeamsInR1.add(m.team2_id); });
-
-        // BYE teams = teams in any W match (including R2) that never appeared in R1, ordered by appearance
-        const byeTeamsList: { name: string; teamId: string }[] = [];
-        const seenBye = new Set<string>();
-        allW.forEach(m => {
-          [{ team: m.team1, id: m.team1_id }, { team: m.team2, id: m.team2_id }].forEach(({ team, id }) => {
-            if (team && id && !allTeamsInR1.has(id) && !seenBye.has(id)) {
-              byeTeamsList.push({ name: team.name, teamId: id });
-              seenBye.add(id);
-            }
-          });
-        });
 
         // Use standard seeding to determine which R2 slot each BYE team belongs to
         const fullPairs = getStandardSeedingPairs(bracketSize);
