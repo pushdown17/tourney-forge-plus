@@ -1278,48 +1278,33 @@ const RefereeStation = () => {
       if (a.round_number === 99 && b.round_number === 99) {
         return (b.field_number || 0) - (a.field_number || 0);
       }
-      // For double elimination: respect the correct interleaving sequence.
-      // Losers rounds alternate between:
-      //   - minor (odd L rounds: survivors face each other) → depends only on previous L round
-      //   - major (even L rounds: Winners drop-ins enter)  → depends on completed Winners round
+      // For double elimination: explicit sequence ensuring correct play order.
       //
-      // Sequence:
-      //   W-R1   → seq 2   (Winners R1)
-      //   L-R1   → seq 1   (minor: only needs L-R0/start, plays before W-R2)
-      //   L-R2   → seq 4   (major: needs W-R1 losers)
-      //   W-R2   → seq 4   (but Winners goes after Losers major of same pair)
-      //   L-R3   → seq 5   (minor: only needs L-R2, plays BEFORE W-R3/Winners QF)
-      //   W-R3   → seq 6   (Winners QF)
-      //   L-R4   → seq 8   (major: needs W-R3 losers)
-      //   W-R4   → seq 8   (Winners Semi/Final)
-      //   L-R5   → seq 9   (minor: plays before W-R5/Winners Final)
-      //   W-R5   → seq 10
-      //   L-R6   → seq 12  (Losers Final: needs W-R4 losers)
+      // Correct sequence (16 teams, W=4 rounds, L=6 rounds):
+      //   W-R1  → 1   (Round of 16: all 8 matches first)
+      //   L-R1  → 2   (minor: needs W-R1 losers, plays after W-R1)
+      //   W-R2  → 3   (QF: needs W-R1 winners)
+      //   L-R2  → 4   (major: needs L-R1 winners + W-R2 losers)
+      //   L-R3  → 5   (minor: needs L-R2 winners only → plays BEFORE W-R3)
+      //   W-R3  → 6   (SF)
+      //   L-R4  → 7   (major: needs L-R3 winners + W-R3 losers)
+      //   W-R4  → 8   (F)
+      //   L-R5  → 9   (minor: needs L-R4 winners)
+      //   L-R6  → 10  (Losers Final: needs L-R5 winners + W-R4 loser)
+      //   GF    → 11+
       //
-      // Formula:
-      //   Winners Rn          → seq = 2n
-      //   Losers Rn (minor, odd)  → seq = 2 * ceil(n/2) - 1  (before the associated Winners round)
-      //   Losers Rn (major, even) → seq = 2 * (n/2) + 2 - 1  = n + 1 (after associated Winners, same slot)
+      // Key: L-R3 (seq 5) comes BEFORE W-R3 (seq 6) as requested.
+      //      L-R1 (seq 2) correctly comes AFTER W-R1 (seq 1).
       if (currentPhase === 'double_elimination') {
         const getSeq = (m: any): number => {
           if (!m.is_third_place_match) {
-            // Winners bracket: seq = 2 * round
-            return 2 * m.round_number;
+            // Winners bracket explicit seq: R1→1, R2→3, R3→6, R4→8
+            const wSeq: Record<number, number> = { 1: 1, 2: 3, 3: 6, 4: 8 };
+            return wSeq[m.round_number] ?? (m.round_number * 2 + 5);
           } else {
-            // Losers bracket
-            const lr = m.round_number;
-            const isMinor = lr % 2 === 1; // odd rounds are minor (survivors only)
-            if (isMinor) {
-              // Minor round plays BEFORE the corresponding Winners round
-              // L-R1 before W-R2, L-R3 before W-R3, L-R5 before W-R4...
-              const pairIndex = Math.ceil(lr / 2); // 1→1, 3→2, 5→3
-              return 2 * pairIndex - 1; // L-R1→1, L-R3→5, L-R5→9 — always < corresponding W round
-            } else {
-              // Major round (even): needs Winners drop-ins → plays after Winners Rn completes
-              // L-R2 after W-R1, L-R4 after W-R3, L-R6 after W-R4...
-              const pairIndex = lr / 2; // 2→1, 4→2, 6→3
-              return 2 * pairIndex + 1; // L-R2→3, L-R4→7, L-R6→11 (but fine-tuned below)
-            }
+            // Losers bracket explicit seq: R1→2, R2→4, R3→5, R4→7, R5→9, R6→10
+            const lSeq: Record<number, number> = { 1: 2, 2: 4, 3: 5, 4: 7, 5: 9, 6: 10 };
+            return lSeq[m.round_number] ?? (m.round_number * 2 + 4);
           }
         };
         const aSeq = getSeq(a);
