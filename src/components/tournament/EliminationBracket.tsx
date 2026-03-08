@@ -1926,6 +1926,8 @@ export const EliminationBracket = ({
                       team1Players={playersByTeam[thirdPlaceMatch.team1_id] || []}
                       team2Players={playersByTeam[thirdPlaceMatch.team2_id] || []}
                       numberOfFields={numberOfFields}
+                      highlightedTeamId={highlightedTeamId}
+                      onTeamClick={(teamId) => setHighlightedTeamId(teamId || null)}
                       onStartEdit={() => {
                         if (thirdPlaceLocked && !isThirdPlaceCompleted) {
                           toast.error("Complete the semi-finals first");
