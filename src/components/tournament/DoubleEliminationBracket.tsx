@@ -197,7 +197,7 @@ export const DoubleEliminationBracket = ({
         if (!matchId || !winnerId || !loserId) return;
         const completedMatch = matchesRef.current.find(m => m.id === matchId);
         if (completedMatch) {
-          handleChallongeProgressionFromRef(completedMatch, winnerId, loserId);
+          handleChallongeProgression(completedMatch, winnerId, loserId);
         }
       })
       .subscribe();
