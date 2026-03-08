@@ -1089,6 +1089,41 @@ export const DoubleEliminationBracket = ({
     return rounds;
   };
 
+  /**
+   * For Losers R1: compute which losers are already known from W-R1 but don't have
+   * a Losers match yet (spread partner not done). Returns a map of slotIndex → {loserName}.
+   * slotIndex = Math.min(posInAllR1, totalR1-1-posInAllR1) for each completed W-R1 match.
+   */
+  const getPendingLosersR1 = (): Map<number, { name: string; teamId: string }> => {
+    const pending = new Map<number, { name: string; teamId: string }>();
+    const allR1 = winnersMatches
+      .filter(m => m.round_number === 1)
+      .sort((a, b) => (a.field_number || 0) - (b.field_number || 0));
+    const totalR1 = allR1.length;
+
+    for (let i = 0; i < totalR1; i++) {
+      const m = allR1[i];
+      if (!m.winner_id) continue;
+      const loserId = m.winner_id === m.team1_id ? m.team2_id : m.team1_id;
+      const loserTeam = m.winner_id === m.team1_id ? m.team2 : m.team1;
+      if (!loserId || !loserTeam) continue;
+
+      // Check if this loser already has a Losers R1 match
+      const alreadyPlaced = losersMatches.some(
+        lm => lm.round_number === 1 && (lm.team1_id === loserId || lm.team2_id === loserId)
+      );
+      if (alreadyPlaced) continue;
+
+      // Slot index = min(i, totalR1-1-i) (the lower position of the pair)
+      const slotIdx = Math.min(i, totalR1 - 1 - i);
+      // Only add the pending slot entry once per pair (use the one not already there)
+      if (!pending.has(slotIdx)) {
+        pending.set(slotIdx, { name: loserTeam.name, teamId: loserId });
+      }
+    }
+    return pending;
+  };
+
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
     // Use exact same layout system as Single Elimination
     const matchHeight = 148; // same as EliminationBracket
@@ -1098,6 +1133,8 @@ export const DoubleEliminationBracket = ({
     const COL_W = 200;
     const CONNECTOR_W = 32;
     const isLastRound = false; // connectors always drawn between bracket rounds
+
+    const pendingLosersR1 = isLosers ? getPendingLosersR1() : new Map();
 
     const expectedRounds = getExpectedMatchCounts(isLosers);
     if (expectedRounds.length === 0) return null;
@@ -1202,13 +1239,33 @@ export const DoubleEliminationBracket = ({
                     const realMatch = realRoundMatches[slotIdx];
 
                     if (!realMatch) {
+                      // For Losers R1, show pending loser waiting for spread partner
+                      const pendingLoser = (isLosers && round === 1) ? pendingLosersR1.get(slotIdx) : undefined;
                       return (
                         <div
                           key={`tbd-${round}-${slotIdx}`}
-                          className="rounded-lg border border-dashed border-border/30 bg-muted/10 flex items-center justify-center"
+                          className={cn(
+                            "rounded-lg border flex flex-col justify-center px-3",
+                            pendingLoser
+                              ? "border-destructive/40 bg-destructive/5"
+                              : "border-dashed border-border/30 bg-muted/10 items-center"
+                          )}
                           style={{ height: `${matchHeight}px`, width: COL_W }}
                         >
-                          <span className="text-xs text-muted-foreground/40 font-medium">TBD</span>
+                          {pendingLoser ? (
+                            <>
+                              <p className="text-xs text-muted-foreground mb-2 font-medium">Waiting for opponent…</p>
+                              <div className="flex items-center gap-2 py-1.5 px-2 rounded bg-destructive/10 border border-destructive/20">
+                                <Skull className="h-3 w-3 text-destructive shrink-0" />
+                                <span className="text-sm font-semibold text-foreground truncate">{pendingLoser.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2 py-1.5 px-2 rounded bg-muted/30 border border-dashed border-border/30 mt-1">
+                                <span className="text-xs text-muted-foreground">vs TBD</span>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/40 font-medium">TBD</span>
+                          )}
                         </div>
                       );
                     }
