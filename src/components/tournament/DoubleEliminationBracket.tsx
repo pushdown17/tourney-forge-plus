@@ -1503,10 +1503,18 @@ export const DoubleEliminationBracket = ({
             {totalTeams} teams — Lose twice to be eliminated
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setRefreshConfirmOpen(true)} className="gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {isCreator && !isClosed && (
+            <Button variant="outline" size="sm" onClick={() => setResetConfirmOpen(true)} disabled={resetting} className="gap-2 border-destructive/50 text-destructive hover:bg-destructive/10">
+              <RotateCcw className="h-4 w-4" />
+              Reset
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setRefreshConfirmOpen(true)} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {matches.length === 0 ? (
