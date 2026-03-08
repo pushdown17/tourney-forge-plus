@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { BracketMatch } from "./BracketMatch";
 import { PhaseTransition } from "./PhaseTransition";
@@ -137,6 +137,12 @@ export const DoubleEliminationBracket = ({
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: TimerState }>({});
   const [playersByTeam, setPlayersByTeam] = useState<Record<string, string[]>>({});
 
+  // Refs to always have the latest state inside broadcast closures
+  const matchesRef = useRef<Match[]>([]);
+  const tournamentRef = useRef<any>(null);
+  useEffect(() => { matchesRef.current = matches; }, [matches]);
+  useEffect(() => { tournamentRef.current = tournament; }, [tournament]);
+
   useEffect(() => {
     if (currentPhase !== "double_elimination") return;
     fetchTournamentAndMatches();
@@ -182,6 +188,16 @@ export const DoubleEliminationBracket = ({
               setMatchTimers(prev => { const next = { ...prev }; delete next[matchId]; return next; });
             }, 1000);
           }
+        }
+      })
+      .on('broadcast', { event: 'de_match_completed' }, (payload) => {
+        // Triggered by the referee station after validating a double_elimination match
+        // → trigger bracket progression in real-time without waiting for INSERT postgres_changes
+        const { matchId, winnerId, loserId } = payload.payload;
+        if (!matchId || !winnerId || !loserId) return;
+        const completedMatch = matchesRef.current.find(m => m.id === matchId);
+        if (completedMatch) {
+          handleChallongeProgression(completedMatch, winnerId, loserId);
         }
       })
       .subscribe();
@@ -600,7 +616,7 @@ export const DoubleEliminationBracket = ({
     try {
       const isLosersBracket = completedMatch.is_third_place_match;
       const roundNumber = completedMatch.round_number;
-      const totalTeams = tournament?.teams_for_elimination || 8;
+      const totalTeams = (tournament ?? tournamentRef.current)?.teams_for_elimination || 8;
       const winnersRounds = Math.log2(totalTeams);
 
       const { data: allMatches, error: matchesError } = await supabase

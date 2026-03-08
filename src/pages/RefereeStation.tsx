@@ -712,10 +712,30 @@ const RefereeStation = () => {
     await channel.send({
       type: 'broadcast',
       event: 'match_ended',
-      payload: {
-        matchId: match.id
-      }
+      payload: { matchId: match.id }
     });
+
+    // For double elimination, broadcast progression event so the bracket
+    // can trigger handleChallongeProgression in real-time without a full reload
+    if (match.phase === 'double_elimination') {
+      const t1Score = team1?.score ?? 0;
+      const t2Score = team2?.score ?? 0;
+      const winnerId = t1Score > t2Score ? match.team1_id : t2Score > t1Score ? match.team2_id : null;
+      const loserId = winnerId ? (winnerId === match.team1_id ? match.team2_id : match.team1_id) : null;
+      if (winnerId && loserId) {
+        await channel.send({
+          type: 'broadcast',
+          event: 'de_match_completed',
+          payload: {
+            matchId: match.id,
+            winnerId,
+            loserId,
+            roundNumber: match.round_number,
+            isLosersBracket: (match as any).is_third_place_match ?? false,
+          }
+        });
+      }
+    }
 
     const currentPhase = match.phase as any;
     let skipAutoAdvance = false;
