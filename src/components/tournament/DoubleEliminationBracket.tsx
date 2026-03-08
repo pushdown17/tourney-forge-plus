@@ -935,11 +935,9 @@ export const DoubleEliminationBracket = ({
       if (matchesToCreate.length > 0) {
         const { error: insertError } = await supabase.from("matches").insert(matchesToCreate);
         if (insertError) throw insertError;
-        toast.success("Next match(es) generated!");
-        await fetchTournamentAndMatches();
-      } else {
-        await fetchTournamentAndMatches();
+        // New matches will be picked up by the realtime INSERT listener — no full reload needed
       }
+      // Grand final tab switch handled above; no reload needed for other progressions
     } catch (error: any) {
       console.error("Error handling progression:", error);
     }
