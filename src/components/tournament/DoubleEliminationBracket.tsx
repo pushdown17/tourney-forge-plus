@@ -181,8 +181,9 @@ export const DoubleEliminationBracket = ({
     if (!tournament || !isCreator) return;
     const totalT = tournament.teams_for_elimination || 8;
     const bracketSz = getBracketSize(totalT);
+    const byeCountT = bracketSz - totalT;
     const wRounds = Math.log2(bracketSz);
-    const lRounds = getLosersRoundsCount(bracketSz);
+    const lRounds = getLosersRoundsCount(bracketSz, byeCountT);
     const grandFinalRound = wRounds + 1;
 
     const wFinal = matches.find(m => !m.is_third_place_match && m.round_number === wRounds && m.winner_id);
@@ -1208,6 +1209,7 @@ export const DoubleEliminationBracket = ({
 
   const totalTeams = tournament?.teams_for_elimination || 8;
   const bracketSize = getBracketSize(totalTeams);
+  const byeCount = bracketSize - totalTeams;
   const winnersRoundsCount = Math.log2(bracketSize);
 
   const grandFinalMatches = matches
@@ -1222,7 +1224,7 @@ export const DoubleEliminationBracket = ({
   // Only show the champion banner when ALL grand final matches are done AND
   // if a reset was triggered (GF#1 won by Losers champ), GF#2 must exist before declaring winner.
   const gf1 = grandFinalMatches[0] ?? null;
-  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize) && m.winner_id)?.winner_id === gf1.winner_id;
+  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize, byeCount) && m.winner_id)?.winner_id === gf1.winner_id;
   const resetExpected = gf1?.winner_id && gf1WinnerIsLosersChamp && !hasReset;
   const allGrandFinalsCompleted = grandFinalMatches.length > 0 && grandFinalMatches.every(m => m.winner_id) && !resetExpected;
   const decidingFinal = allGrandFinalsCompleted ? grandFinalMatches[grandFinalMatches.length - 1] : null;
@@ -1325,11 +1327,13 @@ export const DoubleEliminationBracket = ({
         if (count > 0) rounds.push({ round: r, count });
       }
     } else {
-      // Losers bracket sizes based on bracketSize
-      const lrCount = getLosersRoundsCount(bracketSize);
+      // Losers bracket sizes based on bracketSize (for play-in: use byeCount-aware count)
+      const lrCount = getLosersRoundsCount(bracketSize, byeCount);
+      // For play-in brackets, effective winners rounds = log2(bracketSize/2)
+      const effectiveWRounds = byeCount > 0 ? winnersRoundsCount - 1 : winnersRoundsCount;
       for (let r = 1; r <= lrCount; r++) {
         const pairIdx = Math.ceil(r / 2);
-        const count = Math.max(1, Math.pow(2, winnersRoundsCount - 1 - pairIdx));
+        const count = Math.max(1, Math.pow(2, effectiveWRounds - 1 - pairIdx));
         rounds.push({ round: r, count });
       }
     }
@@ -1820,7 +1824,7 @@ export const DoubleEliminationBracket = ({
             {grandFinalMatches.length === 0 ? (() => {
               // Show pending Grand Final with known teams
               const winnersChampion = winnersMatches.find(m => m.round_number === winnersRoundsCount && m.winner_id);
-              const losersChampion = losersMatches.find(m => m.round_number === getLosersRoundsCount(totalTeams) && m.winner_id);
+              const losersChampion = losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize, byeCount) && m.winner_id);
               const wTeam = winnersChampion ? (winnersChampion.winner_id === winnersChampion.team1_id ? winnersChampion.team1 : winnersChampion.team2) : null;
               const lTeam = losersChampion ? (losersChampion.winner_id === losersChampion.team1_id ? losersChampion.team1 : losersChampion.team2) : null;
 
