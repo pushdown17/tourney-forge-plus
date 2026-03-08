@@ -94,6 +94,7 @@ export const BracketMatch = ({
   team1Players = [],
   team2Players = [],
   numberOfFields = 1,
+  highlightedTeamId,
   onStartEdit,
   onCancelEdit,
   onSaveScore,
@@ -102,6 +103,7 @@ export const BracketMatch = ({
   onEditScore,
   onSendToStation,
   onIncrementScore,
+  onTeamClick,
 }: BracketMatchProps) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const isPlaceholder = match.isPlaceholder;
