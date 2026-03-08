@@ -1459,6 +1459,10 @@ export const DoubleEliminationBracket = ({
   const pendingLosersMatches = losersMatches.filter(m => !m.winner_id).length;
   const pendingFinalsMatches = grandFinalMatches.filter(m => !m.winner_id).length;
 
+  const liveWinnersMatches = winnersMatches.some(m => activeStationMatches.has(m.id));
+  const liveLosersMatches = losersMatches.some(m => activeStationMatches.has(m.id));
+  const liveFinalsMatches = grandFinalMatches.some(m => activeStationMatches.has(m.id));
+
   return (
     <Card className="glass-card p-6">
       <div className="flex items-center justify-between mb-6">
@@ -1493,6 +1497,12 @@ export const DoubleEliminationBracket = ({
             <TabsTrigger value="winners" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Winners</span>
+              {liveWinnersMatches && (
+                <span className="relative flex h-2 w-2 ml-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                </span>
+              )}
               {pendingWinnersMatches > 0 && (
                 <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{pendingWinnersMatches}</Badge>
               )}
@@ -1500,6 +1510,12 @@ export const DoubleEliminationBracket = ({
             <TabsTrigger value="losers" className="gap-2 data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">
               <Skull className="h-4 w-4" />
               <span className="hidden sm:inline">Losers</span>
+              {liveLosersMatches && (
+                <span className="relative flex h-2 w-2 ml-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                </span>
+              )}
               {pendingLosersMatches > 0 && (
                 <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{pendingLosersMatches}</Badge>
               )}
@@ -1507,6 +1523,12 @@ export const DoubleEliminationBracket = ({
             <TabsTrigger value="finals" className="gap-2 data-[state=active]:bg-yellow-500 data-[state=active]:text-black">
               <Trophy className="h-4 w-4" />
               <span className="hidden sm:inline">Finals</span>
+              {liveFinalsMatches && (
+                <span className="relative flex h-2 w-2 ml-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                </span>
+              )}
               {pendingFinalsMatches > 0 && (
                 <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{pendingFinalsMatches}</Badge>
               )}
