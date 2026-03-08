@@ -119,6 +119,7 @@ export const EliminationBracket = ({
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
   const [seedToTeam, setSeedToTeam] = useState<Map<number, Team>>(new Map());
   const [playersByTeam, setPlayersByTeam] = useState<Record<string, string[]>>({});
+  const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: {
     durationSeconds: number;
     startedAt: string | null;
