@@ -1239,13 +1239,33 @@ export const DoubleEliminationBracket = ({
                     const realMatch = realRoundMatches[slotIdx];
 
                     if (!realMatch) {
+                      // For Losers R1, show pending loser waiting for spread partner
+                      const pendingLoser = (isLosers && round === 1) ? pendingLosersR1.get(slotIdx) : undefined;
                       return (
                         <div
                           key={`tbd-${round}-${slotIdx}`}
-                          className="rounded-lg border border-dashed border-border/30 bg-muted/10 flex items-center justify-center"
+                          className={cn(
+                            "rounded-lg border flex flex-col justify-center px-3",
+                            pendingLoser
+                              ? "border-destructive/40 bg-destructive/5"
+                              : "border-dashed border-border/30 bg-muted/10 items-center"
+                          )}
                           style={{ height: `${matchHeight}px`, width: COL_W }}
                         >
-                          <span className="text-xs text-muted-foreground/40 font-medium">TBD</span>
+                          {pendingLoser ? (
+                            <>
+                              <p className="text-xs text-muted-foreground mb-2 font-medium">Waiting for opponent…</p>
+                              <div className="flex items-center gap-2 py-1.5 px-2 rounded bg-destructive/10 border border-destructive/20">
+                                <Skull className="h-3 w-3 text-destructive shrink-0" />
+                                <span className="text-sm font-semibold text-foreground truncate">{pendingLoser.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2 py-1.5 px-2 rounded bg-muted/30 border border-dashed border-border/30 mt-1">
+                                <span className="text-xs text-muted-foreground">vs TBD</span>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/40 font-medium">TBD</span>
+                          )}
                         </div>
                       );
                     }
