@@ -6,8 +6,7 @@ import { MatchStatsDialog } from "./MatchStatsDialog";
 import { MatchStatsRecapDialog } from "./MatchStatsRecapDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trophy, Shield, Skull, RefreshCw, RotateCcw, Settings } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Trophy, Shield, Skull, RefreshCw, RotateCcw } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,6 +42,7 @@ interface DoubleEliminationBracketProps {
   onPhaseChanged: () => void;
   isClosed?: boolean;
   isCreator?: boolean;
+  resetTrigger?: number;
 }
 
 interface TimerState {
@@ -105,7 +105,8 @@ export const DoubleEliminationBracket = ({
   currentPhase,
   onPhaseChanged,
   isClosed = false,
-  isCreator = false
+  isCreator = false,
+  resetTrigger = 0
 }: DoubleEliminationBracketProps) => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +128,15 @@ export const DoubleEliminationBracket = ({
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+
+  // Trigger reset from parent (Tournament settings popover)
+  const prevResetTrigger = useRef(resetTrigger);
+  useEffect(() => {
+    if (resetTrigger > 0 && resetTrigger !== prevResetTrigger.current) {
+      prevResetTrigger.current = resetTrigger;
+      handleResetBracket();
+    }
+  }, [resetTrigger]);
 
   // Real-time timer states
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
@@ -1504,29 +1514,6 @@ export const DoubleEliminationBracket = ({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {isCreator && !isClosed && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56">
-                <div className="space-y-2">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="w-full gap-2"
-                    onClick={() => setResetConfirmOpen(true)}
-                    disabled={resetting}
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    {resetting ? "Réinitialisation..." : "Réinitialiser le bracket"}
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
           <Button variant="outline" size="sm" onClick={fetchTournamentAndMatches} className="gap-2">
             <RefreshCw className="h-4 w-4" />
             Refresh

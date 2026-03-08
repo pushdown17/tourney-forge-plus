@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Calendar, Lock, Unlock, Settings, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Lock, Unlock, Settings, Save, Trash2, RotateCcw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { TeamsManager } from "@/components/tournament/TeamsManager";
 import { PlayersManager } from "@/components/tournament/PlayersManager";
@@ -49,6 +49,8 @@ const Tournament = () => {
   const [savingTeams, setSavingTeams] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [clearStationsDialogOpen, setClearStationsDialogOpen] = useState(false);
+  const [bracketResetDialogOpen, setBracketResetDialogOpen] = useState(false);
+  const [bracketResetTrigger, setBracketResetTrigger] = useState(0);
   
   const activeTab = searchParams.get("tab") || "teams";
   const activeSubTab = searchParams.get("subtab") || "manage-teams";
@@ -312,6 +314,20 @@ const Tournament = () => {
                           <Trash2 className="h-4 w-4 mr-2" />
                           Clear station matches
                         </Button>
+                        {tournament.elimination_type === "double" && !tournament.is_closed && (
+                          <>
+                            <Separator />
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => { setSettingsOpen(false); setBracketResetDialogOpen(true); }}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                              Réinitialiser le bracket
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </PopoverContent>
                   </Popover>
@@ -429,6 +445,7 @@ const Tournament = () => {
                 onPhaseChanged={fetchTournament}
                 isClosed={tournament.is_closed}
                 isCreator={isCreator}
+                resetTrigger={bracketResetTrigger}
               />
             </TabsContent>
           )}
@@ -479,6 +496,27 @@ const Tournament = () => {
               <AlertDialogCancel>Annuler</AlertDialogCancel>
               <AlertDialogAction onClick={clearAllStationMatches} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                 Confirmer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Bracket Reset Confirmation Dialog */}
+        <AlertDialog open={bracketResetDialogOpen} onOpenChange={setBracketResetDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>⚠️ Réinitialiser le bracket ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Cela va <strong>supprimer définitivement tous les matchs</strong> de la double élimination et régénérer le bracket depuis zéro. Cette action est irréversible.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => { setBracketResetDialogOpen(false); setBracketResetTrigger(t => t + 1); }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Réinitialiser
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
