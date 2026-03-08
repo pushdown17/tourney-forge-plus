@@ -223,12 +223,21 @@ export const BracketMatch = ({
                       #{match.team1.seed}
                     </span>
                   )}
-                  <span className={cn(
-                    "text-sm truncate",
-                    match.winner_id === match.team1_id && "font-semibold text-primary",
-                    match.hasAdvancedTeam1 && !match.winner_id && "font-medium text-primary animate-fade-in",
-                    !match.team1?.name && "text-muted-foreground italic"
-                  )}>
+                   <span
+                    className={cn(
+                      "text-sm truncate",
+                      match.winner_id === match.team1_id && "font-semibold text-primary",
+                      match.hasAdvancedTeam1 && !match.winner_id && "font-medium text-primary animate-fade-in",
+                      !match.team1?.name && "text-muted-foreground italic",
+                      onTeamClick && match.team1?.name && "cursor-pointer hover:underline hover:text-primary"
+                    )}
+                    onClick={(e) => {
+                      if (onTeamClick && match.team1_id && match.team1?.name) {
+                        e.stopPropagation();
+                        onTeamClick(highlightedTeamId === match.team1_id ? "" : match.team1_id);
+                      }
+                    }}
+                  >
                     {match.team1?.name || "TBD"}
                   </span>
                 </div>
