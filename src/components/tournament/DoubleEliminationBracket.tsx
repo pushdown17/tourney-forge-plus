@@ -550,7 +550,7 @@ export const DoubleEliminationBracket = ({
         // --- Repair L minor round after this major (if not last losers round) ---
         // L-R3 comes after L-R2, L-R5 comes after L-R4; but NOT after L-R6 (final)
         const minorRoundAfter = majorRound + 1;
-        const losersRoundsCount = getLosersRoundsCount(totalTeams);
+        const losersRoundsCount = getLosersRoundsCount(bracketSz);
         if (majorRound < losersRoundsCount) {
           // Get all major round matches (db + just queued) with their winners
           const allMajorMatches = getLosersRound(majorRound);
@@ -833,7 +833,7 @@ export const DoubleEliminationBracket = ({
       const losersBracket = (allMatches?.filter(m => m.is_third_place_match) || []).sort(sortFn);
 
       const grandFinalRound1 = winnersRounds + 1;
-      const losersRoundsCount = getLosersRoundsCount(totalTeams);
+      const losersRoundsCount = getLosersRoundsCount(bracketSz);
 
       // ---- GRAND FINAL / RESET ----
       if (!isLosersBracket && roundNumber >= grandFinalRound1) {
