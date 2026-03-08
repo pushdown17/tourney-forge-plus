@@ -688,7 +688,7 @@ export const DoubleEliminationBracket = ({
             setActiveTab("finals");
           }
         }
-        await fetchTournamentAndMatches();
+        // Realtime listeners handle UI update — no full reload needed
         return;
       }
 
