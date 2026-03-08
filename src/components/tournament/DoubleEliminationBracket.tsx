@@ -145,11 +145,21 @@ export const DoubleEliminationBracket = ({
 
   useEffect(() => {
     if (currentPhase !== "double_elimination") return;
-    const channel = supabase
-      .channel(`tournament-live-de-${tournamentId}`)
+
+    // Live broadcast channel — MUST match the channel used by referee station
+    const liveChannel = supabase
+      .channel(`tournament-live-${tournamentId}`)
       .on('broadcast', { event: 'live_score' }, (payload) => {
-        const { matchId } = payload.payload;
-        if (matchId) setLiveMatches(prev => new Set([...prev, matchId]));
+        const { matchId, team1_score, team2_score } = payload.payload;
+        if (matchId) {
+          setLiveMatches(prev => new Set([...prev, matchId]));
+          // Update scores in-place for immediate live feedback
+          setMatches(prev =>
+            prev.map(m =>
+              m.id === matchId ? { ...m, team1_score, team2_score } : m
+            )
+          );
+        }
       })
       .on('broadcast', { event: 'timer_update' }, (payload) => {
         const { matchId, action, durationSeconds, timer_started_at, timer_paused_at, timer_elapsed_when_paused } = payload.payload;
@@ -174,12 +184,27 @@ export const DoubleEliminationBracket = ({
           }
         }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'referee_stations', filter: `tournament_id=eq.${tournamentId}` }, () => {
-        fetchActiveTimers();
-      })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // postgres_changes for saved scores & bracket progression
+    const matchChannel = supabase
+      .channel(`de-matches-${tournamentId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tournamentId}` },
+        () => { fetchTournamentAndMatches(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'referee_stations', filter: `tournament_id=eq.${tournamentId}` },
+        () => { fetchActiveTimers(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(liveChannel);
+      supabase.removeChannel(matchChannel);
+    };
   }, [tournamentId, currentPhase]);
 
   // If not yet in elimination phase, show transition component
