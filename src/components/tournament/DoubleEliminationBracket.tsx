@@ -106,7 +106,8 @@ export const DoubleEliminationBracket = ({
   currentPhase,
   onPhaseChanged,
   isClosed = false,
-  isCreator = false
+  isCreator = false,
+  resetTrigger = 0
 }: DoubleEliminationBracketProps) => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
