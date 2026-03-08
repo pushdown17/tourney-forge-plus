@@ -1803,6 +1803,8 @@ export const EliminationBracket = ({
                               team1Players={playersByTeam[match.team1_id] || []}
                               team2Players={playersByTeam[match.team2_id] || []}
                               numberOfFields={numberOfFields}
+                              highlightedTeamId={highlightedTeamId}
+                              onTeamClick={(teamId) => setHighlightedTeamId(teamId || null)}
                               onStartEdit={() => {
                                 if (isLocked && !isMatchCompleted) {
                                   toast.error("Complete the previous round matches first");
