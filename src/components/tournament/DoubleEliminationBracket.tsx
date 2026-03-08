@@ -125,6 +125,8 @@ export const DoubleEliminationBracket = ({
   const [activeTab, setActiveTab] = useState("winners");
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
   const [refreshConfirmOpen, setRefreshConfirmOpen] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   // Real-time timer states
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
@@ -609,6 +611,26 @@ export const DoubleEliminationBracket = ({
       console.error(error);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleResetBracket = async () => {
+    setResetting(true);
+    try {
+      const { error } = await supabase
+        .from("matches")
+        .delete()
+        .eq("tournament_id", tournamentId)
+        .eq("phase", "double_elimination");
+      if (error) throw error;
+      setMatches([]);
+      toast.success("Bracket reset! Regenerating...");
+      await generateBracket(tournament?.teams_for_elimination || totalTeams);
+    } catch (error: any) {
+      toast.error("Error resetting bracket");
+      console.error(error);
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -1481,10 +1503,18 @@ export const DoubleEliminationBracket = ({
             {totalTeams} teams — Lose twice to be eliminated
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setRefreshConfirmOpen(true)} className="gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {isCreator && !isClosed && (
+            <Button variant="outline" size="sm" onClick={() => setResetConfirmOpen(true)} disabled={resetting} className="gap-2 border-destructive/50 text-destructive hover:bg-destructive/10">
+              <RotateCcw className="h-4 w-4" />
+              Reset
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setRefreshConfirmOpen(true)} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {matches.length === 0 ? (
@@ -1784,6 +1814,26 @@ export const DoubleEliminationBracket = ({
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setRefreshConfirmOpen(false); fetchTournamentAndMatches(); }}>
               Rafraîchir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ Réinitialiser le bracket ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cela va <strong>supprimer définitivement tous les matchs</strong> de la double élimination et régénérer le bracket depuis zéro. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setResetConfirmOpen(false); handleResetBracket(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Réinitialiser
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
