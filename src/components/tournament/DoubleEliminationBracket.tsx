@@ -417,18 +417,20 @@ export const DoubleEliminationBracket = ({
           .sort(sortFn);
 
       // ---------------------------------------------------------------
-      // L-R1 (minor): W-R1 losers, spread logic
-      // Only work with COMPLETED W-R1 matches (those with a winner_id).
-      // Pair: completedR1[i] vs completedR1[n-1-i] (spread pairing).
-      // This mirrors handleChallongeProgression and creates pairs
-      // as soon as 2 losers are available, without waiting for all 8.
+      // L-R1 (minor): W-R1 losers, FIXED spread pairing by position.
+      // allR1[i] is paired with allR1[totalR1-1-i] — positions never change.
+      // A pair's Losers match is created only when BOTH partners have a winner.
+      // This prevents wrong cross-pairings when matches finish out of order.
       // ---------------------------------------------------------------
-      const completedR1 = winnersBracket.filter(m => m.round_number === 1 && m.winner_id);
-      const n = completedR1.length;
+      const allR1 = winnersBracket.filter(m => m.round_number === 1); // sorted by sortFn (field_number)
+      const totalR1 = allR1.length;
 
-      for (let i = 0; i < Math.floor(n / 2); i++) {
-        const mLow  = completedR1[i];
-        const mHigh = completedR1[n - 1 - i];
+      for (let i = 0; i < Math.floor(totalR1 / 2); i++) {
+        const mLow  = allR1[i];
+        const mHigh = allR1[totalR1 - 1 - i];
+
+        // Both partners must be done — wait for the spread partner even if not complete yet
+        if (!mLow?.winner_id || !mHigh?.winner_id) continue;
 
         const l1 = mLow.winner_id  === mLow.team1_id  ? mLow.team2_id  : mLow.team1_id;
         const l2 = mHigh.winner_id === mHigh.team1_id ? mHigh.team2_id : mHigh.team1_id;
@@ -721,20 +723,27 @@ export const DoubleEliminationBracket = ({
         // W-Rk losers → L-R(k-1)*2 major round
 
         if (roundNumber === 1) {
-          // W-R1: inject losers progressively as pairs become available
-          const completedR1 = winnersBracket.filter(m => m.round_number === 1 && m.winner_id);
-          const n = completedR1.length;
-          // Use spread pairing: loser[i] vs loser[n-1-i]
-          for (let i = 0; i < Math.floor(n / 2); i++) {
-            const l1 = completedR1[i].winner_id === completedR1[i].team1_id ? completedR1[i].team2_id : completedR1[i].team1_id;
-            const l2 = completedR1[n - 1 - i].winner_id === completedR1[n - 1 - i].team1_id ? completedR1[n - 1 - i].team2_id : completedR1[n - 1 - i].team1_id;
-            if (!l1 || !l2 || l1 === l2) continue;
-            if (!matchExists(losersBracket, 1, l1, l2)) {
+          // W-R1: FIXED spread pairing by position in the full allR1 array.
+          // Find where the current match sits, pair it with its mirror (totalR1-1-myPos).
+          // Only create the Losers match when BOTH spread partners have a winner.
+          const allR1Sorted = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
+          const totalR1 = allR1Sorted.length;
+          const myPosInR1 = allR1Sorted.findIndex(m => m.id === completedMatch.id);
+          const partnerPosInR1 = totalR1 - 1 - myPosInR1;
+          const partnerMatchR1 = allR1Sorted[partnerPosInR1];
+
+          if (partnerMatchR1?.winner_id) {
+            // Both this match and its spread partner are done → create Losers R1 match
+            const l1 = loserId; // loser of current match
+            const l2 = partnerMatchR1.winner_id === partnerMatchR1.team1_id
+              ? partnerMatchR1.team2_id
+              : partnerMatchR1.team1_id;
+            if (l1 && l2 && l1 !== l2 && !matchExists(losersBracket, 1, l1, l2)) {
+              const fieldNum = Math.min(myPosInR1, partnerPosInR1) + 1;
               matchesToCreate.push({
                 tournament_id: tournamentId, phase: "double_elimination",
                 round_number: 1, team1_id: l1, team2_id: l2,
-                is_third_place_match: true,
-                field_number: i + 1,
+                is_third_place_match: true, field_number: fieldNum,
               });
             }
           }
