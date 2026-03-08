@@ -1599,9 +1599,9 @@ export const DoubleEliminationBracket = ({
                       {/* Losers side */}
                       <div className={cn(
                         "flex items-center gap-2 py-2 px-3 rounded-lg border",
-                        lTeam ? "bg-destructive/10 border-destructive/30" : "bg-muted/20 border-dashed border-border/30"
+                        lTeam ? "bg-orange-500/10 border-orange-500/30" : "bg-muted/20 border-dashed border-border/30"
                       )}>
-                        <Skull className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        <Skull className="h-3.5 w-3.5 text-orange-500 shrink-0" />
                         {lTeam ? (
                           <span className="text-sm font-semibold text-foreground truncate">{lTeam.name}</span>
                         ) : (
