@@ -96,10 +96,7 @@ const getWinnersRoundName = (roundNumber: number, bracketSize: number) => {
   if (roundNumber === w) return "Winners Final";
   if (roundNumber === w - 1) return w >= 3 ? "Winners Semi" : "Winners Final";
   if (roundNumber === w - 2 && w >= 4) return "Winners QF";
-  if (roundNumber === 1 && w >= 5) return "Round of 32";
-  if (roundNumber === 1 && w >= 4) return "Round of 16";
-  if (roundNumber === 1 && w >= 3) return "Round of 8";
-  return `W-R${roundNumber}`;
+  return `Winners R${roundNumber}`;
 };
 
 const getLosersRoundName = (roundNumber: number, bracketSize: number) => {
