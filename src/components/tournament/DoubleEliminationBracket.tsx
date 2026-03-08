@@ -124,6 +124,7 @@ export const DoubleEliminationBracket = ({
   const [recapDialogOpen, setRecapDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("winners");
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
+  const [refreshConfirmOpen, setRefreshConfirmOpen] = useState(false);
 
   // Real-time timer states
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
