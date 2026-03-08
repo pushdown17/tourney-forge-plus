@@ -1391,12 +1391,12 @@ export const DoubleEliminationBracket = ({
                               <div className={cn(
                                 "flex items-center gap-2 py-1.5 px-2 rounded border mb-1",
                                 t1
-                                  ? (isLoserSlot ? "bg-destructive/10 border-destructive/20" : "bg-primary/10 border-primary/20")
+                                  ? (isLoserSlot ? "bg-orange-500/10 border-orange-500/20" : "bg-primary/10 border-primary/20")
                                   : "bg-muted/20 border-dashed border-border/30"
                               )}>
                                 {t1 ? (
                                   <>
-                                    {isLoserSlot && <Skull className="h-3 w-3 text-destructive shrink-0" />}
+                                    {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
                                     <span className="text-sm font-semibold text-foreground truncate">{t1.name}</span>
                                   </>
                                 ) : (
@@ -1407,12 +1407,12 @@ export const DoubleEliminationBracket = ({
                               <div className={cn(
                                 "flex items-center gap-2 py-1.5 px-2 rounded border",
                                 t2
-                                  ? (isLoserSlot ? "bg-destructive/10 border-destructive/20" : "bg-primary/10 border-primary/20")
+                                  ? (isLoserSlot ? "bg-orange-500/10 border-orange-500/20" : "bg-primary/10 border-primary/20")
                                   : "bg-muted/20 border-dashed border-border/30"
                               )}>
                                 {t2 ? (
                                   <>
-                                    {isLoserSlot && <Skull className="h-3 w-3 text-destructive shrink-0" />}
+                                    {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
                                     <span className="text-sm font-semibold text-foreground truncate">{t2.name}</span>
                                   </>
                                 ) : (
@@ -1507,13 +1507,13 @@ export const DoubleEliminationBracket = ({
                 <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{pendingWinnersMatches}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="losers" className="gap-2 data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">
+            <TabsTrigger value="losers" className="gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white">
               <Skull className="h-4 w-4" />
               <span className="hidden sm:inline">Losers</span>
               {liveLosersMatches && (
                 <span className="relative flex h-2 w-2 ml-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
                 </span>
               )}
               {pendingLosersMatches > 0 && (
@@ -1546,9 +1546,9 @@ export const DoubleEliminationBracket = ({
           </TabsContent>
 
           <TabsContent value="losers">
-            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
-              <Skull className="h-5 w-5 text-destructive" />
-              <h3 className="text-lg font-semibold text-destructive">Losers Bracket</h3>
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-orange-500/40">
+              <Skull className="h-5 w-5 text-orange-500" />
+              <h3 className="text-lg font-semibold text-orange-500">Losers Bracket</h3>
               <span className="text-sm text-muted-foreground">({losersMatches.length} matches)</span>
             </div>
             {renderBracket(losersMatches, true)}
@@ -1599,9 +1599,9 @@ export const DoubleEliminationBracket = ({
                       {/* Losers side */}
                       <div className={cn(
                         "flex items-center gap-2 py-2 px-3 rounded-lg border",
-                        lTeam ? "bg-destructive/10 border-destructive/30" : "bg-muted/20 border-dashed border-border/30"
+                        lTeam ? "bg-orange-500/10 border-orange-500/30" : "bg-muted/20 border-dashed border-border/30"
                       )}>
-                        <Skull className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        <Skull className="h-3.5 w-3.5 text-orange-500 shrink-0" />
                         {lTeam ? (
                           <span className="text-sm font-semibold text-foreground truncate">{lTeam.name}</span>
                         ) : (
