@@ -418,6 +418,9 @@ export const DoubleEliminationBracket = ({
 
       // ---------------------------------------------------------------
       // L-R1 (minor): W-R1 losers, spread logic
+      // Pair loser of match[i] vs loser of match[totalR1-1-i]
+      // BUT: create each pair as soon as BOTH losers are known,
+      // independently of other pairs being ready.
       // ---------------------------------------------------------------
       const allR1 = winnersBracket.filter(m => m.round_number === 1);
       const totalR1 = allR1.length;
@@ -425,13 +428,20 @@ export const DoubleEliminationBracket = ({
       for (let i = 0; i < Math.floor(totalR1 / 2); i++) {
         const mLow  = allR1[i];
         const mHigh = allR1[totalR1 - 1 - i];
+
+        // Only need the two paired matches to have a winner — others can still be pending
         if (!mLow?.winner_id || !mHigh?.winner_id) continue;
 
         const l1 = mLow.winner_id  === mLow.team1_id  ? mLow.team2_id  : mLow.team1_id;
         const l2 = mHigh.winner_id === mHigh.team1_id ? mHigh.team2_id : mHigh.team1_id;
         if (!l1 || !l2) continue;
 
-        if (!matchExists(losersBracket, 1, l1, l2) && !matchExists(matchesToCreate, 1, l1, l2)) {
+        // Check across both DB records and already-queued matches
+        const alreadyInLosersBracket = [...losersBracket, ...matchesToCreate].some(
+          m => m.round_number === 1 &&
+               ((m.team1_id === l1 && m.team2_id === l2) || (m.team1_id === l2 && m.team2_id === l1))
+        );
+        if (!alreadyInLosersBracket) {
           matchesToCreate.push({
             tournament_id: tournamentId, phase: "double_elimination",
             round_number: 1, team1_id: l1, team2_id: l2,
