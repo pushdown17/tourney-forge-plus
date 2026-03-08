@@ -1266,21 +1266,18 @@ export const DoubleEliminationBracket = ({
   };
 
   // Generate expected number of matches per round for a full bracket structure
-  // For non-power-of-2 (e.g. 12 teams): R1 shows only REAL matches (no empty BYE slots),
-  // R2+ shows the full bracket slots (including BYE-winner placeholders).
+  // For BYE brackets (e.g. 12 teams in 16-slot bracket):
+  //   - R1: only real matches shown (bracketSize/2 - byeCount)
+  //   - R2+: full bracketSize-based slots
   const getExpectedMatchCounts = (isLosers: boolean): { round: number; count: number }[] => {
     const rounds: { round: number; count: number }[] = [];
+    const byeCount = bracketSize - totalTeams;
     if (!isLosers) {
       for (let r = 1; r <= winnersRoundsCount; r++) {
         let count = Math.pow(2, winnersRoundsCount - r);
-        if (r === 1) {
-          // For BYE brackets: R1 only has real matches = (totalTeams - byeCount) / 2
-          const byeCount = bracketSize - totalTeams;
-          if (byeCount > 0) {
-            count = Math.max(1, (totalTeams - byeCount)); // number of teams in R1 / 2 → use slot count
-            // Actually: realMatchCount = bracketSize/2 - byeCount
-            count = bracketSize / 2 - byeCount;
-          }
+        if (r === 1 && byeCount > 0) {
+          // Only real R1 matches: bracketSize/2 slots minus BYE slots
+          count = bracketSize / 2 - byeCount;
         }
         if (count > 0) rounds.push({ round: r, count });
       }
@@ -1299,15 +1296,13 @@ export const DoubleEliminationBracket = ({
   const sortFnField = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || (a.created_at || '').localeCompare(b.created_at || '');
 
   /**
-   * Returns a map of slotIndex → { team1: PendingTeam | null, team2: PendingTeam | null }
-   * for each slot that does not yet have a real match in the DB.
-   * For BYE brackets, BYE-winning teams are shown directly in R2 pending slots.
+   * Returns a map of slotIndex → { team1, team2 } for pending (not-yet-created) match slots.
+   * For BYE brackets: R2 pending slots show the known BYE seed directly alongside TBD opponent.
    */
-  const getPendingTeamsForRound = (isLosers: boolean, round: number): Map<number, { team1: { name: string; teamId: string } | null; team2: { name: string; teamId: string } | null }> => {
-    const pending = new Map<number, { team1: { name: string; teamId: string } | null; team2: { name: string; teamId: string } | null }>();
+  const getPendingTeamsForRound = (isLosers: boolean, round: number): Map<number, { team1: { name: string; teamId: string; isBye?: boolean } | null; team2: { name: string; teamId: string; isBye?: boolean } | null }> => {
+    const pending = new Map<number, { team1: { name: string; teamId: string; isBye?: boolean } | null; team2: { name: string; teamId: string; isBye?: boolean } | null }>();
     const allW = winnersMatches.sort(sortFnField);
     const allL = losersMatches.sort(sortFnField);
-
     const byeCount = bracketSize - totalTeams;
 
     const teamFromMatch = (m: Match, role: 'winner' | 'loser'): { name: string; teamId: string } | null => {
@@ -1324,58 +1319,6 @@ export const DoubleEliminationBracket = ({
       }
     };
 
-    // For BYE brackets: given a fullPairs slot index, return the BYE winner team if applicable
-    const getByeWinnerForFullSlot = (slotIdx: number): { name: string; teamId: string; isBye: true } | null => {
-      if (byeCount === 0) return null;
-      const fullPairs = getStandardSeedingPairs(bracketSize);
-      const pair = fullPairs[slotIdx];
-      if (!pair) return null;
-      const [s1, s2] = pair;
-      // A BYE slot has one seed > totalTeams (no real team)
-      const t1HasTeam = s1 <= totalTeams;
-      const t2HasTeam = s2 <= totalTeams;
-      // Only one team → BYE winner
-      if (t1HasTeam && !t2HasTeam) {
-        // Need the actual team name from matches or standings — find team in any match
-        const teamId = allW.find(m => {
-          // We can recognize a BYE winner because they appear in R2+ but not R1
-          return false; // will be resolved via standingsTeams below
-        });
-        return null; // resolved below using standingsTeams
-      }
-      return null;
-    };
-
-    // Build a map of seed → { name, teamId } from existing matches
-    // (teams that have a BYE skip R1 entirely, so we find them in R2+ matches)
-    const seedToTeam = new Map<number, { name: string; teamId: string }>();
-    if (byeCount > 0) {
-      // BYE winners appear in R2 matches (if created) or can be inferred from standings
-      // Use allW R2 matches to identify BYE teams
-      const fullPairs = getStandardSeedingPairs(bracketSize);
-      allW.filter(m => m.round_number === 2).forEach(m => {
-        // Each R2 match was created because one/both contributors were BYE winners
-        // Map team back to seed via fullPairs
-        [m.team1, m.team2].forEach(team => {
-          if (!team) return;
-          // Find if this team has NO R1 match (= BYE winner)
-          const inR1 = allW.some(r1m => r1m.round_number === 1 && (r1m.team1_id === team.id || r1m.team2_id === team.id));
-          if (!inR1) {
-            // Find its seed from fullPairs
-            fullPairs.forEach(([s1, s2], pairIdx) => {
-              // The BYE winner's pair had one null seed
-              if (s1 <= totalTeams && s2 > totalTeams) {
-                // s1 is a BYE winner; check if this team matches seed s1
-                // We don't have direct seed→teamId mapping here, but we know:
-                // BYE winner at slot pairIdx: s1
-              }
-            });
-            seedToTeam.set(-1, { name: team.name, teamId: team.id }); // placeholder
-          }
-        });
-      });
-    }
-
     const isAlreadyInRound = (arr: Match[], r: number, teamId: string) =>
       arr.some(m => m.round_number === r && (m.team1_id === teamId || m.team2_id === teamId));
 
@@ -1383,141 +1326,103 @@ export const DoubleEliminationBracket = ({
       const currentRoundMatches = allW.filter(m => m.round_number === round).sort(sortFnField);
 
       if (round === 1) {
-        // R1: no pending for BYE brackets (only real matches shown, BYE slots hidden)
-        // Nothing to show as pending in R1
-      } else if (round === 2 && byeCount > 0) {
-        // R2 with BYEs: show pending slots for all bracketSize/4 slots
-        // Each slot combines: winner of fullPairs[slot*2] vs winner of fullPairs[slot*2+1]
-        // One or both may be BYE winners (no R1 match), one may be R1 match winner
-        const fullPairs = getStandardSeedingPairs(bracketSize);
-        const r1Matches = allW.filter(m => m.round_number === 1).sort(sortFnField);
-        const r2SlotCount = bracketSize / 4;
+        // R1 with BYE brackets: no pending slots (BYE slots are hidden, only real matches shown)
+        return pending;
+      }
 
-        // Build a mapping: fullPairs index → team (winner of that slot)
-        // For BYE slots: find the team in existing R2 matches or from R1 teams (teams not in R1 = BYE)
+      if (round === 2 && byeCount > 0) {
+        // R2 with BYEs: show pending slots for each bracketSize/4 R2 slot.
+        // BYE teams never had an R1 match — identify them by checking who's NOT in any R1 match.
+        const r1Matches = allW.filter(m => m.round_number === 1).sort(sortFnField);
         const allTeamsInR1 = new Set<string>();
         r1Matches.forEach(m => { allTeamsInR1.add(m.team1_id); allTeamsInR1.add(m.team2_id); });
 
-        // Build a "bye teams in order" list from allW R2 matches
-        // BYE teams = teams in any W match that never appeared in R1
-        const byeTeams: { name: string; teamId: string }[] = [];
-        const seenByeTeams = new Set<string>();
+        // BYE teams = teams in any W match (including R2) that never appeared in R1, ordered by appearance
+        const byeTeamsList: { name: string; teamId: string }[] = [];
+        const seenBye = new Set<string>();
         allW.forEach(m => {
           [{ team: m.team1, id: m.team1_id }, { team: m.team2, id: m.team2_id }].forEach(({ team, id }) => {
-            if (team && !allTeamsInR1.has(id) && !seenByeTeams.has(id)) {
-              byeTeams.push({ name: team.name, teamId: id });
-              seenByeTeams.add(id);
+            if (team && id && !allTeamsInR1.has(id) && !seenBye.has(id)) {
+              byeTeamsList.push({ name: team.name, teamId: id });
+              seenBye.add(id);
             }
           });
         });
 
-        // Map fullPairs slot index → winner info
-        const slotWinner = (slotIdx: number): { name: string; teamId: string; isBye?: boolean } | null => {
-          const [s1, s2] = fullPairs[slotIdx];
-          const t1Real = s1 <= totalTeams;
-          const t2Real = s2 <= totalTeams;
+        // Use standard seeding to determine which R2 slot each BYE team belongs to
+        const fullPairs = getStandardSeedingPairs(bracketSize);
+        const r2SlotCount = bracketSize / 4;
 
-          if (t1Real && !t2Real) {
-            // s1 gets BYE — find their team
-            // BYE winner index: byeCount seeds ≤ totalTeams that face a non-real seed
-            // Count how many BYE-winner pairs come before this slot
-            let byeIdx = 0;
-            for (let k = 0; k < slotIdx; k++) {
-              const [a, b] = fullPairs[k];
-              if ((a <= totalTeams && b > totalTeams) || (b <= totalTeams && a > totalTeams)) byeIdx++;
+        // Map each full-bracket pair slot to its "contributor type": bye or real
+        // BYE slot: exactly one of the two seeds > totalTeams
+        const slotIsBye = fullPairs.map(([s1, s2]) =>
+          (s1 <= totalTeams && s2 > totalTeams) || (s2 <= totalTeams && s1 > totalTeams)
+        );
+
+        // Assign byeTeamsList entries to BYE slots in order
+        let byeTeamIdx = 0;
+        const byeSlotToTeam = new Map<number, { name: string; teamId: string }>();
+        fullPairs.forEach((_pair, pairIdx) => {
+          if (slotIsBye[pairIdx]) {
+            if (byeTeamIdx < byeTeamsList.length) {
+              byeSlotToTeam.set(pairIdx, byeTeamsList[byeTeamIdx]);
+              byeTeamIdx++;
             }
-            const byeTeam = byeTeams[byeIdx] ?? null;
-            return byeTeam ? { ...byeTeam, isBye: true } : null;
-          } else if (!t1Real && t2Real) {
-            let byeIdx = 0;
-            for (let k = 0; k < slotIdx; k++) {
-              const [a, b] = fullPairs[k];
-              if ((a <= totalTeams && b > totalTeams) || (b <= totalTeams && a > totalTeams)) byeIdx++;
-            }
-            const byeTeam = byeTeams[byeIdx] ?? null;
-            return byeTeam ? { ...byeTeam, isBye: true } : null;
-          } else if (t1Real && t2Real) {
-            // Real match: winner from R1 result
-            const r1Match = r1Matches.find(m =>
-              (m.team1_id === (allW.find(wm => wm.round_number === 1)?.team1_id)) // approximate
-            );
-            return null; // will come from R1 winner
           }
-          return null;
-        };
+        });
+
+        // Map R1 matches to their full-bracket pair slot by seed
+        // R1 real matches: slots where both seeds ≤ totalTeams — in creation order = sorted by field_number
+        const realR1Slots: number[] = [];
+        fullPairs.forEach(([s1, s2], pairIdx) => {
+          if (s1 <= totalTeams && s2 <= totalTeams) realR1Slots.push(pairIdx);
+        });
+        // r1Matches[k] corresponds to realR1Slots[k] (both sorted by field_number / creation order)
+        const pairSlotToR1Match = new Map<number, Match>();
+        realR1Slots.forEach((pairSlotIdx, k) => {
+          if (r1Matches[k]) pairSlotToR1Match.set(pairSlotIdx, r1Matches[k]);
+        });
 
         for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
-          if (currentRoundMatches[r2Slot]) continue; // real match already exists
+          if (currentRoundMatches[r2Slot]) continue; // real match exists, skip
 
           const srcAIdx = r2Slot * 2;
           const srcBIdx = r2Slot * 2 + 1;
 
-          // Contributor A: winner of fullPairs[srcAIdx]
-          let contribA: { name: string; teamId: string; isBye?: boolean } | null = null;
-          let contribB: { name: string; teamId: string; isBye?: boolean } | null = null;
-
-          const [sA1, sA2] = fullPairs[srcAIdx];
-          const [sB1, sB2] = fullPairs[srcBIdx];
-
-          // Check if srcA is a BYE slot
-          const srcAIsBye = (sA1 <= totalTeams && sA2 > totalTeams) || (sA2 <= totalTeams && sA1 > totalTeams);
-          const srcBIsBye = (sB1 <= totalTeams && sB2 > totalTeams) || (sB2 <= totalTeams && sB1 > totalTeams);
-
-          if (srcAIsBye) {
-            contribA = slotWinner(srcAIdx);
-          } else {
-            // R1 real match at position: find R1 matches in order
-            const r1MatchIdx = r1Matches.findIndex(m => {
-              const [ps1, ps2] = fullPairs[srcAIdx];
-              return (
-                (m.team1?.seed === ps1 || m.team2?.seed === ps1) ||
-                (m.team1?.seed === ps2 || m.team2?.seed === ps2)
-              );
-            });
-            const r1M = r1Matches[r1MatchIdx >= 0 ? r1MatchIdx : -1];
-            if (r1M?.winner_id) {
-              contribA = teamFromMatch(r1M, 'winner');
+          const resolveContrib = (pairSlotIdx: number): { name: string; teamId: string; isBye?: boolean } | null => {
+            if (slotIsBye[pairSlotIdx]) {
+              const byeTeam = byeSlotToTeam.get(pairSlotIdx);
+              return byeTeam ? { ...byeTeam, isBye: true } : null;
+            } else {
+              // Real R1 match — show winner if known
+              const r1M = pairSlotToR1Match.get(pairSlotIdx);
+              return r1M ? teamFromMatch(r1M, 'winner') : null;
             }
-          }
+          };
 
-          if (srcBIsBye) {
-            contribB = slotWinner(srcBIdx);
-          } else {
-            const r1MatchIdx = r1Matches.findIndex(m => {
-              const [ps1, ps2] = fullPairs[srcBIdx];
-              return (
-                (m.team1?.seed === ps1 || m.team2?.seed === ps1) ||
-                (m.team1?.seed === ps2 || m.team2?.seed === ps2)
-              );
-            });
-            const r1M = r1Matches[r1MatchIdx >= 0 ? r1MatchIdx : -1];
-            if (r1M?.winner_id) {
-              contribB = teamFromMatch(r1M, 'winner');
-            }
-          }
+          const contribA = resolveContrib(srcAIdx);
+          const contribB = resolveContrib(srcBIdx);
 
-          if (contribA || contribB) {
-            pending.set(r2Slot, { team1: contribA, team2: contribB });
-          } else if (srcAIsBye || srcBIsBye) {
-            // At least one is a BYE winner — still show as pending even if name not resolved
+          // Show this R2 slot as pending if at least one BYE is involved (or a winner is known)
+          const srcAIsBye = slotIsBye[srcAIdx];
+          const srcBIsBye = slotIsBye[srcBIdx];
+          if (contribA || contribB || srcAIsBye || srcBIsBye) {
             pending.set(r2Slot, { team1: contribA, team2: contribB });
           }
         }
-      } else {
-        // R3+: pair-based advancement from previous round
-        const prevRoundMatches = allW.filter(m => m.round_number === round - 1).sort(sortFnField);
-        const expectedCount = Math.pow(2, winnersRoundsCount - round);
+        return pending;
+      }
 
-        for (let slot = 0; slot < expectedCount; slot++) {
-          if (currentRoundMatches[slot]) continue;
-          const srcA = prevRoundMatches[slot * 2];
-          const srcB = prevRoundMatches[slot * 2 + 1];
-          const t1 = srcA ? teamFromMatch(srcA, 'winner') : null;
-          const t2 = srcB ? teamFromMatch(srcB, 'winner') : null;
-          if (t1 || t2) {
-            pending.set(slot, { team1: t1, team2: t2 });
-          }
-        }
+      // R3+: pair-based advancement from previous round
+      const prevRoundMatches = allW.filter(m => m.round_number === round - 1).sort(sortFnField);
+      const expectedCount = Math.pow(2, winnersRoundsCount - round);
+      for (let slot = 0; slot < expectedCount; slot++) {
+        if (currentRoundMatches[slot]) continue;
+        const srcA = prevRoundMatches[slot * 2];
+        const srcB = prevRoundMatches[slot * 2 + 1];
+        const t1 = srcA ? teamFromMatch(srcA, 'winner') : null;
+        const t2 = srcB ? teamFromMatch(srcB, 'winner') : null;
+        if (t1 || t2) pending.set(slot, { team1: t1, team2: t2 });
       }
     } else {
       // ── Losers bracket ──
@@ -1525,7 +1430,6 @@ export const DoubleEliminationBracket = ({
       const currentLosersRound = allL.filter(m => m.round_number === round);
 
       if (round === 1) {
-        // L-R1 (minor): consecutive W-R1 pair losers → each LR1 slot
         const wR1 = allW.filter(m => m.round_number === 1).sort(sortFnField);
         const expectedCount = Math.floor(wR1.length / 2);
         for (let k = 0; k < expectedCount; k++) {
@@ -1541,7 +1445,6 @@ export const DoubleEliminationBracket = ({
           }
         }
       } else if (isMinor) {
-        // L-Rn minor (n=3,5,...): survivors of previous major round pair up
         const prevMajor = allL.filter(m => m.round_number === round - 1).sort(sortFnField);
         const pairCount = Math.floor(prevMajor.length / 2);
         for (let k = 0; k < pairCount; k++) {
@@ -1553,22 +1456,17 @@ export const DoubleEliminationBracket = ({
           if (t1 || t2) pending.set(k, { team1: t1, team2: t2 });
         }
       } else {
-        // L-Rn major (n=2,4,6,...): W dropin vs L minor survivor
         const k = round / 2;
         const wFeederRound = k + 1;
         const prevMinorRound = round - 1;
-
         const wFeederMatches = allW.filter(m => m.round_number === wFeederRound).sort(sortFnField);
         const prevMinorMatches = allL.filter(m => m.round_number === prevMinorRound).sort(sortFnField);
-
         const slotCount = Math.max(wFeederMatches.length, prevMinorMatches.length);
         for (let slot = 0; slot < slotCount; slot++) {
           if (currentLosersRound[slot]) continue;
           const wDrop = wFeederMatches[slot] ? teamFromMatch(wFeederMatches[slot], 'loser') : null;
           const minorSurvivor = prevMinorMatches[slot] ? teamFromMatch(prevMinorMatches[slot], 'winner') : null;
-          if (wDrop || minorSurvivor) {
-            pending.set(slot, { team1: wDrop, team2: minorSurvivor });
-          }
+          if (wDrop || minorSurvivor) pending.set(slot, { team1: wDrop, team2: minorSurvivor });
         }
       }
     }
