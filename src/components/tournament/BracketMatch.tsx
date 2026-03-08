@@ -62,6 +62,7 @@ interface BracketMatchProps {
   team1Players?: string[];
   team2Players?: string[];
   numberOfFields?: number;
+  highlightedTeamId?: string | null;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveScore: () => void;
@@ -70,6 +71,7 @@ interface BracketMatchProps {
   onEditScore?: () => void;
   onSendToStation?: () => void;
   onIncrementScore: (teamId: string, teamName: string) => void;
+  onTeamClick?: (teamId: string) => void;
 }
 
 export const BracketMatch = ({
