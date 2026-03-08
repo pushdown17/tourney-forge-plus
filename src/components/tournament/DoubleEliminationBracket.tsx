@@ -876,8 +876,9 @@ export const DoubleEliminationBracket = ({
           // R2 slot k = winner(fullPairs[2k]) vs winner(fullPairs[2k+1])
           // So winner(Hotel vs India) must face Alfa(BYE) in R2, NOT winner(Echo vs Lima).
           const fullPairs = getStandardSeedingPairs(bracketSz);
+          const currentStandings = standingsTeamsRef.current.length > 0 ? standingsTeamsRef.current : standingsTeams;
           const teamBySeed = (seed: number): string | null =>
-            seed <= totalTeams ? (standingsTeams[seed - 1]?.teamId ?? null) : null;
+            seed <= totalTeams ? (currentStandings[seed - 1]?.teamId ?? null) : null;
 
           // Find the completed match's slot in fullPairs by matching its two team IDs
           const matchSlot = fullPairs.findIndex(([s1, s2]) => {
