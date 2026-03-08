@@ -1412,7 +1412,7 @@ export const DoubleEliminationBracket = ({
                               )}>
                                 {t2 ? (
                                   <>
-                                    {isLoserSlot && <Skull className="h-3 w-3 text-destructive shrink-0" />}
+                                    {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
                                     <span className="text-sm font-semibold text-foreground truncate">{t2.name}</span>
                                   </>
                                 ) : (
