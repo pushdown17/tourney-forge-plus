@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { SendToStationDialog } from "./SendToStationDialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Team {
   id: string;
@@ -123,6 +124,7 @@ export const DoubleEliminationBracket = ({
   const [recapDialogOpen, setRecapDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("winners");
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
+  const [refreshConfirmOpen, setRefreshConfirmOpen] = useState(false);
 
   // Real-time timer states
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
@@ -1479,7 +1481,7 @@ export const DoubleEliminationBracket = ({
             {totalTeams} teams — Lose twice to be eliminated
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchTournamentAndMatches} className="gap-2">
+        <Button variant="outline" size="sm" onClick={() => setRefreshConfirmOpen(true)} className="gap-2">
           <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>
@@ -1769,6 +1771,23 @@ export const DoubleEliminationBracket = ({
           matchLabel={stationMatch.label}
         />
       )}
+
+      <AlertDialog open={refreshConfirmOpen} onOpenChange={setRefreshConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rafraîchir le bracket ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cela va recharger toutes les données depuis la base. Les modifications non sauvegardées seront perdues.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setRefreshConfirmOpen(false); fetchTournamentAndMatches(); }}>
+              Rafraîchir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
