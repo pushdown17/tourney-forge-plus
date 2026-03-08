@@ -149,6 +149,27 @@ export const DoubleEliminationBracket = ({
     fetchActiveTimers();
   }, [tournamentId, currentPhase]);
 
+  // Auto-create Grand Final match as soon as both champions are known
+  // This replaces the placeholder with a real interactive BracketMatch
+  useEffect(() => {
+    if (!tournament || !isCreator) return;
+    const totalT = tournament.teams_for_elimination || 8;
+    const wRounds = Math.log2(totalT);
+    const lRounds = getLosersRoundsCount(totalT);
+    const grandFinalRound = wRounds + 1;
+
+    const wFinal = matches.find(m => !m.is_third_place_match && m.round_number === wRounds && m.winner_id);
+    const lFinal = matches.find(m => m.is_third_place_match && m.round_number === lRounds && m.winner_id);
+    const grandFinalExists = matches.some(m => !m.is_third_place_match && m.round_number === grandFinalRound);
+
+    if (wFinal?.winner_id && lFinal?.winner_id && !grandFinalExists) {
+      const winnersBracketMatches = matches.filter(m => !m.is_third_place_match);
+      createGrandFinal(wFinal.winner_id, lFinal.winner_id, winnersBracketMatches).then(() => {
+        setActiveTab("finals");
+      });
+    }
+  }, [matches, tournament, isCreator]);
+
   useEffect(() => {
     if (currentPhase !== "double_elimination") return;
 
