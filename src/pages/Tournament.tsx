@@ -273,39 +273,8 @@ const Tournament = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72">
-                      <div className="space-y-4">
-                        {tournament.elimination_type && (
-                          <>
-                            <div className="space-y-2">
-                              <Label htmlFor="teams-elimination">Teams for Elimination</Label>
-                              <Input
-                                id="teams-elimination"
-                                type="number"
-                                min="2"
-                                max="64"
-                                value={teamsForElimination}
-                                onChange={(e) => setTeamsForElimination(e.target.value)}
-                                placeholder="e.g., 8, 14, 16..."
-                              />
-                              {parseInt(teamsForElimination) > 0 && !Number.isInteger(Math.log2(parseInt(teamsForElimination))) && (
-                                <p className="text-xs text-muted-foreground">
-                                  ℹ️ {Math.pow(2, Math.ceil(Math.log2(parseInt(teamsForElimination)))) - parseInt(teamsForElimination)} bye(s) in round 1
-                                </p>
-                              )}
-                            </div>
-                            <Button 
-                              onClick={saveTeamsForElimination} 
-                              disabled={savingTeams}
-                              className="w-full"
-                              size="sm"
-                            >
-                              <Save className="h-4 w-4 mr-2" />
-                              {savingTeams ? "Saving..." : "Save"}
-                            </Button>
-                            <Separator />
-                          </>
-                        )}
-                        <Button
+                       <div className="space-y-4">
+                         <Button
                           variant="destructive"
                           size="sm"
                           className="w-full"
