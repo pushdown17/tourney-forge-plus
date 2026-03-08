@@ -1824,7 +1824,7 @@ export const DoubleEliminationBracket = ({
             {grandFinalMatches.length === 0 ? (() => {
               // Show pending Grand Final with known teams
               const winnersChampion = winnersMatches.find(m => m.round_number === winnersRoundsCount && m.winner_id);
-              const losersChampion = losersMatches.find(m => m.round_number === getLosersRoundsCount(totalTeams) && m.winner_id);
+              const losersChampion = losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize, byeCount) && m.winner_id);
               const wTeam = winnersChampion ? (winnersChampion.winner_id === winnersChampion.team1_id ? winnersChampion.team1 : winnersChampion.team2) : null;
               const lTeam = losersChampion ? (losersChampion.winner_id === losersChampion.team1_id ? losersChampion.team1 : losersChampion.team2) : null;
 
