@@ -1353,18 +1353,16 @@ export const DoubleEliminationBracket = ({
           (s1 <= totalTeams && s2 > totalTeams) || (s2 <= totalTeams && s1 > totalTeams)
         );
 
-        // Assign BYE teams (top byeCount seeds from standings) to BYE slots in standard seeding order
+        // Assign BYE teams to BYE slots using the actual seed from the pair.
+        // For a BYE slot (s1 ≤ totalTeams, s2 > totalTeams) the real seed is s1.
         // standingsTeams is ordered by seed: [0]=seed1, [1]=seed2, ...
-        const byeTeamsList = standingsTeams.slice(0, byeCount); // top seeds get BYEs
-        let byeTeamIdx = 0;
         const byeSlotToTeam = new Map<number, { name: string; teamId: string }>();
-        fullPairs.forEach((_pair, pairIdx) => {
-          if (slotIsBye[pairIdx]) {
-            if (byeTeamIdx < byeTeamsList.length) {
-              byeSlotToTeam.set(pairIdx, byeTeamsList[byeTeamIdx]);
-              byeTeamIdx++;
-            }
-          }
+        fullPairs.forEach(([s1, s2], pairIdx) => {
+          if (!slotIsBye[pairIdx]) return;
+          // The real team seed is whichever is ≤ totalTeams
+          const realSeed = s1 <= totalTeams ? s1 : s2;
+          const team = standingsTeams[realSeed - 1]; // seed is 1-indexed
+          if (team) byeSlotToTeam.set(pairIdx, team);
         });
 
         // Map R1 matches to their full-bracket pair slot by seed
