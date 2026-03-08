@@ -78,12 +78,21 @@ function getStandardSeedingPairs(count: number): [number, number][] {
   return pairs;
 }
 
-const getLosersRoundsCount = (totalTeams: number): number => {
-  return (Math.log2(totalTeams) - 1) * 2;
+/** Next power of 2 ≥ n */
+const nextPow2 = (n: number): number => Math.pow(2, Math.ceil(Math.log2(n)));
+
+/**
+ * For a given teamsCount, the bracket size is the next power of 2.
+ * For power-of-2 counts it's the same value.
+ */
+const getBracketSize = (teamsCount: number): number => nextPow2(teamsCount);
+
+const getLosersRoundsCount = (bracketSize: number): number => {
+  return (Math.log2(bracketSize) - 1) * 2;
 };
 
-const getWinnersRoundName = (roundNumber: number, totalTeams: number) => {
-  const w = Math.log2(totalTeams);
+const getWinnersRoundName = (roundNumber: number, bracketSize: number) => {
+  const w = Math.log2(bracketSize);
   if (roundNumber === w) return "Winners Final";
   if (roundNumber === w - 1) return w >= 3 ? "Winners Semi" : "Winners Final";
   if (roundNumber === w - 2 && w >= 4) return "Winners QF";
@@ -93,8 +102,8 @@ const getWinnersRoundName = (roundNumber: number, totalTeams: number) => {
   return `W-R${roundNumber}`;
 };
 
-const getLosersRoundName = (roundNumber: number, totalTeams: number) => {
-  const lr = getLosersRoundsCount(totalTeams);
+const getLosersRoundName = (roundNumber: number, bracketSize: number) => {
+  const lr = getLosersRoundsCount(bracketSize);
   if (roundNumber === lr) return "Losers Final";
   if (roundNumber === lr - 1) return "Losers Semi";
   return `Losers R${roundNumber}`;
