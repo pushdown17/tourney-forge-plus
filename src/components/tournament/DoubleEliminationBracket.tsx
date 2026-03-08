@@ -191,7 +191,28 @@ export const DoubleEliminationBracket = ({
       .channel(`de-matches-${tournamentId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tournamentId}` },
+        { event: 'UPDATE', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tournamentId}` },
+        (payload) => {
+          // Update only the changed match in-place — no full reload
+          const updated = payload.new as any;
+          setMatches(prev =>
+            prev.map(m =>
+              m.id === updated.id
+                ? { ...m, team1_score: updated.team1_score, team2_score: updated.team2_score, winner_id: updated.winner_id }
+                : m
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tournamentId}` },
+        // New match inserted = new bracket round generated, need full refetch
+        () => { fetchTournamentAndMatches(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tournamentId}` },
         () => { fetchTournamentAndMatches(); }
       )
       .on(
