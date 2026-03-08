@@ -1464,7 +1464,10 @@ export const DoubleEliminationBracket = ({
       const currentLosersRound = allL.filter(m => m.round_number === round);
 
       if (round === 1) {
-        const wR1 = allW.filter(m => m.round_number === 1).sort(sortFnField);
+        // L-R1 minor: losers from W-R(loserFirstWRound)
+        // For play-in brackets: W-R1 losers are eliminated → use W-R2 losers instead
+        const loserFeederWRound = byeCount > 0 ? 2 : 1;
+        const wR1 = allW.filter(m => m.round_number === loserFeederWRound).sort(sortFnField);
         const expectedCount = Math.floor(wR1.length / 2);
         for (let k = 0; k < expectedCount; k++) {
           if (currentLosersRound[k]) continue;
@@ -1490,8 +1493,11 @@ export const DoubleEliminationBracket = ({
           if (t1 || t2) pending.set(k, { team1: t1, team2: t2 });
         }
       } else {
+        // Major round: pair W-loser (from wFeederRound) vs L-minor survivor
         const k = round / 2;
-        const wFeederRound = k + 1;
+        // For play-in: wFeederRound = k + 2 (L-R2←W-R3, L-R4←W-R4)
+        // Standard:    wFeederRound = k + 1 (L-R2←W-R2, L-R4←W-R3)
+        const wFeederRound = byeCount > 0 ? k + 2 : k + 1;
         const prevMinorRound = round - 1;
         const wFeederMatches = allW.filter(m => m.round_number === wFeederRound).sort(sortFnField);
         const prevMinorMatches = allL.filter(m => m.round_number === prevMinorRound).sort(sortFnField);
