@@ -51,6 +51,7 @@ interface EliminationBracketProps {
   onPhaseChanged: () => void;
   isClosed?: boolean;
   isCreator?: boolean;
+  resetTrigger?: number;
 }
 
 export const EliminationBracket = ({ 

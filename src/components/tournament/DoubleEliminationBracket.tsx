@@ -43,6 +43,7 @@ interface DoubleEliminationBracketProps {
   onPhaseChanged: () => void;
   isClosed?: boolean;
   isCreator?: boolean;
+  resetTrigger?: number;
 }
 
 interface TimerState {
