@@ -1543,7 +1543,9 @@ export const DoubleEliminationBracket = ({
             const realRoundMatches = (matchByRound.get(round) || [])
               .sort((a, b) => (a.field_number || 0) - (b.field_number || 0));
 
-            const roundName = isLosers ? getLosersRoundName(round, bracketSize) : getWinnersRoundName(round, bracketSize);
+            const roundName = isLosers
+              ? getLosersRoundName(round, bracketSize, byeCount)
+              : getWinnersRoundName(round, bracketSize, byeCount);
             const isThisLastRound = colIdx === expectedRounds.length - 1;
 
             // Compute spacingLevel based purely on match count
