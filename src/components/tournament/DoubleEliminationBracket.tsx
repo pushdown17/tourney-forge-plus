@@ -130,6 +130,7 @@ export const DoubleEliminationBracket = ({
   const [numberOfFields, setNumberOfFields] = useState(1);
   const [recapDialogOpen, setRecapDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("winners");
+  const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
 
   // Real-time timer states
   const [liveMatches, setLiveMatches] = useState<Set<string>>(new Set());
@@ -1081,6 +1082,8 @@ export const DoubleEliminationBracket = ({
         team1Players={playersByTeam[match.team1_id] || []}
         team2Players={playersByTeam[match.team2_id] || []}
         numberOfFields={numberOfFields}
+        highlightedTeamId={highlightedTeamId}
+        onTeamClick={(teamId) => setHighlightedTeamId(teamId || null)}
         onStartEdit={() => {
           if (isLocked || isMatchCompleted) {
             toast.error(isMatchCompleted ? "This match is finished" : "Complete the previous round first");

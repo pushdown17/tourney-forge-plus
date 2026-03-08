@@ -62,6 +62,7 @@ interface BracketMatchProps {
   team1Players?: string[];
   team2Players?: string[];
   numberOfFields?: number;
+  highlightedTeamId?: string | null;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveScore: () => void;
@@ -70,6 +71,7 @@ interface BracketMatchProps {
   onEditScore?: () => void;
   onSendToStation?: () => void;
   onIncrementScore: (teamId: string, teamName: string) => void;
+  onTeamClick?: (teamId: string) => void;
 }
 
 export const BracketMatch = ({
@@ -92,6 +94,7 @@ export const BracketMatch = ({
   team1Players = [],
   team2Players = [],
   numberOfFields = 1,
+  highlightedTeamId,
   onStartEdit,
   onCancelEdit,
   onSaveScore,
@@ -100,6 +103,7 @@ export const BracketMatch = ({
   onEditScore,
   onSendToStation,
   onIncrementScore,
+  onTeamClick,
 }: BracketMatchProps) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const isPlaceholder = match.isPlaceholder;
@@ -111,9 +115,15 @@ export const BracketMatch = ({
   // Only show edit controls if user is the creator
   // Creators can edit completed matches to correct errors
   const canEdit = isCreator && !isClosed && (!isMatchLocked || isCompleted);
+
+  // Highlight logic: does this match involve the highlighted team?
+  const matchInvolvesHighlight = highlightedTeamId
+    ? match.team1_id === highlightedTeamId || match.team2_id === highlightedTeamId
+    : false;
+  const isDimmed = !!highlightedTeamId && !matchInvolvesHighlight;
   
   return (
-    <div className="animate-fade-in flex flex-col">
+    <div className={cn("animate-fade-in flex flex-col transition-opacity duration-200", isDimmed && "opacity-25")}>
       {/* Match header */}
       <div className="flex items-center justify-center gap-2 mb-1">
         <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
@@ -175,7 +185,8 @@ export const BracketMatch = ({
               isMatchLocked && !isCompleted && "opacity-60 cursor-not-allowed",
               hasWinner && "ring-1 ring-primary/30",
               isFinal && "ring-2 ring-yellow-500/50",
-              isRecentlyCompleted && "animate-pulse ring-2 ring-primary shadow-lg shadow-primary/30"
+              isRecentlyCompleted && "animate-pulse ring-2 ring-primary shadow-lg shadow-primary/30",
+              matchInvolvesHighlight && "ring-2 ring-primary shadow-lg shadow-primary/40"
             )}
             onClick={(e) => {
               if (isPlaceholder) return;
@@ -212,12 +223,21 @@ export const BracketMatch = ({
                       #{match.team1.seed}
                     </span>
                   )}
-                  <span className={cn(
-                    "text-sm truncate",
-                    match.winner_id === match.team1_id && "font-semibold text-primary",
-                    match.hasAdvancedTeam1 && !match.winner_id && "font-medium text-primary animate-fade-in",
-                    !match.team1?.name && "text-muted-foreground italic"
-                  )}>
+                   <span
+                    className={cn(
+                      "text-sm truncate",
+                      match.winner_id === match.team1_id && "font-semibold text-primary",
+                      match.hasAdvancedTeam1 && !match.winner_id && "font-medium text-primary animate-fade-in",
+                      !match.team1?.name && "text-muted-foreground italic",
+                      onTeamClick && match.team1?.name && "cursor-pointer hover:underline hover:text-primary"
+                    )}
+                    onClick={(e) => {
+                      if (onTeamClick && match.team1_id && match.team1?.name) {
+                        e.stopPropagation();
+                        onTeamClick(highlightedTeamId === match.team1_id ? "" : match.team1_id);
+                      }
+                    }}
+                  >
                     {match.team1?.name || "TBD"}
                   </span>
                 </div>
@@ -260,12 +280,21 @@ export const BracketMatch = ({
                       #{match.team2.seed}
                     </span>
                   )}
-                  <span className={cn(
-                    "text-sm truncate",
-                    !isBye && match.winner_id === match.team2_id && "font-semibold text-primary",
-                    match.hasAdvancedTeam2 && !match.winner_id && "font-medium text-primary animate-fade-in",
-                    isBye ? "text-muted-foreground italic" : (!match.team2?.name && "text-muted-foreground italic")
-                  )}>
+                  <span
+                    className={cn(
+                      "text-sm truncate",
+                      !isBye && match.winner_id === match.team2_id && "font-semibold text-primary",
+                      match.hasAdvancedTeam2 && !match.winner_id && "font-medium text-primary animate-fade-in",
+                      isBye ? "text-muted-foreground italic" : (!match.team2?.name && "text-muted-foreground italic"),
+                      !isBye && onTeamClick && match.team2?.name && "cursor-pointer hover:underline hover:text-primary"
+                    )}
+                    onClick={(e) => {
+                      if (!isBye && onTeamClick && match.team2_id && match.team2?.name) {
+                        e.stopPropagation();
+                        onTeamClick(highlightedTeamId === match.team2_id ? "" : match.team2_id);
+                      }
+                    }}
+                  >
                     {isBye ? "BYE" : (match.team2?.name || "TBD")}
                   </span>
                 </div>

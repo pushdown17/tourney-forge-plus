@@ -119,6 +119,7 @@ export const EliminationBracket = ({
   const [activeStationMatches, setActiveStationMatches] = useState<Set<string>>(new Set());
   const [seedToTeam, setSeedToTeam] = useState<Map<number, Team>>(new Map());
   const [playersByTeam, setPlayersByTeam] = useState<Record<string, string[]>>({});
+  const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
   const [matchTimers, setMatchTimers] = useState<{ [matchId: string]: {
     durationSeconds: number;
     startedAt: string | null;
@@ -1802,6 +1803,8 @@ export const EliminationBracket = ({
                               team1Players={playersByTeam[match.team1_id] || []}
                               team2Players={playersByTeam[match.team2_id] || []}
                               numberOfFields={numberOfFields}
+                              highlightedTeamId={highlightedTeamId}
+                              onTeamClick={(teamId) => setHighlightedTeamId(teamId || null)}
                               onStartEdit={() => {
                                 if (isLocked && !isMatchCompleted) {
                                   toast.error("Complete the previous round matches first");
@@ -1923,6 +1926,8 @@ export const EliminationBracket = ({
                       team1Players={playersByTeam[thirdPlaceMatch.team1_id] || []}
                       team2Players={playersByTeam[thirdPlaceMatch.team2_id] || []}
                       numberOfFields={numberOfFields}
+                      highlightedTeamId={highlightedTeamId}
+                      onTeamClick={(teamId) => setHighlightedTeamId(teamId || null)}
                       onStartEdit={() => {
                         if (thirdPlaceLocked && !isThirdPlaceCompleted) {
                           toast.error("Complete the semi-finals first");
