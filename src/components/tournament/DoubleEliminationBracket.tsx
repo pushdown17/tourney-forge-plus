@@ -1105,7 +1105,8 @@ export const DoubleEliminationBracket = ({
 
   const createGrandFinal = async (winnersChampion: string, losersChampion: string, _winnersMatches?: any[]) => {
     const totalTeams = (tournament ?? tournamentRef.current)?.teams_for_elimination || 8;
-    const winnersRounds = Math.log2(totalTeams);
+    const bracketSz = getBracketSize(totalTeams);
+    const winnersRounds = Math.log2(bracketSz);
     const grandFinalRound = winnersRounds + 1;
 
     // Always query DB directly to avoid race conditions with stale in-memory state
@@ -1162,7 +1163,8 @@ export const DoubleEliminationBracket = ({
   };
 
   const totalTeams = tournament?.teams_for_elimination || 8;
-  const winnersRoundsCount = Math.log2(totalTeams);
+  const bracketSize = getBracketSize(totalTeams);
+  const winnersRoundsCount = Math.log2(bracketSize);
 
   const grandFinalMatches = matches
     .filter(m => !m.is_third_place_match && m.round_number > winnersRoundsCount)
@@ -1176,7 +1178,7 @@ export const DoubleEliminationBracket = ({
   // Only show the champion banner when ALL grand final matches are done AND
   // if a reset was triggered (GF#1 won by Losers champ), GF#2 must exist before declaring winner.
   const gf1 = grandFinalMatches[0] ?? null;
-  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(totalTeams) && m.winner_id)?.winner_id === gf1.winner_id;
+  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize) && m.winner_id)?.winner_id === gf1.winner_id;
   const resetExpected = gf1?.winner_id && gf1WinnerIsLosersChamp && !hasReset;
   const allGrandFinalsCompleted = grandFinalMatches.length > 0 && grandFinalMatches.every(m => m.winner_id) && !resetExpected;
   const decidingFinal = allGrandFinalsCompleted ? grandFinalMatches[grandFinalMatches.length - 1] : null;
@@ -1263,23 +1265,19 @@ export const DoubleEliminationBracket = ({
   };
 
   // Generate expected number of matches per round for a full bracket structure
+  // Uses bracketSize (power of 2) to determine slot counts; BYE slots show as TBD placeholders
   const getExpectedMatchCounts = (isLosers: boolean): { round: number; count: number }[] => {
     const rounds: { round: number; count: number }[] = [];
     if (!isLosers) {
-      // Winners: R1=8, R2=4, R3=2, R4=1 (for 16 teams)
+      // Winners: R1 = bracketSize/2 slots, R2 = bracketSize/4, etc.
       for (let r = 1; r <= winnersRoundsCount; r++) {
         rounds.push({ round: r, count: Math.pow(2, winnersRoundsCount - r) });
       }
     } else {
-      // For 16 teams (winnersRoundsCount=4):
-      // L-R1(minor)=4, L-R2(major)=4, L-R3(minor)=2, L-R4(major)=2, L-R5(minor)=1, L-R6(Final)=1
-      // Pattern: pairs of (minor, major) rounds, count halves per pair
-      // pair 1: L-R1=W/2, L-R2=W/2
-      // pair 2: L-R3=W/4, L-R4=W/4
-      // etc.
-      const lrCount = getLosersRoundsCount(totalTeams);
+      // Losers bracket sizes based on bracketSize
+      const lrCount = getLosersRoundsCount(bracketSize);
       for (let r = 1; r <= lrCount; r++) {
-        const pairIdx = Math.ceil(r / 2); // pair 1 for r=1,2; pair 2 for r=3,4; etc.
+        const pairIdx = Math.ceil(r / 2);
         const count = Math.max(1, Math.pow(2, winnersRoundsCount - 1 - pairIdx));
         rounds.push({ round: r, count });
       }
