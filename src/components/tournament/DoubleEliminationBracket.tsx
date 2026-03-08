@@ -195,15 +195,10 @@ export const DoubleEliminationBracket = ({
         // → trigger bracket progression in real-time without waiting for INSERT postgres_changes
         const { matchId, winnerId, loserId } = payload.payload;
         if (!matchId || !winnerId || !loserId) return;
-        // Find the completed match in current state and run progression
-        setMatches(prev => {
-          const completedMatch = prev.find(m => m.id === matchId);
-          if (completedMatch) {
-            // Run progression asynchronously (state will be updated by INSERT postgres_changes)
-            handleChallongeProgression(completedMatch, winnerId, loserId);
-          }
-          return prev;
-        });
+        const completedMatch = matchesRef.current.find(m => m.id === matchId);
+        if (completedMatch) {
+          handleChallongeProgressionFromRef(completedMatch, winnerId, loserId);
+        }
       })
       .subscribe();
 
