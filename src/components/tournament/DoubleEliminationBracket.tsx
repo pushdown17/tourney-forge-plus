@@ -1546,9 +1546,9 @@ export const DoubleEliminationBracket = ({
           </TabsContent>
 
           <TabsContent value="losers">
-            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
-              <Skull className="h-5 w-5 text-destructive" />
-              <h3 className="text-lg font-semibold text-destructive">Losers Bracket</h3>
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-orange-500/40">
+              <Skull className="h-5 w-5 text-orange-500" />
+              <h3 className="text-lg font-semibold text-orange-500">Losers Bracket</h3>
               <span className="text-sm text-muted-foreground">({losersMatches.length} matches)</span>
             </div>
             {renderBracket(losersMatches, true)}
