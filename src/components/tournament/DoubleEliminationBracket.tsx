@@ -820,15 +820,29 @@ export const DoubleEliminationBracket = ({
     try {
       const isLosersBracket = completedMatch.is_third_place_match;
       const roundNumber = completedMatch.round_number;
-      const totalTeams = (tournament ?? tournamentRef.current)?.teams_for_elimination || 8;
+
+      // Always fetch tournament data fresh from DB to avoid stale-closure bugs
+      // (this function may be called from a broadcast listener with stale state)
+      const { data: freshTournamentData } = await supabase
+        .from("tournaments")
+        .select("teams_for_elimination")
+        .eq("id", tournamentId)
+        .single();
+      const totalTeams = freshTournamentData?.teams_for_elimination
+        ?? (tournament ?? tournamentRef.current)?.teams_for_elimination
+        ?? 8;
+
       const bracketSz = getBracketSize(totalTeams);
       const winnersRounds = Math.log2(bracketSz);
 
-      const { data: allMatches, error: matchesError } = await supabase
-        .from("matches")
-        .select("*")
-        .eq("tournament_id", tournamentId)
-        .eq("phase", "double_elimination");
+      const [matchesResult] = await Promise.all([
+        supabase
+          .from("matches")
+          .select("*")
+          .eq("tournament_id", tournamentId)
+          .eq("phase", "double_elimination"),
+      ]);
+      const { data: allMatches, error: matchesError } = matchesResult;
 
       if (matchesError) throw matchesError;
 
