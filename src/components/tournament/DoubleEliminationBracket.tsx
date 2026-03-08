@@ -1391,7 +1391,7 @@ export const DoubleEliminationBracket = ({
                               <div className={cn(
                                 "flex items-center gap-2 py-1.5 px-2 rounded border mb-1",
                                 t1
-                                  ? (isLoserSlot ? "bg-destructive/10 border-destructive/20" : "bg-primary/10 border-primary/20")
+                                  ? (isLoserSlot ? "bg-orange-500/10 border-orange-500/20" : "bg-primary/10 border-primary/20")
                                   : "bg-muted/20 border-dashed border-border/30"
                               )}>
                                 {t1 ? (
