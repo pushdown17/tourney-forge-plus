@@ -41,6 +41,10 @@ export const PhaseTransition = ({ tournamentId, currentPhase, onPhaseChanged, is
       toast.error("At least 2 teams are required");
       return;
     }
+    if (isDoubleElimination && isOddNonPow2) {
+      toast.error("Double elimination requires an even number of teams (or a power of 2)");
+      return;
+    }
     setLoading(true);
     try {
       const targetPhase = bracketType === "single" ? "single_elimination" : "double_elimination";
