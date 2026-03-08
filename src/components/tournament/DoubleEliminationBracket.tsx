@@ -1598,6 +1598,30 @@ export const DoubleEliminationBracket = ({
                       const hasPending = !!(t1 || t2);
                       const isLoserSlot = isLosers;
 
+                      const renderTeamSlot = (t: typeof t1, mb: boolean) => (
+                        <div className={cn(
+                          "flex items-center gap-2 py-1.5 px-2 rounded border",
+                          mb ? "mb-1" : "",
+                          t
+                            ? (isLoserSlot ? "bg-orange-500/10 border-orange-500/20" : "bg-primary/10 border-primary/20")
+                            : "bg-muted/20 border-dashed border-border/30"
+                        )}>
+                          {t ? (
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
+                              <span className="text-sm font-semibold text-foreground truncate">{t.name}</span>
+                              {(t as any).isBye && (
+                                <span className="ml-auto shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">
+                                  BYE
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">TBD</span>
+                          )}
+                        </div>
+                      );
+
                       return (
                         <div
                           key={`tbd-${round}-${slotIdx}`}
@@ -1612,38 +1636,8 @@ export const DoubleEliminationBracket = ({
                           {hasPending ? (
                             <>
                               <p className="text-xs text-muted-foreground mb-1.5 font-medium">En attente…</p>
-                              {/* Team 1 slot */}
-                              <div className={cn(
-                                "flex items-center gap-2 py-1.5 px-2 rounded border mb-1",
-                                t1
-                                  ? (isLoserSlot ? "bg-orange-500/10 border-orange-500/20" : "bg-primary/10 border-primary/20")
-                                  : "bg-muted/20 border-dashed border-border/30"
-                              )}>
-                                {t1 ? (
-                                  <>
-                                    {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
-                                    <span className="text-sm font-semibold text-foreground truncate">{t1.name}</span>
-                                  </>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground italic">TBD</span>
-                                )}
-                              </div>
-                              {/* Team 2 slot */}
-                              <div className={cn(
-                                "flex items-center gap-2 py-1.5 px-2 rounded border",
-                                t2
-                                  ? (isLoserSlot ? "bg-orange-500/10 border-orange-500/20" : "bg-primary/10 border-primary/20")
-                                  : "bg-muted/20 border-dashed border-border/30"
-                              )}>
-                                {t2 ? (
-                                  <>
-                                    {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
-                                    <span className="text-sm font-semibold text-foreground truncate">{t2.name}</span>
-                                  </>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground italic">TBD</span>
-                                )}
-                              </div>
+                              {renderTeamSlot(t1, true)}
+                              {renderTeamSlot(t2, false)}
                             </>
                           ) : (
                             <span className="text-xs text-muted-foreground/40 font-medium">TBD</span>
