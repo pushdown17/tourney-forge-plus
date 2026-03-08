@@ -917,12 +917,15 @@ export const DoubleEliminationBracket = ({
         // W-Rk losers → L-R(k-1)*2 major round
 
         if (roundNumber === 1) {
-          // W-R1: CONSECUTIVE pairing. allR1[2k] pairs with allR1[2k+1].
-          // Find which pair slot this match belongs to, then check its partner.
+          // W-R1: CROSS/SNAKE pairing. loser[k] pairs with loser[totalR1-1-k].
+          // Find which position this match is in W-R1, then pair with mirror position.
           const allR1Sorted = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
+          const totalR1 = allR1Sorted.length;
           const myPosInR1 = allR1Sorted.findIndex(m => m.id === completedMatch.id);
-          // Even pos pairs with pos+1, odd pos pairs with pos-1
-          const partnerPosInR1 = myPosInR1 % 2 === 0 ? myPosInR1 + 1 : myPosInR1 - 1;
+          // Cross pairing: pos k pairs with pos (totalR1 - 1 - k)
+          const partnerPosInR1 = totalR1 - 1 - myPosInR1;
+          // Only process from the "lower" index to avoid double-creation
+          if (myPosInR1 > partnerPosInR1) return; // handled by the partner's trigger
           const partnerMatchR1 = allR1Sorted[partnerPosInR1];
 
           if (partnerMatchR1?.winner_id) {
