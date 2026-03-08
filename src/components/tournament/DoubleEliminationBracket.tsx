@@ -137,6 +137,8 @@ export const DoubleEliminationBracket = ({
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  // Ordered standings: index 0 = seed #1, used to resolve BYE team names
+  const [standingsTeams, setStandingsTeams] = useState<{ teamId: string; name: string }[]>([]);
 
   // Trigger reset from parent (Tournament settings popover)
   const prevResetTrigger = useRef(resetTrigger);
