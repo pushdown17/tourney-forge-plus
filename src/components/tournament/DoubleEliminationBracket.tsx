@@ -184,6 +184,21 @@ export const DoubleEliminationBracket = ({
           }
         }
       })
+      .on('broadcast', { event: 'de_match_completed' }, (payload) => {
+        // Triggered by the referee station after validating a double_elimination match
+        // → trigger bracket progression in real-time without waiting for INSERT postgres_changes
+        const { matchId, winnerId, loserId } = payload.payload;
+        if (!matchId || !winnerId || !loserId) return;
+        // Find the completed match in current state and run progression
+        setMatches(prev => {
+          const completedMatch = prev.find(m => m.id === matchId);
+          if (completedMatch) {
+            // Run progression asynchronously (state will be updated by INSERT postgres_changes)
+            handleChallongeProgression(completedMatch, winnerId, loserId);
+          }
+          return prev;
+        });
+      })
       .subscribe();
 
     // postgres_changes for saved scores & bracket progression
