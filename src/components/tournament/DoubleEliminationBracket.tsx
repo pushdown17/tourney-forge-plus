@@ -1769,10 +1769,16 @@ export const DoubleEliminationBracket = ({
           open={statsDialogOpen}
           onOpenChange={setStatsDialogOpen}
           onScoreUpdate={async () => {
+            // Fetch the updated match from DB to get the fresh winner_id after score correction
+            const { data: updatedMatch } = await supabase
+              .from("matches")
+              .select(`*, team1:teams!matches_team1_id_fkey(id, name), team2:teams!matches_team2_id_fkey(id, name)`)
+              .eq("id", selectedMatch.id)
+              .single();
             await fetchTournamentAndMatches();
-            if (selectedMatch?.winner_id) {
-              const loserId = selectedMatch.winner_id === selectedMatch.team1_id ? selectedMatch.team2_id : selectedMatch.team1_id;
-              await handleChallongeProgression(selectedMatch, selectedMatch.winner_id, loserId);
+            if (updatedMatch?.winner_id) {
+              const loserId = updatedMatch.winner_id === updatedMatch.team1_id ? updatedMatch.team2_id : updatedMatch.team1_id;
+              await handleChallongeProgression(updatedMatch as Match, updatedMatch.winner_id, loserId);
             }
           }}
         />
