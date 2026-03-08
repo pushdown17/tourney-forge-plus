@@ -500,6 +500,27 @@ const Tournament = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Bracket Reset Confirmation Dialog */}
+        <AlertDialog open={bracketResetDialogOpen} onOpenChange={setBracketResetDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>⚠️ Réinitialiser le bracket ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Cela va <strong>supprimer définitivement tous les matchs</strong> de la double élimination et régénérer le bracket depuis zéro. Cette action est irréversible.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => { setBracketResetDialogOpen(false); setBracketResetTrigger(t => t + 1); }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Réinitialiser
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
