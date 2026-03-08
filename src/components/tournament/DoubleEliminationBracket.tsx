@@ -1499,8 +1499,8 @@ export const DoubleEliminationBracket = ({
               <span className="hidden sm:inline">Winners</span>
               {liveWinnersMatches && (
                 <span className="relative flex h-2 w-2 ml-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
                 </span>
               )}
               {pendingWinnersMatches > 0 && (
@@ -1512,8 +1512,8 @@ export const DoubleEliminationBracket = ({
               <span className="hidden sm:inline">Losers</span>
               {liveLosersMatches && (
                 <span className="relative flex h-2 w-2 ml-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
                 </span>
               )}
               {pendingLosersMatches > 0 && (
@@ -1525,8 +1525,8 @@ export const DoubleEliminationBracket = ({
               <span className="hidden sm:inline">Finals</span>
               {liveFinalsMatches && (
                 <span className="relative flex h-2 w-2 ml-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
                 </span>
               )}
               {pendingFinalsMatches > 0 && (
