@@ -391,6 +391,7 @@ export const DoubleEliminationBracket = ({
           .eq("tournament_id", tournamentId)
           .order("points", { ascending: false })
           .order("goals_for", { ascending: false })
+          .order("team_id", { ascending: true })
       ]);
 
       if (matchesResult.error) throw matchesResult.error;
