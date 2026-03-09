@@ -1181,10 +1181,9 @@ export const DoubleEliminationBracket = ({
       // Grand final tab switch handled above; no reload needed for other progressions
     } catch (error: any) {
       console.error("Error handling progression:", error);
-    } finally {
-      // Release lock so future calls for this match (e.g. re-validation) can proceed
-      setTimeout(() => processingMatchIds.current.delete(completedMatch.id), 5000);
     }
+    // NOTE: Do NOT release the lock — once a match is progressed, never process it again.
+    // This prevents duplicate R2 creation from delayed broadcasts or re-triggers.
   };
 
   // generateMajorRound removed — logic now inline in handleChallongeProgression
