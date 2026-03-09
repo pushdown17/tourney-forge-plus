@@ -819,6 +819,9 @@ export const DoubleEliminationBracket = ({
   };
 
   const handleChallongeProgression = async (completedMatch: Match, winnerId: string, loserId: string) => {
+    // Prevent duplicate concurrent calls for the same match (race condition guard)
+    if (processingMatchIds.current.has(completedMatch.id)) return;
+    processingMatchIds.current.add(completedMatch.id);
     try {
       const isLosersBracket = completedMatch.is_third_place_match;
       const roundNumber = completedMatch.round_number;
