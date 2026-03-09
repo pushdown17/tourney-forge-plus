@@ -391,6 +391,7 @@ export const DoubleEliminationBracket = ({
           .eq("tournament_id", tournamentId)
           .order("points", { ascending: false })
           .order("goals_for", { ascending: false })
+          .order("team_id", { ascending: true })
       ]);
 
       if (matchesResult.error) throw matchesResult.error;
@@ -613,6 +614,7 @@ export const DoubleEliminationBracket = ({
         .eq("tournament_id", tournamentId)
         .order("points", { ascending: false })
         .order("goals_for", { ascending: false })
+        .order("team_id", { ascending: true })
         .limit(teamsCount);
 
       if (standingsError) throw standingsError;
@@ -890,23 +892,17 @@ export const DoubleEliminationBracket = ({
 
         if (roundNumber === 1 && byeCount > 0) {
           // ── Non-power-of-2 R1: BYE-aware pairing via full bracket slot mapping ──
-          // Fetch fresh standings from DB to avoid any closure/state staleness issues
-          const { data: freshStandings } = await supabase
-            .from("team_stats")
-            .select(`team_id, points, goals_for, goals_against`)
-            .eq("tournament_id", tournamentId)
-            .order("points", { ascending: false })
-            .order("goals_for", { ascending: false })
-            .limit(totalTeams);
-
-          if (!freshStandings || freshStandings.length === 0) {
-            console.error("[handleChallongeProgression] Could not fetch standings for BYE mapping");
+          // Use standingsTeamsRef (loaded at bracket init) — same stable order as generateBracket.
+          // Re-fetching standings risks non-deterministic order for tied teams, causing wrong slot mapping.
+          const stableStandings = standingsTeamsRef.current;
+          if (!stableStandings || stableStandings.length === 0) {
+            console.error("[handleChallongeProgression] standingsTeamsRef is empty, cannot map BYE slots");
             return;
           }
 
           const fullPairs = getStandardSeedingPairs(bracketSz);
           const teamBySeed = (seed: number): string | null =>
-            seed <= totalTeams ? (freshStandings[seed - 1]?.team_id ?? null) : null;
+            seed <= totalTeams ? (stableStandings[seed - 1]?.teamId ?? null) : null;
 
           // Find the completed match's slot in fullPairs by matching its two team IDs
           const matchSlot = fullPairs.findIndex(([s1, s2]) => {
