@@ -892,17 +892,25 @@ export const DoubleEliminationBracket = ({
 
         if (roundNumber === 1 && byeCount > 0) {
           // ── Non-power-of-2 R1: BYE-aware pairing via full bracket slot mapping ──
-          // Use standingsTeamsRef (loaded at bracket init) — same stable order as generateBracket.
-          // Re-fetching standings risks non-deterministic order for tied teams, causing wrong slot mapping.
-          const stableStandings = standingsTeamsRef.current;
-          if (!stableStandings || stableStandings.length === 0) {
-            console.error("[handleChallongeProgression] standingsTeamsRef is empty, cannot map BYE slots");
+          // CRITICAL: Always fetch standings fresh with exact same query+limit as generateBracket
+          // to guarantee the same deterministic seed→team mapping regardless of when this runs.
+          const { data: freshStandings } = await supabase
+            .from("team_stats")
+            .select(`team_id, points, goals_for, team:team_id(id, name)`)
+            .eq("tournament_id", tournamentId)
+            .order("points", { ascending: false })
+            .order("goals_for", { ascending: false })
+            .order("team_id", { ascending: true })
+            .limit(totalTeams);
+
+          if (!freshStandings || freshStandings.length < totalTeams) {
+            console.error("[handleChallongeProgression] Not enough standings data, cannot map BYE slots");
             return;
           }
 
           const fullPairs = getStandardSeedingPairs(bracketSz);
           const teamBySeed = (seed: number): string | null =>
-            seed <= totalTeams ? (stableStandings[seed - 1]?.teamId ?? null) : null;
+            seed <= totalTeams ? (freshStandings[seed - 1]?.team_id ?? null) : null;
 
           // Find the completed match's slot in fullPairs by matching its two team IDs
           const matchSlot = fullPairs.findIndex(([s1, s2]) => {
@@ -1173,10 +1181,9 @@ export const DoubleEliminationBracket = ({
       // Grand final tab switch handled above; no reload needed for other progressions
     } catch (error: any) {
       console.error("Error handling progression:", error);
-    } finally {
-      // Release lock so future calls for this match (e.g. re-validation) can proceed
-      setTimeout(() => processingMatchIds.current.delete(completedMatch.id), 5000);
     }
+    // NOTE: Do NOT release the lock — once a match is progressed, never process it again.
+    // This prevents duplicate R2 creation from delayed broadcasts or re-triggers.
   };
 
   // generateMajorRound removed — logic now inline in handleChallongeProgression
