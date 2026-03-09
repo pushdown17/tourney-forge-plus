@@ -167,6 +167,8 @@ export const DoubleEliminationBracket = ({
   const matchesRef = useRef<Match[]>([]);
   const tournamentRef = useRef<any>(null);
   const standingsTeamsRef = useRef<{ teamId: string; name: string }[]>([]);
+  // Lock to prevent concurrent duplicate calls to handleChallongeProgression for the same match
+  const processingMatchIds = useRef<Set<string>>(new Set());
   useEffect(() => { matchesRef.current = matches; }, [matches]);
   useEffect(() => { tournamentRef.current = tournament; }, [tournament]);
   useEffect(() => { standingsTeamsRef.current = standingsTeams; }, [standingsTeams]);
