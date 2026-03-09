@@ -167,6 +167,8 @@ export const DoubleEliminationBracket = ({
   const matchesRef = useRef<Match[]>([]);
   const tournamentRef = useRef<any>(null);
   const standingsTeamsRef = useRef<{ teamId: string; name: string }[]>([]);
+  // Lock to prevent concurrent duplicate calls to handleChallongeProgression for the same match
+  const processingMatchIds = useRef<Set<string>>(new Set());
   useEffect(() => { matchesRef.current = matches; }, [matches]);
   useEffect(() => { tournamentRef.current = tournament; }, [tournament]);
   useEffect(() => { standingsTeamsRef.current = standingsTeams; }, [standingsTeams]);
@@ -817,6 +819,9 @@ export const DoubleEliminationBracket = ({
   };
 
   const handleChallongeProgression = async (completedMatch: Match, winnerId: string, loserId: string) => {
+    // Prevent duplicate concurrent calls for the same match (race condition guard)
+    if (processingMatchIds.current.has(completedMatch.id)) return;
+    processingMatchIds.current.add(completedMatch.id);
     try {
       const isLosersBracket = completedMatch.is_third_place_match;
       const roundNumber = completedMatch.round_number;
@@ -1172,6 +1177,9 @@ export const DoubleEliminationBracket = ({
       // Grand final tab switch handled above; no reload needed for other progressions
     } catch (error: any) {
       console.error("Error handling progression:", error);
+    } finally {
+      // Release lock so future calls for this match (e.g. re-validation) can proceed
+      setTimeout(() => processingMatchIds.current.delete(completedMatch.id), 5000);
     }
   };
 
