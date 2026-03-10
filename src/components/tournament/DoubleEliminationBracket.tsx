@@ -454,7 +454,9 @@ export const DoubleEliminationBracket = ({
       if (!matchesResult.data || matchesResult.data.length === 0) {
         await generateBracket(tournamentData.teams_for_elimination);
       } else {
-        // Retroactively repair losers bracket if W-R1 completed matches exist but no L-R1 matches
+        // 1. Repair W-QF slots first (prelim winners → QF matches) for BYE brackets
+        await repairWinnersQFSlots(matchesResult.data, tournamentData.teams_for_elimination);
+        // 2. Then repair losers bracket
         await repairLosersBracket(matchesResult.data, tournamentData.teams_for_elimination);
       }
     } catch (error: any) {
@@ -462,6 +464,144 @@ export const DoubleEliminationBracket = ({
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * When prelim (W-R1) matches are complete but W-R2 (QF) matches are missing,
+   * create or update the QF slots. This handles the case where the bracket tab
+   * was not mounted when the referee station validated the prelim matches.
+   */
+  const repairWinnersQFSlots = async (allMatchesData: any[], teamsCount?: number) => {
+    if (!isCreator) return;
+    try {
+      const totalTeams = teamsCount ?? (tournament ?? tournamentRef.current)?.teams_for_elimination ?? 8;
+      const bracketSz = getBracketSize(totalTeams);
+      const byeCount = bracketSz - totalTeams;
+      if (byeCount === 0) return; // No prelim round for perfect power-of-2
+
+      const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
+      const winnersBracket = allMatchesData.filter(m => !m.is_third_place_match).sort(sortFn);
+
+      const completedPrelims = winnersBracket.filter(m => m.round_number === 1 && m.winner_id);
+      if (completedPrelims.length === 0) return;
+
+      // Fetch standings to build seed map (same sort as generateBracket)
+      const { data: standings } = await supabase
+        .from("team_stats")
+        .select("team_id")
+        .eq("tournament_id", tournamentId)
+        .order("points", { ascending: false })
+        .order("goals_for", { ascending: false })
+        .order("team_id", { ascending: true })
+        .limit(totalTeams);
+
+      if (!standings || standings.length < totalTeams) return;
+
+      const fullPairs = getStandardSeedingPairs(bracketSz);
+      const teamBySeed = (seed: number): string | null =>
+        seed <= totalTeams ? (standings[seed - 1]?.team_id ?? null) : null;
+
+      const existingR2 = winnersBracket.filter(m => m.round_number === 2);
+      const matchesToCreate: any[] = [];
+      const matchesToUpdate: { id: string; data: any }[] = [];
+
+      for (const prelim of completedPrelims) {
+        const winnerId = prelim.winner_id;
+        if (!winnerId) continue;
+
+        // Find the seed of each prelim team
+        const t1SeedIdx = standings.findIndex((s: any) => s.team_id === prelim.team1_id);
+        const t2SeedIdx = standings.findIndex((s: any) => s.team_id === prelim.team2_id);
+        const t1Seed = t1SeedIdx + 1;
+        const t2Seed = t2SeedIdx + 1;
+
+        // Find which fullPairs slot contains exactly these two seeds
+        const prelPairIdx = fullPairs.findIndex(([s1, s2]) =>
+          (s1 === t1Seed && s2 === t2Seed) || (s1 === t2Seed && s2 === t1Seed)
+        );
+        if (prelPairIdx < 0) {
+          console.warn("[repairWinnersQFSlots] Could not find pair for prelim match:", prelim.id);
+          continue;
+        }
+
+        // Each R2 slot groups 2 consecutive fullPairs entries.
+        // The BYE pair is the sibling of the real-match pair.
+        const r2SlotIdx = Math.floor(prelPairIdx / 2);
+        const byePairIdx = prelPairIdx % 2 === 0 ? prelPairIdx + 1 : prelPairIdx - 1;
+        const byePair = fullPairs[byePairIdx];
+        const byeTeamId = byePair
+          ? (teamBySeed(byePair[0]) ?? teamBySeed(byePair[1]))
+          : null;
+
+        if (!byeTeamId) continue;
+
+        // Already correct?
+        const r2Full = existingR2.find(m =>
+          (m.team1_id === byeTeamId || m.team2_id === byeTeamId) &&
+          (m.team1_id === winnerId || m.team2_id === winnerId)
+        );
+        if (r2Full) continue;
+
+        // Partial match (BYE team present, TBD slot)?
+        const r2Partial = existingR2.find(m =>
+          m.team1_id === byeTeamId || m.team2_id === byeTeamId
+        );
+        if (r2Partial) {
+          const updateData: any = {};
+          if (r2Partial.team1_id === byeTeamId && r2Partial.team2_id !== winnerId)
+            updateData.team2_id = winnerId;
+          else if (r2Partial.team2_id === byeTeamId && r2Partial.team1_id !== winnerId)
+            updateData.team1_id = winnerId;
+          if (Object.keys(updateData).length > 0)
+            matchesToUpdate.push({ id: r2Partial.id, data: updateData });
+        } else {
+          // No R2 match yet — create one
+          const alreadyQueued = matchesToCreate.some(m =>
+            m.round_number === 2 && (m.team1_id === byeTeamId || m.team2_id === byeTeamId)
+          );
+          if (!alreadyQueued) {
+            matchesToCreate.push({
+              tournament_id: tournamentId,
+              phase: "double_elimination" as const,
+              round_number: 2,
+              team1_id: byeTeamId,
+              team2_id: winnerId,
+              field_number: r2SlotIdx + 1,
+              is_third_place_match: false,
+            });
+          }
+        }
+      }
+
+      let changed = false;
+      for (const { id, data } of matchesToUpdate) {
+        const { error } = await supabase.from("matches").update(data).eq("id", id);
+        if (!error) changed = true;
+        else console.error("[repairWinnersQFSlots] Update error:", error);
+      }
+      if (matchesToCreate.length > 0) {
+        const { error } = await supabase.from("matches").insert(matchesToCreate);
+        if (!error) changed = true;
+        else console.error("[repairWinnersQFSlots] Insert error:", error);
+      }
+
+      if (changed) {
+        // Reload matches to get fresh state (with team names etc.)
+        const { data: refreshed } = await supabase
+          .from("matches")
+          .select(`*, team1:teams!matches_team1_id_fkey(id, name), team2:teams!matches_team2_id_fkey(id, name)`)
+          .eq("tournament_id", tournamentId)
+          .eq("phase", "double_elimination")
+          .order("round_number", { ascending: true });
+        if (refreshed) {
+          setMatches(refreshed);
+          // Also update allMatchesData in place so repairLosersBracket uses updated data
+          allMatchesData.splice(0, allMatchesData.length, ...refreshed);
+        }
+      }
+    } catch (err) {
+      console.error("[repairWinnersQFSlots] Error:", err);
     }
   };
 
