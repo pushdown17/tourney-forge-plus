@@ -1706,10 +1706,28 @@ export const DoubleEliminationBracket = ({
                   {Array.from({ length: count }).map((_, slotIdx) => {
                     const realMatch = realRoundMatches[slotIdx];
 
-                    if (!realMatch) {
-                      const pendingSlot = pendingByRound.get(round)?.get(slotIdx);
-                      const t1 = pendingSlot?.team1 ?? null;
-                      const t2 = pendingSlot?.team2 ?? null;
+                    // Sentinel match: team1_id === team2_id means BYE seed waiting for prelim winner
+                    // Display as a pending slot showing the BYE seed and TBD for opponent
+                    const isSentinelMatch = realMatch && realMatch.team1_id === realMatch.team2_id && !realMatch.winner_id;
+
+                    if (!realMatch || isSentinelMatch) {
+                      // For sentinel matches, show BYE seed as team1 and TBD as team2
+                      let t1: { name: string; teamId: string; isBye?: boolean } | null = null;
+                      let t2: { name: string; teamId: string; isBye?: boolean } | null = null;
+
+                      if (isSentinelMatch && realMatch) {
+                        // BYE team is team1 — find its name from standingsTeams or match data
+                        const byeTeamData = realMatch.team1 as (Team | undefined);
+                        if (byeTeamData) {
+                          t1 = { name: byeTeamData.name, teamId: realMatch.team1_id, isBye: true };
+                        }
+                        t2 = null; // TBD (pending prelim winner)
+                      } else if (!realMatch) {
+                        const pendingSlot = pendingByRound.get(round)?.get(slotIdx);
+                        t1 = pendingSlot?.team1 ?? null;
+                        t2 = pendingSlot?.team2 ?? null;
+                      }
+
                       const hasPending = !!(t1 || t2);
                       const isLoserSlot = isLosers;
 
@@ -1739,7 +1757,7 @@ export const DoubleEliminationBracket = ({
 
                       return (
                         <div
-                          key={`tbd-${round}-${slotIdx}`}
+                          key={isSentinelMatch ? `sentinel-${realMatch!.id}` : `tbd-${round}-${slotIdx}`}
                           className={cn(
                             "rounded-lg border flex flex-col justify-center px-3",
                             hasPending
