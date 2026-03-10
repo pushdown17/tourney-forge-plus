@@ -1043,7 +1043,8 @@ export const DoubleEliminationBracket = ({
             }
           }
           // Prelim losers are ELIMINATED — they do NOT enter the Losers Bracket
-          return; // Hard stop — nothing else to do for Preliminary round
+
+
 
 
 
