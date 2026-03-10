@@ -341,10 +341,10 @@ const RefereeStation = () => {
   }, [match]);
 
   // Auto-save debounce ref
-  const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-save player stats (debounced per player)
-  const playerStatSaveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
+  const playerStatSaveTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const setPlayerStatRowId = useCallback((playerId: string, rowId: string) => {
     setTeam1((prev) =>

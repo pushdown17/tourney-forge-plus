@@ -254,7 +254,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
 
   // Live broadcast subscription for real-time score updates and timer
   useEffect(() => {
-    const liveTimeouts: { [matchId: string]: NodeJS.Timeout } = {};
+    const liveTimeouts: { [matchId: string]: ReturnType<typeof setTimeout> } = {};
     
     // Use the shared tournament broadcast channel (same as referee station)
     const channel = supabase
