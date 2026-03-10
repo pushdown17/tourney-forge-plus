@@ -1046,12 +1046,9 @@ export const DoubleEliminationBracket = ({
           return; // Hard stop — nothing else to do for Preliminary round
 
 
-          //
-          // NEW ARCHITECTURE: ALL R2 (W-QF) matches are pre-created by generateBracket.
-          // Sentinel pattern: team1=byeSeed (LOCKED TOP), team2=byeSeed (sentinel = TBD).
-          //
-          // Rule: prelim match field_number=K → update R2 match field_number=K team2 with winner.
-          // NEVER create new R2 matches here — they already exist.
+
+        } else if ((roundNumber === 1 && byeCount === 0) || (roundNumber === 2 && byeCount > 0)) {
+
 
           const thisFieldNum = completedMatch.field_number ?? 1;
 
