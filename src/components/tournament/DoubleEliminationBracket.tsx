@@ -997,7 +997,8 @@ export const DoubleEliminationBracket = ({
           const thisFieldNum = completedMatch.field_number ?? 1;
 
           // Find the pre-created R2 match for this slot by field_number
-          const r2Match = winnersBracket.find(m =>
+          // Use winnersBracketAll to include sentinel matches (team1===team2)
+          const r2Match = winnersBracketAll.find(m =>
             m.round_number === 2 && m.field_number === thisFieldNum
           );
 
