@@ -979,9 +979,6 @@ export const DoubleEliminationBracket = ({
               }
             }
           }
-        }
-          // Play-in loser: ELIMINATED — do not add to losers bracket
-
         } else if ((roundNumber === 1 && byeCount === 0) || (roundNumber === 2 && byeCount > 0)) {
           // W-R1 standard / W-R2 play-in: pair up losers for L-R1 (minor round)
           const wRound = roundNumber;
