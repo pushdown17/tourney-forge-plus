@@ -891,9 +891,13 @@ export const DoubleEliminationBracket = ({
         const byeCount = bracketSz - totalTeams;
 
         if (roundNumber === 1 && byeCount > 0) {
-          // ── Non-power-of-2 R1: BYE-aware pairing via full bracket slot mapping ──
-          // CRITICAL: Always fetch standings fresh with exact same query+limit as generateBracket
-          // to guarantee the same deterministic seed→team mapping regardless of when this runs.
+          // ── Non-power-of-2 R1 (Preliminary Round): field_number-based R2 update ──
+          //
+          // RULE: winner of prelim match field_number=K → fills the TBD slot in Winners QF match K.
+          // During generateBracket, R2 matches are pre-created with the BYE (directly qualified) team
+          // in one slot. We simply UPDATE that existing match to replace the other team with the winner.
+          // We NEVER create a new R2 match here — that would cause duplicates.
+
           const { data: freshStandings } = await supabase
             .from("team_stats")
             .select(`team_id, points, goals_for, team:team_id(id, name)`)
@@ -904,7 +908,7 @@ export const DoubleEliminationBracket = ({
             .limit(totalTeams);
 
           if (!freshStandings || freshStandings.length < totalTeams) {
-            console.error("[handleChallongeProgression] Not enough standings data, cannot map BYE slots");
+            console.error("[handleChallongeProgression] Not enough standings data");
             return;
           }
 
@@ -912,107 +916,70 @@ export const DoubleEliminationBracket = ({
           const teamBySeed = (seed: number): string | null =>
             seed <= totalTeams ? (freshStandings[seed - 1]?.team_id ?? null) : null;
 
-          // Find the completed match's slot in fullPairs by matching its two team IDs
-          const matchSlot = fullPairs.findIndex(([s1, s2]) => {
-            const t1 = teamBySeed(s1);
-            const t2 = teamBySeed(s2);
-            return (
-              (t1 === completedMatch.team1_id && t2 === completedMatch.team2_id) ||
-              (t1 === completedMatch.team2_id && t2 === completedMatch.team1_id)
-            );
-          });
+          // Prelim match field_number = its position among R1 real matches (1-indexed)
+          const thisFieldNum = completedMatch.field_number ?? 1;
 
-          if (matchSlot !== -1) {
-            // Partner slot: adjacent slot XOR last bit
-            const partnerSlot = matchSlot % 2 === 0 ? matchSlot + 1 : matchSlot - 1;
-            const [ps1, ps2] = fullPairs[partnerSlot];
-            const pt1 = teamBySeed(ps1);
-            const pt2 = teamBySeed(ps2);
+          // For R2 slot K, fullPairs contains two sub-slots: [2*(K-1)] and [2*(K-1)+1]
+          // One is the prelim match (both seeds real), the other is the BYE slot (one seed null)
+          const r2SlotIdx = thisFieldNum - 1;
+          const srcA = fullPairs[r2SlotIdx * 2];
+          const srcB = fullPairs[r2SlotIdx * 2 + 1];
+
+          const tA1 = srcA ? teamBySeed(srcA[0]) : null;
+          const tA2 = srcA ? teamBySeed(srcA[1]) : null;
+          const tB1 = srcB ? teamBySeed(srcB[0]) : null;
+          const tB2 = srcB ? teamBySeed(srcB[1]) : null;
+
+          // BYE team = the single real team in the slot where one seed maps to null
+          const byeTeamId = (tA1 && !tA2) ? tA1
+                          : (tA2 && !tA1) ? tA2
+                          : (tB1 && !tB2) ? tB1
+                          : (tB2 && !tB1) ? tB2
+                          : null;
+
+          if (byeTeamId) {
             const nextRound = 2;
-            // R2 field number: which "pair of pairs" this is (1-indexed)
-            const r2FieldNum = Math.floor(Math.min(matchSlot, partnerSlot) / 2) + 1;
+            // Find the existing R2 match containing the BYE team (created by generateBracket)
+            const existingR2 = winnersBracket.find(m =>
+              m.round_number === nextRound &&
+              (m.team1_id === byeTeamId || m.team2_id === byeTeamId)
+            );
 
-            const byeTeamId = !pt2 ? pt1 : !pt1 ? pt2 : null; // exactly one null = BYE slot
-
-            if (byeTeamId) {
-              // Partner slot is a BYE → create R2 match immediately (BYE team + this R1 winner)
-              // Lower slot index → team1 (top of the match card), higher → team2
-              const r2t1 = partnerSlot < matchSlot ? byeTeamId : winnerId;
-              const r2t2 = partnerSlot < matchSlot ? winnerId : byeTeamId;
-              const alreadyInR2 = teamInRound(winnersBracket.filter(m => m.round_number === nextRound), nextRound, r2t1)
-                                || teamInRound(winnersBracket.filter(m => m.round_number === nextRound), nextRound, r2t2);
-              if (!matchExists(winnersBracket, nextRound, r2t1, r2t2) && !alreadyInR2) {
-                matchesToCreate.push({
-                  tournament_id: tournamentId, phase: "double_elimination" as const,
-                  round_number: nextRound, team1_id: r2t1, team2_id: r2t2,
-                  is_third_place_match: false, field_number: r2FieldNum,
-                });
+            if (existingR2) {
+              // Just update the TBD placeholder slot — no new match needed
+              const updateData: any = {};
+              if (existingR2.team1_id === byeTeamId && existingR2.team2_id !== winnerId) {
+                updateData.team2_id = winnerId;
+              } else if (existingR2.team2_id === byeTeamId && existingR2.team1_id !== winnerId) {
+                updateData.team1_id = winnerId;
               }
-            } else if (pt1 && pt2) {
-              // Partner slot is also a real R1 match → wait for both to complete
-              const partnerMatch = winnersBracket.find(m =>
-                m.round_number === 1 &&
-                ((m.team1_id === pt1 && m.team2_id === pt2) || (m.team1_id === pt2 && m.team2_id === pt1))
-              );
-              if (partnerMatch?.winner_id) {
-                const lowerSlotWinner = partnerSlot < matchSlot ? partnerMatch.winner_id : winnerId;
-                const higherSlotWinner = partnerSlot < matchSlot ? winnerId : partnerMatch.winner_id;
-                const alreadyInR2b = teamInRound(winnersBracket.filter(m => m.round_number === nextRound), nextRound, lowerSlotWinner)
-                                  || teamInRound(winnersBracket.filter(m => m.round_number === nextRound), nextRound, higherSlotWinner);
-                if (!matchExists(winnersBracket, nextRound, lowerSlotWinner, higherSlotWinner) && !alreadyInR2b) {
-                  matchesToCreate.push({
-                    tournament_id: tournamentId, phase: "double_elimination" as const,
-                    round_number: nextRound, team1_id: lowerSlotWinner, team2_id: higherSlotWinner,
-                    is_third_place_match: false, field_number: r2FieldNum,
-                  });
+              if (Object.keys(updateData).length > 0) {
+                const { error: updateErr } = await supabase
+                  .from("matches")
+                  .update(updateData)
+                  .eq("id", existingR2.id);
+                if (!updateErr) {
+                  setMatches(prev => prev.map(m =>
+                    m.id === existingR2.id ? { ...m, ...updateData } : m
+                  ));
+                } else {
+                  console.error("[handleChallongeProgression] R2 update error:", updateErr);
                 }
               }
-            }
-          }
-        } else {
-          // ── Standard consecutive pairing (power-of-2, or R2+) ──
-          const currentRoundMatches = winnersBracket.filter(m => m.round_number === roundNumber);
-          const myIndex = currentRoundMatches.findIndex(m => m.id === completedMatch.id);
-          const partnerIndex = myIndex % 2 === 0 ? myIndex + 1 : myIndex - 1;
-          const partnerMatch = currentRoundMatches[partnerIndex];
-
-          if (partnerMatch?.winner_id && winnerId) {
-            const nextRound = roundNumber + 1;
-            const w1 = myIndex % 2 === 0 ? winnerId : partnerMatch.winner_id;
-            const w2 = myIndex % 2 === 0 ? partnerMatch.winner_id : winnerId;
-            const nextFieldNumber = Math.floor(myIndex / 2) + 1;
-
-            if (nextRound <= winnersRounds) {
-              if (!matchExists(winnersBracket, nextRound, w1, w2)) {
+            } else {
+              // Fallback: R2 match missing — create it (BYE team as team1, winner as team2)
+              if (!matchExists(winnersBracket, nextRound, byeTeamId, winnerId)
+                && !teamInRound(winnersBracket.filter(m => m.round_number === nextRound), nextRound, byeTeamId)
+                && !teamInRound(winnersBracket.filter(m => m.round_number === nextRound), nextRound, winnerId)) {
                 matchesToCreate.push({
-                  tournament_id: tournamentId, phase: "double_elimination",
-                  round_number: nextRound, team1_id: w1, team2_id: w2,
-                  is_third_place_match: false, field_number: nextFieldNumber,
+                  tournament_id: tournamentId, phase: "double_elimination" as const,
+                  round_number: nextRound, team1_id: byeTeamId, team2_id: winnerId,
+                  is_third_place_match: false, field_number: thisFieldNum,
                 });
               }
             }
           }
         }
-
-        // Check for Grand Final (winners final winner vs losers champion)
-        if (roundNumber === winnersRounds && winnerId) {
-          const losersFinal = losersBracket.find(m => m.round_number === losersRoundsCount && m.winner_id);
-          if (losersFinal?.winner_id) {
-            await createGrandFinal(winnerId, losersFinal.winner_id);
-            setActiveTab("finals");
-          }
-        }
-
-        // ========== INJECT LOSER INTO LOSERS BRACKET ==========
-        // PLAY-IN brackets (byeCount > 0):
-        //   W-R1 (Play-in) losers → ELIMINATED (no losers bracket entry)
-        //   W-R2 losers → L-R1 (minor, pair them up like standard W-R1 behavior)
-        //   W-R(k≥3) losers → L-R((roundNumber-2)*2) major round
-        // STANDARD brackets (byeCount = 0):
-        //   W-R1 losers → L-R1 (minor, pair them up)
-        //   W-R(k≥2) losers → L-R((roundNumber-1)*2) major round
-
-        if (roundNumber === 1 && byeCount > 0) {
           // Play-in loser: ELIMINATED — do not add to losers bracket
 
         } else if ((roundNumber === 1 && byeCount === 0) || (roundNumber === 2 && byeCount > 0)) {
