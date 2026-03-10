@@ -1001,6 +1001,49 @@ export const DoubleEliminationBracket = ({
         const byeCount = bracketSz - totalTeams;
 
         if (roundNumber === 1 && byeCount > 0) {
+          // ══════════════════════════════════════════════════════════════════
+          // ROUTING MAP — Preliminary Round progression
+          // ══════════════════════════════════════════════════════════════════
+          // ABSOLUTE RULE: R1[field_number=K] → R2[field_number=K], team2 ONLY.
+          // team1 (Seed/BYE) is PERMANENTLY LOCKED — NEVER modified here.
+          // NO "first available slot" logic. NO new match creation. Only targeted UPDATE.
+          // ══════════════════════════════════════════════════════════════════
+
+          const thisFieldNum = completedMatch.field_number ?? 1;
+
+          // Find the pre-created R2 match via EXACT field_number (Routing Map key)
+          const r2Match = winnersBracketAll.find(m =>
+            m.round_number === 2 && m.field_number === thisFieldNum
+          );
+
+          if (!r2Match) {
+            console.error(`[ROUTING MAP] CRITICAL: No R2 match for field_number=${thisFieldNum}. Check generateBracket.`);
+            return; // Hard stop — do NOT create new matches
+          }
+
+          // Absolute TOP-slot protection: if winner IS the seed already in team1, skip
+          if (r2Match.team1_id === winnerId) {
+            console.warn(`[ROUTING MAP] BLOCKED: winner is already the Seed in TOP slot of R2[fn=${thisFieldNum}].`);
+            return;
+          }
+
+          // Only update team2 (BOTTOM slot) — exact match ID, no guessing
+          if (r2Match.team2_id !== winnerId) {
+            const { error: updateErr } = await supabase
+              .from("matches")
+              .update({ team2_id: winnerId })
+              .eq("id", r2Match.id);
+            if (!updateErr) {
+              setMatches(prev => prev.map(m =>
+                m.id === r2Match.id ? { ...m, team2_id: winnerId } : m
+              ));
+              console.log(`[ROUTING MAP] R1[fn=${thisFieldNum}] winner → R2[fn=${thisFieldNum}] team2 ✓`);
+            } else {
+              console.error("[ROUTING MAP] DB update error:", updateErr);
+            }
+          }
+          // Prelim losers are ELIMINATED — they do NOT enter the Losers Bracket
+          return; // Hard stop — nothing else to do for Preliminary round
           // ── Non-power-of-2 R1 (Preliminary Round) ──
           //
           // NEW ARCHITECTURE: ALL R2 (W-QF) matches are pre-created by generateBracket.
