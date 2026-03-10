@@ -734,74 +734,89 @@ export const DoubleEliminationBracket = ({
         const fullPairs = getStandardSeedingPairs(bracketSz);
         const teamBySeed = (seed: number) => seed <= teamsCount ? standings[seed - 1].team_id : null;
 
-        // Classify each full-bracket pair slot
-        const r1Matches: any[] = [];  // Preliminary round matches (both teams real)
-        const r2Matches: any[] = [];  // Winners QF matches (pre-created upfront)
+        // ══════════════════════════════════════════════════════════════════
+        // ROUTING MAP ARCHITECTURE
+        // ══════════════════════════════════════════════════════════════════
+        // The Routing Map defines, for each R2 QF slot (1..r2SlotCount):
+        //   - r2FieldNumber  : the field_number of the pre-created R2 match
+        //   - byeTeamId      : the Seed locked in team1 (TOP, IMMUTABLE)
+        //   - prelimFieldNum : the field_number of the R1 prelim that feeds this R2
+        //                      (null if BYE vs BYE — no prelim needed)
+        //
+        // KEY INVARIANT: Both R1 and R2 matches receive field_number = r2Slot + 1
+        // This makes the mapping R1[field_number=K] → R2[field_number=K] ABSOLUTE.
+        // ══════════════════════════════════════════════════════════════════
 
-        // fullPairs[0,1] → R2 slot 1, fullPairs[2,3] → R2 slot 2, etc.
         const r2SlotCount = bracketSz / 4;
+        const r1Matches: any[] = [];
+        const r2Matches: any[] = [];
 
         for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
-          const srcA = fullPairs[r2Slot * 2];     // sub-slot A
-          const srcB = fullPairs[r2Slot * 2 + 1]; // sub-slot B
+          const r2FieldNum = r2Slot + 1; // R2 field_number = slot index (1-based)
+          const srcA = fullPairs[r2Slot * 2];     // sub-slot A (top half of this QF)
+          const srcB = fullPairs[r2Slot * 2 + 1]; // sub-slot B (bottom half of this QF)
           const [sA1, sA2] = srcA;
           const [sB1, sB2] = srcB;
           const tA1 = teamBySeed(sA1), tA2 = teamBySeed(sA2);
           const tB1 = teamBySeed(sB1), tB2 = teamBySeed(sB2);
 
-          // Determine which sub-slot is BYE (one real + one virtual) vs real (both real)
-          const slotAisBye = (tA1 && !tA2) || (!tA1 && tA2);
-          const slotBisBye = (tB1 && !tB2) || (!tB1 && tB2);
+          // A slot is BYE if exactly one team is real (the other is out-of-range seed)
+          const slotAisBye = (tA1 !== null && tA2 === null) || (tA1 === null && tA2 !== null);
+          const slotBisBye = (tB1 !== null && tB2 === null) || (tB1 === null && tB2 !== null);
 
-          const byeTeamForSlotA = slotAisBye ? (tA1 || tA2)! : null;
-          const byeTeamForSlotB = slotBisBye ? (tB1 || tB2)! : null;
+          const byeTeamForSlotA = slotAisBye ? (tA1 ?? tA2)! : null;
+          const byeTeamForSlotB = slotBisBye ? (tB1 ?? tB2)! : null;
 
           if (slotAisBye && slotBisBye) {
-            // BYE vs BYE → immediate full R2 match (both teams known)
+            // ── BYE vs BYE: both seeds known immediately ──
             r2Matches.push({
               tournament_id: tournamentId, phase: "double_elimination" as const,
               round_number: 2, team1_id: byeTeamForSlotA!, team2_id: byeTeamForSlotB!,
-              field_number: r2Slot + 1, is_third_place_match: false,
+              field_number: r2FieldNum, is_third_place_match: false,
             });
+
           } else if (slotAisBye) {
-            // BYE (slot A) vs Prelim winner (slot B)
-            // Pre-create R2 with byeTeam locked in team1 (TOP), sentinel in team2
-            // (team2 will be updated to prelim winner when R1 match finishes)
-            const prelimFieldNum = r1Matches.length + 1;
+            // ── BYE (slot A) vs Prelim winner (slot B) ──
+            // ROUTING MAP: R1[field_number=r2FieldNum] → R2[field_number=r2FieldNum], team2
             r1Matches.push({
               tournament_id: tournamentId, phase: "double_elimination" as const,
               round_number: 1, team1_id: tB1!, team2_id: tB2!,
-              field_number: prelimFieldNum, is_third_place_match: false,
+              field_number: r2FieldNum, // ← SAME as R2 field_number (routing key)
+              is_third_place_match: false,
             });
-            // Pre-create R2 with byeSeed=team1 (LOCKED TOP), same byeSeed=team2 (sentinel, will be updated)
+            // R2 sentinel: team1 = byeSeed (LOCKED TOP), team2 = byeSeed (TBD placeholder)
             r2Matches.push({
               tournament_id: tournamentId, phase: "double_elimination" as const,
               round_number: 2, team1_id: byeTeamForSlotA!, team2_id: byeTeamForSlotA!, // sentinel
-              field_number: r2Slot + 1, is_third_place_match: false,
+              field_number: r2FieldNum, is_third_place_match: false,
             });
+
           } else if (slotBisBye) {
-            // BYE (slot B) vs Prelim winner (slot A)
-            const prelimFieldNum = r1Matches.length + 1;
+            // ── BYE (slot B) vs Prelim winner (slot A) ──
+            // ROUTING MAP: R1[field_number=r2FieldNum] → R2[field_number=r2FieldNum], team2
             r1Matches.push({
               tournament_id: tournamentId, phase: "double_elimination" as const,
               round_number: 1, team1_id: tA1!, team2_id: tA2!,
-              field_number: prelimFieldNum, is_third_place_match: false,
+              field_number: r2FieldNum, // ← SAME as R2 field_number (routing key)
+              is_third_place_match: false,
             });
+            // R2 sentinel: team1 = byeSeed (LOCKED TOP), team2 = byeSeed (TBD placeholder)
             r2Matches.push({
               tournament_id: tournamentId, phase: "double_elimination" as const,
               round_number: 2, team1_id: byeTeamForSlotB!, team2_id: byeTeamForSlotB!, // sentinel
-              field_number: r2Slot + 1, is_third_place_match: false,
+              field_number: r2FieldNum, is_third_place_match: false,
             });
+
           } else {
-            // Both sub-slots are real (both teams real) — shouldn't happen with proper BYE distribution
-            // but handle gracefully: two real R1 matches, R2 created after both finish
-            const fn1 = r1Matches.length + 1;
+            // Both sub-slots real (no BYE) — two prelim matches feeding one R2 slot
+            // Shouldn't occur in standard seeding for BYE brackets, but handled gracefully
+            const fn1 = r2FieldNum * 2 - 1;
+            const fn2 = r2FieldNum * 2;
             r1Matches.push({
               tournament_id: tournamentId, phase: "double_elimination" as const,
               round_number: 1, team1_id: tA1!, team2_id: tA2!,
               field_number: fn1, is_third_place_match: false,
             });
-            const fn2 = r1Matches.length + 1;
             r1Matches.push({
               tournament_id: tournamentId, phase: "double_elimination" as const,
               round_number: 1, team1_id: tB1!, team2_id: tB2!,
@@ -810,11 +825,11 @@ export const DoubleEliminationBracket = ({
           }
         }
 
-        if (r1Matches.length !== realMatchCount) {
-          console.warn(`[generateBracket] Expected ${realMatchCount} R1 matches, got ${r1Matches.length}`);
-        }
+        console.log(`[generateBracket] Routing Map: ${r1Matches.length} prelim matches, ${r2Matches.length} QF matches`);
+        r1Matches.forEach(m => console.log(`  R1[fn=${m.field_number}]: ${m.team1_id.slice(0,8)} vs ${m.team2_id.slice(0,8)}`));
+        r2Matches.forEach(m => console.log(`  R2[fn=${m.field_number}]: team1(SEED)=${m.team1_id.slice(0,8)} team2(TBD)=${m.team2_id === m.team1_id ? 'SENTINEL' : m.team2_id.slice(0,8)}`));
 
-        // Insert R1 matches first, then R2 (so field_number mapping is stable)
+        // Insert R1 first, then R2 — field_number K links them absolutely
         if (r1Matches.length > 0) {
           const { error: r1Err } = await supabase.from("matches").insert(r1Matches);
           if (r1Err) throw r1Err;
@@ -986,13 +1001,55 @@ export const DoubleEliminationBracket = ({
         const byeCount = bracketSz - totalTeams;
 
         if (roundNumber === 1 && byeCount > 0) {
-          // ── Non-power-of-2 R1 (Preliminary Round) ──
-          //
-          // NEW ARCHITECTURE: ALL R2 (W-QF) matches are pre-created by generateBracket.
-          // Sentinel pattern: team1=byeSeed (LOCKED TOP), team2=byeSeed (sentinel = TBD).
-          //
-          // Rule: prelim match field_number=K → update R2 match field_number=K team2 with winner.
-          // NEVER create new R2 matches here — they already exist.
+          // ══════════════════════════════════════════════════════════════════
+          // ROUTING MAP — Preliminary Round progression
+          // ══════════════════════════════════════════════════════════════════
+          // ABSOLUTE RULE: R1[field_number=K] → R2[field_number=K], team2 ONLY.
+          // team1 (Seed/BYE) is PERMANENTLY LOCKED — NEVER modified here.
+          // NO "first available slot" logic. NO new match creation. Only targeted UPDATE.
+          // ══════════════════════════════════════════════════════════════════
+
+          const thisFieldNum = completedMatch.field_number ?? 1;
+
+          // Find the pre-created R2 match via EXACT field_number (Routing Map key)
+          const r2Match = winnersBracketAll.find(m =>
+            m.round_number === 2 && m.field_number === thisFieldNum
+          );
+
+          if (!r2Match) {
+            console.error(`[ROUTING MAP] CRITICAL: No R2 match for field_number=${thisFieldNum}. Check generateBracket.`);
+            return; // Hard stop — do NOT create new matches
+          }
+
+          // Absolute TOP-slot protection: if winner IS the seed already in team1, skip
+          if (r2Match.team1_id === winnerId) {
+            console.warn(`[ROUTING MAP] BLOCKED: winner is already the Seed in TOP slot of R2[fn=${thisFieldNum}].`);
+            return;
+          }
+
+          // Only update team2 (BOTTOM slot) — exact match ID, no guessing
+          if (r2Match.team2_id !== winnerId) {
+            const { error: updateErr } = await supabase
+              .from("matches")
+              .update({ team2_id: winnerId })
+              .eq("id", r2Match.id);
+            if (!updateErr) {
+              setMatches(prev => prev.map(m =>
+                m.id === r2Match.id ? { ...m, team2_id: winnerId } : m
+              ));
+              console.log(`[ROUTING MAP] R1[fn=${thisFieldNum}] winner → R2[fn=${thisFieldNum}] team2 ✓`);
+            } else {
+              console.error("[ROUTING MAP] DB update error:", updateErr);
+            }
+          }
+          // Prelim losers are ELIMINATED — they do NOT enter the Losers Bracket
+
+
+
+
+
+        } else if ((roundNumber === 1 && byeCount === 0) || (roundNumber === 2 && byeCount > 0)) {
+
 
           const thisFieldNum = completedMatch.field_number ?? 1;
 
