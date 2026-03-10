@@ -751,8 +751,6 @@ export const DoubleEliminationBracket = ({
     try {
       const bracketSz = getBracketSize(teamsCount);
       const byeCount = bracketSz - teamsCount;
-      // For non-power-of-2, seeds 1..byeCount get BYEs (they skip R1)
-      // Actual R1 matches involve seeds (byeCount+1)..teamsCount
       const realMatchCount = teamsCount - byeCount; // = 2*teamsCount - bracketSz
 
       const { data: standings, error: standingsError } = await supabase
@@ -772,7 +770,7 @@ export const DoubleEliminationBracket = ({
       }
 
       if (byeCount === 0) {
-        // Perfect power-of-2: standard bracket generation
+        // ── Perfect power-of-2: standard bracket generation ──
         const pairs = getStandardSeedingPairs(teamsCount);
         const allMatches = pairs.map((pair, i) => ({
           tournament_id: tournamentId,
@@ -786,95 +784,112 @@ export const DoubleEliminationBracket = ({
         const { error: insertError } = await supabase.from("matches").insert(allMatches);
         if (insertError) throw insertError;
       } else {
-        // BYE bracket: bracketSz slots, top `byeCount` seeds get BYEs
-        // Standard seeding on bracketSz slots determines positions
-        // Seeds 1..byeCount fill positions with BYEs (no match needed in R1)
-        // Seeds (byeCount+1)..teamsCount play R1 matches filling the remaining positions
+        // ── BYE / Hybrid bracket (e.g. 12, 24 teams) ──
         //
-        // Standard seeding pairs for the full bracketSz bracket:
+        // ARCHITECTURE:
+        //   R1 = Preliminary Round: only real matches (both teams ≤ teamsCount)
+        //   R2 = Winners QF: ALL slots pre-created upfront
+        //        - Bye seeds occupy team1 (TOP = LOCKED, never moved)
+        //        - Prelim winner will fill team2 (BOTTOM) later via targeted UPDATE
+        //        - BYE-vs-BYE pairs: both teams known immediately
+        //        - BYE-vs-Prelim pairs: created with team1=byeSeed, team2=byeSeed (sentinel = TBD)
+        //          → handleChallongeProgression updates team2 when prelim finishes
+        //
+        // KEY INVARIANT: field_number on R1 match K directly maps to R2 match K.
+        //   R2 match with field_number=K has:
+        //     - team1 = the BYE seed from that slot (immutable)
+        //     - team2 = winner of R1 prelim match K (updated on completion)
+
         const fullPairs = getStandardSeedingPairs(bracketSz);
-        // Remap: seed k maps to standings[k-1] if k <= teamsCount, else BYE
         const teamBySeed = (seed: number) => seed <= teamsCount ? standings[seed - 1].team_id : null;
 
-        // R1 matches: only slots where BOTH seeds > byeCount (real teams play)
-        // Slots where one or both seeds ≤ byeCount → that team gets a BYE → auto-advances to R2
-        const r1Matches: any[] = [];
-        const r1ByeWinners: { slotIdx: number; teamId: string }[] = []; // teams auto-advancing to R2
+        // Classify each full-bracket pair slot
+        const r1Matches: any[] = [];  // Preliminary round matches (both teams real)
+        const r2Matches: any[] = [];  // Winners QF matches (pre-created upfront)
 
-        fullPairs.forEach((pair, slotIdx) => {
-          const [s1, s2] = pair;
-          const t1 = teamBySeed(s1);
-          const t2 = teamBySeed(s2);
+        // fullPairs[0,1] → R2 slot 1, fullPairs[2,3] → R2 slot 2, etc.
+        const r2SlotCount = bracketSz / 4;
 
-          if (t1 && t2) {
-            // Both real teams → real match
-            r1Matches.push({
-              tournament_id: tournamentId,
-              phase: "double_elimination" as const,
-              round_number: 1,
-              team1_id: t1,
-              team2_id: t2,
-              field_number: r1Matches.length + 1,
-              is_third_place_match: false,
+        for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
+          const srcA = fullPairs[r2Slot * 2];     // sub-slot A
+          const srcB = fullPairs[r2Slot * 2 + 1]; // sub-slot B
+          const [sA1, sA2] = srcA;
+          const [sB1, sB2] = srcB;
+          const tA1 = teamBySeed(sA1), tA2 = teamBySeed(sA2);
+          const tB1 = teamBySeed(sB1), tB2 = teamBySeed(sB2);
+
+          // Determine which sub-slot is BYE (one real + one virtual) vs real (both real)
+          const slotAisBye = (tA1 && !tA2) || (!tA1 && tA2);
+          const slotBisBye = (tB1 && !tB2) || (!tB1 && tB2);
+
+          const byeTeamForSlotA = slotAisBye ? (tA1 || tA2)! : null;
+          const byeTeamForSlotB = slotBisBye ? (tB1 || tB2)! : null;
+
+          if (slotAisBye && slotBisBye) {
+            // BYE vs BYE → immediate full R2 match (both teams known)
+            r2Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 2, team1_id: byeTeamForSlotA!, team2_id: byeTeamForSlotB!,
+              field_number: r2Slot + 1, is_third_place_match: false,
             });
-          } else if (t1 && !t2) {
-            // t1 gets BYE → auto-advances to R2
-            r1ByeWinners.push({ slotIdx, teamId: t1 });
-          } else if (!t1 && t2) {
-            // t2 gets BYE → auto-advances to R2
-            r1ByeWinners.push({ slotIdx, teamId: t2 });
+          } else if (slotAisBye) {
+            // BYE (slot A) vs Prelim winner (slot B)
+            // Pre-create R2 with byeTeam locked in team1 (TOP), sentinel in team2
+            // (team2 will be updated to prelim winner when R1 match finishes)
+            const prelimFieldNum = r1Matches.length + 1;
+            r1Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 1, team1_id: tB1!, team2_id: tB2!,
+              field_number: prelimFieldNum, is_third_place_match: false,
+            });
+            // Pre-create R2 with byeSeed=team1 (LOCKED TOP), same byeSeed=team2 (sentinel, will be updated)
+            r2Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 2, team1_id: byeTeamForSlotA!, team2_id: byeTeamForSlotA!, // sentinel
+              field_number: r2Slot + 1, is_third_place_match: false,
+            });
+          } else if (slotBisBye) {
+            // BYE (slot B) vs Prelim winner (slot A)
+            const prelimFieldNum = r1Matches.length + 1;
+            r1Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 1, team1_id: tA1!, team2_id: tA2!,
+              field_number: prelimFieldNum, is_third_place_match: false,
+            });
+            r2Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 2, team1_id: byeTeamForSlotB!, team2_id: byeTeamForSlotB!, // sentinel
+              field_number: r2Slot + 1, is_third_place_match: false,
+            });
+          } else {
+            // Both sub-slots are real (both teams real) — shouldn't happen with proper BYE distribution
+            // but handle gracefully: two real R1 matches, R2 created after both finish
+            const fn1 = r1Matches.length + 1;
+            r1Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 1, team1_id: tA1!, team2_id: tA2!,
+              field_number: fn1, is_third_place_match: false,
+            });
+            const fn2 = r1Matches.length + 1;
+            r1Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 1, team1_id: tB1!, team2_id: tB2!,
+              field_number: fn2, is_third_place_match: false,
+            });
           }
-          // Both null: impossible with valid even teamsCount
-        });
+        }
 
         if (r1Matches.length !== realMatchCount) {
           console.warn(`[generateBracket] Expected ${realMatchCount} R1 matches, got ${r1Matches.length}`);
         }
 
-        // Insert R1 real matches
+        // Insert R1 matches first, then R2 (so field_number mapping is stable)
         if (r1Matches.length > 0) {
-          const { error: insertError } = await supabase.from("matches").insert(r1Matches);
-          if (insertError) throw insertError;
+          const { error: r1Err } = await supabase.from("matches").insert(r1Matches);
+          if (r1Err) throw r1Err;
         }
-
-        // Auto-generate R2 matches for BYE winners
-        // BYE winners are paired from the fullPairs structure:
-        // R2 slot k pairs fullPairs[k*2] winner vs fullPairs[k*2+1] winner
-        // For BYE slots, the winner is already known; for real R1 matches, winner is unknown yet
-        // So R2 can only be created when both "contributors" to a R2 slot are known.
-        // We pair BYE winners vs their R2 opponent (which may be another BYE winner or a R1 real match winner)
-        // For simplicity, we create R2 slots immediately for BYE vs BYE pairs.
-        // BYE vs R1-match pairs will be created by handleChallongeProgression as usual.
-        const byePairs: { w1: string; w2: string; fieldNum: number }[] = [];
-        // fullPairs[0,1] → R2 slot 0, fullPairs[2,3] → R2 slot 1, etc.
-        const r2SlotCount = bracketSz / 4;
-        for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
-          const srcA = fullPairs[r2Slot * 2];
-          const srcB = fullPairs[r2Slot * 2 + 1];
-          const [sA1, sA2] = srcA;
-          const [sB1, sB2] = srcB;
-          const tA1 = teamBySeed(sA1), tA2 = teamBySeed(sA2);
-          const tB1 = teamBySeed(sB1), tB2 = teamBySeed(sB2);
-          // Winner of srcA slot: known only if one is BYE
-          const srcAWinner = !tA2 ? tA1 : !tA1 ? tA2 : null;
-          // Winner of srcB slot: known only if one is BYE
-          const srcBWinner = !tB2 ? tB1 : !tB1 ? tB2 : null;
-          // If both R2 contributors are BYE-winners, create R2 match now
-          if (srcAWinner && srcBWinner) {
-            byePairs.push({ w1: srcAWinner, w2: srcBWinner, fieldNum: r2Slot + 1 });
-          }
-        }
-        if (byePairs.length > 0) {
-          const r2ByeMatches = byePairs.map(bp => ({
-            tournament_id: tournamentId,
-            phase: "double_elimination" as const,
-            round_number: 2,
-            team1_id: bp.w1,
-            team2_id: bp.w2,
-            field_number: bp.fieldNum,
-            is_third_place_match: false,
-          }));
-          const { error: r2Err } = await supabase.from("matches").insert(r2ByeMatches);
+        if (r2Matches.length > 0) {
+          const { error: r2Err } = await supabase.from("matches").insert(r2Matches);
           if (r2Err) throw r2Err;
         }
       }
