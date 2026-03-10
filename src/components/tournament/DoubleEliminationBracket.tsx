@@ -545,19 +545,29 @@ export const DoubleEliminationBracket = ({
           m.team1_id === byeTeamId || m.team2_id === byeTeamId
         );
         if (r2Partial) {
+          // STRICT RULE: BYE team = team1 (top/fixed). Only update team2 (TBD slot).
           const updateData: any = {};
-          if (r2Partial.team1_id === byeTeamId && r2Partial.team2_id !== winnerId)
+          if (r2Partial.team1_id === byeTeamId) {
+            // Correct: BYE is team1. Just fill team2 slot.
+            if (r2Partial.team2_id !== winnerId) updateData.team2_id = winnerId;
+          } else if (r2Partial.team2_id === byeTeamId) {
+            // Wrong orientation: fix so BYE=team1, winner=team2
+            updateData.team1_id = byeTeamId;
             updateData.team2_id = winnerId;
-          else if (r2Partial.team2_id === byeTeamId && r2Partial.team1_id !== winnerId)
-            updateData.team1_id = winnerId;
+          }
           if (Object.keys(updateData).length > 0)
             matchesToUpdate.push({ id: r2Partial.id, data: updateData });
         } else {
-          // No R2 match yet — create one (only if not already queued for this BYE team)
+          // No R2 match yet — create one.
+          // STRICT: BYE = team1 (top), prelim winner = team2 (bottom).
+          // Guard: ensure neither team already appears in any round-2 match
           const alreadyQueued = matchesToCreate.some(m =>
             m.round_number === 2 && (m.team1_id === byeTeamId || m.team2_id === byeTeamId)
           );
-          if (!alreadyQueued) {
+          const alreadyInDB = existingR2.some(m =>
+            m.team1_id === winnerId || m.team2_id === winnerId
+          );
+          if (!alreadyQueued && !alreadyInDB) {
             matchesToCreate.push({
               tournament_id: tournamentId,
               phase: "double_elimination" as const,
