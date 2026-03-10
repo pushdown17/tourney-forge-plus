@@ -1002,11 +1002,12 @@ export const DoubleEliminationBracket = ({
 
         if (roundNumber === 1 && byeCount > 0) {
           // ══════════════════════════════════════════════════════════════════
-          // ROUTING MAP — Preliminary Round progression
+          // ROUTING MAP — Preliminary Round progression (BYE/hybrid brackets)
           // ══════════════════════════════════════════════════════════════════
           // ABSOLUTE RULE: R1[field_number=K] → R2[field_number=K], team2 ONLY.
           // team1 (Seed/BYE) is PERMANENTLY LOCKED — NEVER modified here.
           // NO "first available slot" logic. NO new match creation. Only targeted UPDATE.
+          // Prelim losers are ELIMINATED — they do NOT enter the Losers Bracket.
           // ══════════════════════════════════════════════════════════════════
 
           const thisFieldNum = completedMatch.field_number ?? 1;
@@ -1042,90 +1043,26 @@ export const DoubleEliminationBracket = ({
               console.error("[ROUTING MAP] DB update error:", updateErr);
             }
           }
-          // Prelim losers are ELIMINATED — they do NOT enter the Losers Bracket
+          // Return early — no Losers bracket creation for prelim round
+          return;
 
+        } else if (roundNumber === 1 && byeCount === 0) {
+          // ── Standard power-of-2: W-R1 → winner advances to R2, loser enters L-R1 ──
+          const allR1Sorted = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
+          const myPosInR = allR1Sorted.findIndex(m => m.id === completedMatch.id);
+          const partnerPos = myPosInR % 2 === 0 ? myPosInR + 1 : myPosInR - 1;
+          const partnerMatch = allR1Sorted[partnerPos];
 
-
-
-
-        } else if ((roundNumber === 1 && byeCount === 0) || (roundNumber === 2 && byeCount > 0)) {
-
-
-          const thisFieldNum = completedMatch.field_number ?? 1;
-
-          // Find the pre-created R2 match for this slot by field_number
-          // Use winnersBracketAll to include sentinel matches (team1===team2)
-          const r2Match = winnersBracketAll.find(m =>
-            m.round_number === 2 && m.field_number === thisFieldNum
-          );
-
-          if (r2Match) {
-            // STRICT: Only update team2 (bottom slot).
-            // team1 (byeSeed) is immutable — never touch it.
-            // Sentinel: team1 === team2 means TBD slot awaiting prelim winner.
-            if (r2Match.team2_id !== winnerId) {
-              const { error: updateErr } = await supabase
-                .from("matches")
-                .update({ team2_id: winnerId })
-                .eq("id", r2Match.id);
-              if (!updateErr) {
-                setMatches(prev => prev.map(m =>
-                  m.id === r2Match.id ? { ...m, team2_id: winnerId } : m
-                ));
-              } else {
-                console.error("[handleChallongeProgression] R2 update error:", updateErr);
-              }
-            }
-          } else {
-            // Fallback only: R2 match missing (shouldn't happen with new generateBracket)
-            // Fetch standings to identify byeTeamId as before
-            const { data: freshStandings } = await supabase
-              .from("team_stats").select(`team_id`)
-              .eq("tournament_id", tournamentId)
-              .order("points", { ascending: false }).order("goals_for", { ascending: false })
-              .order("team_id", { ascending: true }).limit(totalTeams);
-            if (freshStandings && freshStandings.length >= totalTeams) {
-              const fullPairs = getStandardSeedingPairs(bracketSz);
-              const teamBySeed = (seed: number): string | null =>
-                seed <= totalTeams ? (freshStandings[seed - 1]?.team_id ?? null) : null;
-              const r2SlotIdx = thisFieldNum - 1;
-              const srcA = fullPairs[r2SlotIdx * 2];
-              const srcB = fullPairs[r2SlotIdx * 2 + 1];
-              const tA1 = srcA ? teamBySeed(srcA[0]) : null;
-              const tA2 = srcA ? teamBySeed(srcA[1]) : null;
-              const tB1 = srcB ? teamBySeed(srcB[0]) : null;
-              const tB2 = srcB ? teamBySeed(srcB[1]) : null;
-              const byeTeamId = (tA1 && !tA2) ? tA1 : (tA2 && !tA1) ? tA2 : (tB1 && !tB2) ? tB1 : (tB2 && !tB1) ? tB2 : null;
-              if (byeTeamId) {
-                const r2Existing = winnersBracket.filter(m => m.round_number === 2);
-                if (!teamInRound(r2Existing, 2, byeTeamId) && !teamInRound(r2Existing, 2, winnerId)) {
-                  matchesToCreate.push({
-                    tournament_id: tournamentId, phase: "double_elimination" as const,
-                    round_number: 2, team1_id: byeTeamId, team2_id: winnerId,
-                    is_third_place_match: false, field_number: thisFieldNum,
-                  });
-                }
-              }
-            }
-          }
-        } else if ((roundNumber === 1 && byeCount === 0) || (roundNumber === 2 && byeCount > 0)) {
-          // W-R1 standard / W-R2 play-in: pair up losers for L-R1 (minor round)
-          const wRound = roundNumber;
-          const allRSorted = winnersBracket.filter(m => m.round_number === wRound).sort(sortFn);
-          const myPosInR = allRSorted.findIndex(m => m.id === completedMatch.id);
-          const partnerPosInR = myPosInR % 2 === 0 ? myPosInR + 1 : myPosInR - 1;
-          const partnerMatchR = allRSorted[partnerPosInR];
-
-          if (partnerMatchR?.winner_id) {
+          if (partnerMatch?.winner_id) {
             const l1 = loserId;
-            const l2 = partnerMatchR.winner_id === partnerMatchR.team1_id
-              ? partnerMatchR.team2_id
-              : partnerMatchR.team1_id;
-            const fieldNum = Math.floor(Math.min(myPosInR, partnerPosInR) / 2) + 1;
+            const l2 = partnerMatch.winner_id === partnerMatch.team1_id
+              ? partnerMatch.team2_id
+              : partnerMatch.team1_id;
+            const fieldNum = Math.floor(Math.min(myPosInR, partnerPos) / 2) + 1;
             if (l1 && l2 && l1 !== l2
               && !teamInRound(losersBracket, 1, l1) && !teamInRound(losersBracket, 1, l2)
-              && !teamInRound(matchesToCreate.filter(m => m.round_number === 1), 1, l1)
-              && !teamInRound(matchesToCreate.filter(m => m.round_number === 1), 1, l2)) {
+              && !teamInRound(matchesToCreate.filter((m: any) => m.round_number === 1), 1, l1)
+              && !teamInRound(matchesToCreate.filter((m: any) => m.round_number === 1), 1, l2)) {
               matchesToCreate.push({
                 tournament_id: tournamentId, phase: "double_elimination",
                 round_number: 1, team1_id: l1, team2_id: l2,
@@ -1133,12 +1070,38 @@ export const DoubleEliminationBracket = ({
               });
             }
           }
+
+        } else if (roundNumber === 2 && byeCount > 0) {
+          // ── BYE/hybrid W-QF: loser enters L-R1 (minor round) ──
+          // These 4 QF losers are the first teams to enter the Losers Bracket
+          const allQFSorted = winnersBracket.filter(m => m.round_number === 2).sort(sortFn);
+          const myPosInR = allQFSorted.findIndex(m => m.id === completedMatch.id);
+          const partnerPos = myPosInR % 2 === 0 ? myPosInR + 1 : myPosInR - 1;
+          const partnerMatch = allQFSorted[partnerPos];
+
+          if (partnerMatch?.winner_id) {
+            const l1 = loserId;
+            const l2 = partnerMatch.winner_id === partnerMatch.team1_id
+              ? partnerMatch.team2_id
+              : partnerMatch.team1_id;
+            const fieldNum = Math.floor(Math.min(myPosInR, partnerPos) / 2) + 1;
+            if (l1 && l2 && l1 !== l2
+              && !teamInRound(losersBracket, 1, l1) && !teamInRound(losersBracket, 1, l2)
+              && !teamInRound(matchesToCreate.filter((m: any) => m.is_third_place_match && m.round_number === 1), 1, l1)
+              && !teamInRound(matchesToCreate.filter((m: any) => m.is_third_place_match && m.round_number === 1), 1, l2)) {
+              matchesToCreate.push({
+                tournament_id: tournamentId, phase: "double_elimination",
+                round_number: 1, team1_id: l1, team2_id: l2,
+                is_third_place_match: true, field_number: fieldNum,
+              });
+            }
+          }
+
         } else {
-          // W-R(k≥2) standard / W-R(k≥3) play-in: loser drops into L major round
+          // ── W-R(k≥3) play-in / W-R(k≥2) standard: loser drops into L major round ──
           const targetLosersRound = byeCount > 0
-            ? (roundNumber - 2) * 2  // Play-in: W-R2→L-0? No: W-R3→L-R2, W-R4→L-R4
+            ? (roundNumber - 2) * 2  // Play-in: W-R3→L-R2, W-R4→L-R4
             : (roundNumber - 1) * 2; // Standard: W-R2→L-R2, W-R3→L-R4
-          // Note: for byeCount>0, roundNumber>=3: (3-2)*2=2, (4-2)*2=4 ✓
           const prevMinorRound = targetLosersRound - 1;
 
           const currentRoundMatchesForLosers = winnersBracket.filter(m => m.round_number === roundNumber);
