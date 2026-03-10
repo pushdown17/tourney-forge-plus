@@ -510,33 +510,30 @@ export const DoubleEliminationBracket = ({
         const winnerId = prelim.winner_id;
         if (!winnerId) continue;
 
-        // Find the seed of each prelim team
-        const t1SeedIdx = standings.findIndex((s: any) => s.team_id === prelim.team1_id);
-        const t2SeedIdx = standings.findIndex((s: any) => s.team_id === prelim.team2_id);
-        const t1Seed = t1SeedIdx + 1;
-        const t2Seed = t2SeedIdx + 1;
+        // Use field_number-based mapping (same logic as handleChallongeProgression)
+        // prelim field_number K → R2 slot K (same field_number).
+        // For each R2 slot, fullPairs contains two sub-slots: [2*(K-1)] and [2*(K-1)+1]
+        // One is the prelim match (both seeds real), the other is the BYE slot (one seed null).
+        const thisFieldNum = prelim.field_number ?? 1;
+        const r2SlotIdx = thisFieldNum - 1;
+        const srcA = fullPairs[r2SlotIdx * 2];
+        const srcB = fullPairs[r2SlotIdx * 2 + 1];
 
-        // Find which fullPairs slot contains exactly these two seeds
-        const prelPairIdx = fullPairs.findIndex(([s1, s2]) =>
-          (s1 === t1Seed && s2 === t2Seed) || (s1 === t2Seed && s2 === t1Seed)
-        );
-        if (prelPairIdx < 0) {
-          console.warn("[repairWinnersQFSlots] Could not find pair for prelim match:", prelim.id);
-          continue;
-        }
+        const tA1 = srcA ? teamBySeed(srcA[0]) : null;
+        const tA2 = srcA ? teamBySeed(srcA[1]) : null;
+        const tB1 = srcB ? teamBySeed(srcB[0]) : null;
+        const tB2 = srcB ? teamBySeed(srcB[1]) : null;
 
-        // Each R2 slot groups 2 consecutive fullPairs entries.
-        // The BYE pair is the sibling of the real-match pair.
-        const r2SlotIdx = Math.floor(prelPairIdx / 2);
-        const byePairIdx = prelPairIdx % 2 === 0 ? prelPairIdx + 1 : prelPairIdx - 1;
-        const byePair = fullPairs[byePairIdx];
-        const byeTeamId = byePair
-          ? (teamBySeed(byePair[0]) ?? teamBySeed(byePair[1]))
-          : null;
+        // BYE team = the single real team in the slot where one seed maps to null
+        const byeTeamId = (tA1 && !tA2) ? tA1
+                        : (tA2 && !tA1) ? tA2
+                        : (tB1 && !tB2) ? tB1
+                        : (tB2 && !tB1) ? tB2
+                        : null;
 
         if (!byeTeamId) continue;
 
-        // Already correct?
+        // Already fully correct? (BYE team + winner both present)
         const r2Full = existingR2.find(m =>
           (m.team1_id === byeTeamId || m.team2_id === byeTeamId) &&
           (m.team1_id === winnerId || m.team2_id === winnerId)
@@ -556,7 +553,7 @@ export const DoubleEliminationBracket = ({
           if (Object.keys(updateData).length > 0)
             matchesToUpdate.push({ id: r2Partial.id, data: updateData });
         } else {
-          // No R2 match yet — create one
+          // No R2 match yet — create one (only if not already queued for this BYE team)
           const alreadyQueued = matchesToCreate.some(m =>
             m.round_number === 2 && (m.team1_id === byeTeamId || m.team2_id === byeTeamId)
           );
@@ -567,7 +564,7 @@ export const DoubleEliminationBracket = ({
               round_number: 2,
               team1_id: byeTeamId,
               team2_id: winnerId,
-              field_number: r2SlotIdx + 1,
+              field_number: thisFieldNum,
               is_third_place_match: false,
             });
           }
