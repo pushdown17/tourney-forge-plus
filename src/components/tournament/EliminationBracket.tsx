@@ -303,7 +303,7 @@ export const EliminationBracket = ({
   useEffect(() => {
     console.log('Setting up live broadcast subscription for tournament:', tournamentId);
     
-    const liveTimeouts: { [matchId: string]: NodeJS.Timeout } = {};
+    const liveTimeouts: { [matchId: string]: ReturnType<typeof setTimeout> } = {};
     
     const channel = supabase
       .channel(`tournament-live-${tournamentId}`)
