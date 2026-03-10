@@ -948,7 +948,9 @@ export const DoubleEliminationBracket = ({
 
       // Sort by field_number then created_at for deterministic ordering
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
-      const winnersBracket = (allMatches?.filter(m => !m.is_third_place_match) || []).sort(sortFn);
+      // Exclude sentinel matches (team1===team2 = BYE placeholder awaiting prelim winner) from logical processing
+      const winnersBracket = (allMatches?.filter(m => !m.is_third_place_match && m.team1_id !== m.team2_id) || []).sort(sortFn);
+      const winnersBracketAll = (allMatches?.filter(m => !m.is_third_place_match) || []).sort(sortFn); // includes sentinels (for field_number lookup)
       const losersBracket = (allMatches?.filter(m => m.is_third_place_match) || []).sort(sortFn);
 
       const grandFinalRound1 = winnersRounds + 1;
