@@ -1044,7 +1044,8 @@ export const DoubleEliminationBracket = ({
           }
           // Prelim losers are ELIMINATED — they do NOT enter the Losers Bracket
           return; // Hard stop — nothing else to do for Preliminary round
-          // ── Non-power-of-2 R1 (Preliminary Round) ──
+
+
           //
           // NEW ARCHITECTURE: ALL R2 (W-QF) matches are pre-created by generateBracket.
           // Sentinel pattern: team1=byeSeed (LOCKED TOP), team2=byeSeed (sentinel = TBD).
