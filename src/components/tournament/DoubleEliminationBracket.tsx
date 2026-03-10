@@ -468,9 +468,11 @@ export const DoubleEliminationBracket = ({
   };
 
   /**
-   * When prelim (W-R1) matches are complete but W-R2 (QF) matches are missing,
-   * create or update the QF slots. This handles the case where the bracket tab
-   * was not mounted when the referee station validated the prelim matches.
+   * NEW ARCHITECTURE: R2 (W-QF) matches are always pre-created by generateBracket
+   * with byeSeed=team1 (LOCKED) and byeSeed=team2 (sentinel meaning TBD).
+   *
+   * This repair function only needs to UPDATE team2 of sentinel matches with actual prelim winners.
+   * It never creates new R2 matches. This eliminates all duplication / overwrite issues.
    */
   const repairWinnersQFSlots = async (allMatchesData: any[], teamsCount?: number) => {
     if (!isCreator) return;
@@ -483,102 +485,37 @@ export const DoubleEliminationBracket = ({
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
       const winnersBracket = allMatchesData.filter(m => !m.is_third_place_match).sort(sortFn);
 
+      // Only process prelims that have a winner
       const completedPrelims = winnersBracket.filter(m => m.round_number === 1 && m.winner_id);
       if (completedPrelims.length === 0) return;
 
-      // Fetch standings to build seed map (same sort as generateBracket)
-      const { data: standings } = await supabase
-        .from("team_stats")
-        .select("team_id")
-        .eq("tournament_id", tournamentId)
-        .order("points", { ascending: false })
-        .order("goals_for", { ascending: false })
-        .order("team_id", { ascending: true })
-        .limit(totalTeams);
-
-      if (!standings || standings.length < totalTeams) return;
-
-      const fullPairs = getStandardSeedingPairs(bracketSz);
-      const teamBySeed = (seed: number): string | null =>
-        seed <= totalTeams ? (standings[seed - 1]?.team_id ?? null) : null;
-
       const existingR2 = winnersBracket.filter(m => m.round_number === 2);
-      const matchesToCreate: any[] = [];
       const matchesToUpdate: { id: string; data: any }[] = [];
 
       for (const prelim of completedPrelims) {
         const winnerId = prelim.winner_id;
         if (!winnerId) continue;
 
-        // Use field_number-based mapping (same logic as handleChallongeProgression)
-        // prelim field_number K → R2 slot K (same field_number).
-        // For each R2 slot, fullPairs contains two sub-slots: [2*(K-1)] and [2*(K-1)+1]
-        // One is the prelim match (both seeds real), the other is the BYE slot (one seed null).
+        // R1 match with field_number K → R2 match with field_number K (direct 1:1 mapping)
         const thisFieldNum = prelim.field_number ?? 1;
-        const r2SlotIdx = thisFieldNum - 1;
-        const srcA = fullPairs[r2SlotIdx * 2];
-        const srcB = fullPairs[r2SlotIdx * 2 + 1];
 
-        const tA1 = srcA ? teamBySeed(srcA[0]) : null;
-        const tA2 = srcA ? teamBySeed(srcA[1]) : null;
-        const tB1 = srcB ? teamBySeed(srcB[0]) : null;
-        const tB2 = srcB ? teamBySeed(srcB[1]) : null;
-
-        // BYE team = the single real team in the slot where one seed maps to null
-        const byeTeamId = (tA1 && !tA2) ? tA1
-                        : (tA2 && !tA1) ? tA2
-                        : (tB1 && !tB2) ? tB1
-                        : (tB2 && !tB1) ? tB2
-                        : null;
-
-        if (!byeTeamId) continue;
-
-        // Already fully correct? (BYE team + winner both present)
-        const r2Full = existingR2.find(m =>
-          (m.team1_id === byeTeamId || m.team2_id === byeTeamId) &&
-          (m.team1_id === winnerId || m.team2_id === winnerId)
-        );
-        if (r2Full) continue;
-
-        // Partial match (BYE team present, TBD slot)?
-        const r2Partial = existingR2.find(m =>
-          m.team1_id === byeTeamId || m.team2_id === byeTeamId
-        );
-        if (r2Partial) {
-          // STRICT RULE: BYE team = team1 (top/fixed). Only update team2 (TBD slot).
-          const updateData: any = {};
-          if (r2Partial.team1_id === byeTeamId) {
-            // Correct: BYE is team1. Just fill team2 slot.
-            if (r2Partial.team2_id !== winnerId) updateData.team2_id = winnerId;
-          } else if (r2Partial.team2_id === byeTeamId) {
-            // Wrong orientation: fix so BYE=team1, winner=team2
-            updateData.team1_id = byeTeamId;
-            updateData.team2_id = winnerId;
-          }
-          if (Object.keys(updateData).length > 0)
-            matchesToUpdate.push({ id: r2Partial.id, data: updateData });
-        } else {
-          // No R2 match yet — create one.
-          // STRICT: BYE = team1 (top), prelim winner = team2 (bottom).
-          // Guard: ensure neither team already appears in any round-2 match
-          const alreadyQueued = matchesToCreate.some(m =>
-            m.round_number === 2 && (m.team1_id === byeTeamId || m.team2_id === byeTeamId)
-          );
-          const alreadyInDB = existingR2.some(m =>
-            m.team1_id === winnerId || m.team2_id === winnerId
-          );
-          if (!alreadyQueued && !alreadyInDB) {
-            matchesToCreate.push({
-              tournament_id: tournamentId,
-              phase: "double_elimination" as const,
-              round_number: 2,
-              team1_id: byeTeamId,
-              team2_id: winnerId,
-              field_number: thisFieldNum,
-              is_third_place_match: false,
-            });
-          }
+        // Find the pre-created R2 match for this slot
+        const r2Match = existingR2.find(m => m.field_number === thisFieldNum);
+        if (!r2Match) {
+          console.warn(`[repairWinnersQFSlots] R2 match missing for field_number=${thisFieldNum}`);
+          continue;
         }
+
+        // Detect sentinel: team1_id === team2_id means "TBD slot"
+        const isSentinel = r2Match.team1_id === r2Match.team2_id;
+        if (isSentinel && r2Match.team2_id !== winnerId) {
+          // Replace sentinel with actual prelim winner in team2 (team1=byeSeed stays locked)
+          matchesToUpdate.push({ id: r2Match.id, data: { team2_id: winnerId } });
+        } else if (!isSentinel && r2Match.team2_id !== winnerId && r2Match.team1_id !== winnerId) {
+          // Existing non-sentinel R2 without the winner yet — update team2
+          matchesToUpdate.push({ id: r2Match.id, data: { team2_id: winnerId } });
+        }
+        // If already correctly populated, skip
       }
 
       let changed = false;
@@ -587,14 +524,8 @@ export const DoubleEliminationBracket = ({
         if (!error) changed = true;
         else console.error("[repairWinnersQFSlots] Update error:", error);
       }
-      if (matchesToCreate.length > 0) {
-        const { error } = await supabase.from("matches").insert(matchesToCreate);
-        if (!error) changed = true;
-        else console.error("[repairWinnersQFSlots] Insert error:", error);
-      }
 
       if (changed) {
-        // Reload matches to get fresh state (with team names etc.)
         const { data: refreshed } = await supabase
           .from("matches")
           .select(`*, team1:teams!matches_team1_id_fkey(id, name), team2:teams!matches_team2_id_fkey(id, name)`)
@@ -603,7 +534,6 @@ export const DoubleEliminationBracket = ({
           .order("round_number", { ascending: true });
         if (refreshed) {
           setMatches(refreshed);
-          // Also update allMatchesData in place so repairLosersBracket uses updated data
           allMatchesData.splice(0, allMatchesData.length, ...refreshed);
         }
       }
@@ -626,7 +556,8 @@ export const DoubleEliminationBracket = ({
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
 
       const winnersBracket = allMatchesData
-        .filter(m => !m.is_third_place_match && m.round_number <= winnersRoundsCount)
+        .filter(m => !m.is_third_place_match && m.round_number <= winnersRoundsCount
+          && m.team1_id !== m.team2_id) // Exclude sentinel matches (BYE placeholder = team1===team2)
         .sort(sortFn);
       const losersBracket = allMatchesData
         .filter(m => m.is_third_place_match)
@@ -751,8 +682,6 @@ export const DoubleEliminationBracket = ({
     try {
       const bracketSz = getBracketSize(teamsCount);
       const byeCount = bracketSz - teamsCount;
-      // For non-power-of-2, seeds 1..byeCount get BYEs (they skip R1)
-      // Actual R1 matches involve seeds (byeCount+1)..teamsCount
       const realMatchCount = teamsCount - byeCount; // = 2*teamsCount - bracketSz
 
       const { data: standings, error: standingsError } = await supabase
@@ -772,7 +701,7 @@ export const DoubleEliminationBracket = ({
       }
 
       if (byeCount === 0) {
-        // Perfect power-of-2: standard bracket generation
+        // ── Perfect power-of-2: standard bracket generation ──
         const pairs = getStandardSeedingPairs(teamsCount);
         const allMatches = pairs.map((pair, i) => ({
           tournament_id: tournamentId,
@@ -786,95 +715,112 @@ export const DoubleEliminationBracket = ({
         const { error: insertError } = await supabase.from("matches").insert(allMatches);
         if (insertError) throw insertError;
       } else {
-        // BYE bracket: bracketSz slots, top `byeCount` seeds get BYEs
-        // Standard seeding on bracketSz slots determines positions
-        // Seeds 1..byeCount fill positions with BYEs (no match needed in R1)
-        // Seeds (byeCount+1)..teamsCount play R1 matches filling the remaining positions
+        // ── BYE / Hybrid bracket (e.g. 12, 24 teams) ──
         //
-        // Standard seeding pairs for the full bracketSz bracket:
+        // ARCHITECTURE:
+        //   R1 = Preliminary Round: only real matches (both teams ≤ teamsCount)
+        //   R2 = Winners QF: ALL slots pre-created upfront
+        //        - Bye seeds occupy team1 (TOP = LOCKED, never moved)
+        //        - Prelim winner will fill team2 (BOTTOM) later via targeted UPDATE
+        //        - BYE-vs-BYE pairs: both teams known immediately
+        //        - BYE-vs-Prelim pairs: created with team1=byeSeed, team2=byeSeed (sentinel = TBD)
+        //          → handleChallongeProgression updates team2 when prelim finishes
+        //
+        // KEY INVARIANT: field_number on R1 match K directly maps to R2 match K.
+        //   R2 match with field_number=K has:
+        //     - team1 = the BYE seed from that slot (immutable)
+        //     - team2 = winner of R1 prelim match K (updated on completion)
+
         const fullPairs = getStandardSeedingPairs(bracketSz);
-        // Remap: seed k maps to standings[k-1] if k <= teamsCount, else BYE
         const teamBySeed = (seed: number) => seed <= teamsCount ? standings[seed - 1].team_id : null;
 
-        // R1 matches: only slots where BOTH seeds > byeCount (real teams play)
-        // Slots where one or both seeds ≤ byeCount → that team gets a BYE → auto-advances to R2
-        const r1Matches: any[] = [];
-        const r1ByeWinners: { slotIdx: number; teamId: string }[] = []; // teams auto-advancing to R2
+        // Classify each full-bracket pair slot
+        const r1Matches: any[] = [];  // Preliminary round matches (both teams real)
+        const r2Matches: any[] = [];  // Winners QF matches (pre-created upfront)
 
-        fullPairs.forEach((pair, slotIdx) => {
-          const [s1, s2] = pair;
-          const t1 = teamBySeed(s1);
-          const t2 = teamBySeed(s2);
+        // fullPairs[0,1] → R2 slot 1, fullPairs[2,3] → R2 slot 2, etc.
+        const r2SlotCount = bracketSz / 4;
 
-          if (t1 && t2) {
-            // Both real teams → real match
-            r1Matches.push({
-              tournament_id: tournamentId,
-              phase: "double_elimination" as const,
-              round_number: 1,
-              team1_id: t1,
-              team2_id: t2,
-              field_number: r1Matches.length + 1,
-              is_third_place_match: false,
+        for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
+          const srcA = fullPairs[r2Slot * 2];     // sub-slot A
+          const srcB = fullPairs[r2Slot * 2 + 1]; // sub-slot B
+          const [sA1, sA2] = srcA;
+          const [sB1, sB2] = srcB;
+          const tA1 = teamBySeed(sA1), tA2 = teamBySeed(sA2);
+          const tB1 = teamBySeed(sB1), tB2 = teamBySeed(sB2);
+
+          // Determine which sub-slot is BYE (one real + one virtual) vs real (both real)
+          const slotAisBye = (tA1 && !tA2) || (!tA1 && tA2);
+          const slotBisBye = (tB1 && !tB2) || (!tB1 && tB2);
+
+          const byeTeamForSlotA = slotAisBye ? (tA1 || tA2)! : null;
+          const byeTeamForSlotB = slotBisBye ? (tB1 || tB2)! : null;
+
+          if (slotAisBye && slotBisBye) {
+            // BYE vs BYE → immediate full R2 match (both teams known)
+            r2Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 2, team1_id: byeTeamForSlotA!, team2_id: byeTeamForSlotB!,
+              field_number: r2Slot + 1, is_third_place_match: false,
             });
-          } else if (t1 && !t2) {
-            // t1 gets BYE → auto-advances to R2
-            r1ByeWinners.push({ slotIdx, teamId: t1 });
-          } else if (!t1 && t2) {
-            // t2 gets BYE → auto-advances to R2
-            r1ByeWinners.push({ slotIdx, teamId: t2 });
+          } else if (slotAisBye) {
+            // BYE (slot A) vs Prelim winner (slot B)
+            // Pre-create R2 with byeTeam locked in team1 (TOP), sentinel in team2
+            // (team2 will be updated to prelim winner when R1 match finishes)
+            const prelimFieldNum = r1Matches.length + 1;
+            r1Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 1, team1_id: tB1!, team2_id: tB2!,
+              field_number: prelimFieldNum, is_third_place_match: false,
+            });
+            // Pre-create R2 with byeSeed=team1 (LOCKED TOP), same byeSeed=team2 (sentinel, will be updated)
+            r2Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 2, team1_id: byeTeamForSlotA!, team2_id: byeTeamForSlotA!, // sentinel
+              field_number: r2Slot + 1, is_third_place_match: false,
+            });
+          } else if (slotBisBye) {
+            // BYE (slot B) vs Prelim winner (slot A)
+            const prelimFieldNum = r1Matches.length + 1;
+            r1Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 1, team1_id: tA1!, team2_id: tA2!,
+              field_number: prelimFieldNum, is_third_place_match: false,
+            });
+            r2Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 2, team1_id: byeTeamForSlotB!, team2_id: byeTeamForSlotB!, // sentinel
+              field_number: r2Slot + 1, is_third_place_match: false,
+            });
+          } else {
+            // Both sub-slots are real (both teams real) — shouldn't happen with proper BYE distribution
+            // but handle gracefully: two real R1 matches, R2 created after both finish
+            const fn1 = r1Matches.length + 1;
+            r1Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 1, team1_id: tA1!, team2_id: tA2!,
+              field_number: fn1, is_third_place_match: false,
+            });
+            const fn2 = r1Matches.length + 1;
+            r1Matches.push({
+              tournament_id: tournamentId, phase: "double_elimination" as const,
+              round_number: 1, team1_id: tB1!, team2_id: tB2!,
+              field_number: fn2, is_third_place_match: false,
+            });
           }
-          // Both null: impossible with valid even teamsCount
-        });
+        }
 
         if (r1Matches.length !== realMatchCount) {
           console.warn(`[generateBracket] Expected ${realMatchCount} R1 matches, got ${r1Matches.length}`);
         }
 
-        // Insert R1 real matches
+        // Insert R1 matches first, then R2 (so field_number mapping is stable)
         if (r1Matches.length > 0) {
-          const { error: insertError } = await supabase.from("matches").insert(r1Matches);
-          if (insertError) throw insertError;
+          const { error: r1Err } = await supabase.from("matches").insert(r1Matches);
+          if (r1Err) throw r1Err;
         }
-
-        // Auto-generate R2 matches for BYE winners
-        // BYE winners are paired from the fullPairs structure:
-        // R2 slot k pairs fullPairs[k*2] winner vs fullPairs[k*2+1] winner
-        // For BYE slots, the winner is already known; for real R1 matches, winner is unknown yet
-        // So R2 can only be created when both "contributors" to a R2 slot are known.
-        // We pair BYE winners vs their R2 opponent (which may be another BYE winner or a R1 real match winner)
-        // For simplicity, we create R2 slots immediately for BYE vs BYE pairs.
-        // BYE vs R1-match pairs will be created by handleChallongeProgression as usual.
-        const byePairs: { w1: string; w2: string; fieldNum: number }[] = [];
-        // fullPairs[0,1] → R2 slot 0, fullPairs[2,3] → R2 slot 1, etc.
-        const r2SlotCount = bracketSz / 4;
-        for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
-          const srcA = fullPairs[r2Slot * 2];
-          const srcB = fullPairs[r2Slot * 2 + 1];
-          const [sA1, sA2] = srcA;
-          const [sB1, sB2] = srcB;
-          const tA1 = teamBySeed(sA1), tA2 = teamBySeed(sA2);
-          const tB1 = teamBySeed(sB1), tB2 = teamBySeed(sB2);
-          // Winner of srcA slot: known only if one is BYE
-          const srcAWinner = !tA2 ? tA1 : !tA1 ? tA2 : null;
-          // Winner of srcB slot: known only if one is BYE
-          const srcBWinner = !tB2 ? tB1 : !tB1 ? tB2 : null;
-          // If both R2 contributors are BYE-winners, create R2 match now
-          if (srcAWinner && srcBWinner) {
-            byePairs.push({ w1: srcAWinner, w2: srcBWinner, fieldNum: r2Slot + 1 });
-          }
-        }
-        if (byePairs.length > 0) {
-          const r2ByeMatches = byePairs.map(bp => ({
-            tournament_id: tournamentId,
-            phase: "double_elimination" as const,
-            round_number: 2,
-            team1_id: bp.w1,
-            team2_id: bp.w2,
-            field_number: bp.fieldNum,
-            is_third_place_match: false,
-          }));
-          const { error: r2Err } = await supabase.from("matches").insert(r2ByeMatches);
+        if (r2Matches.length > 0) {
+          const { error: r2Err } = await supabase.from("matches").insert(r2Matches);
           if (r2Err) throw r2Err;
         }
       }
@@ -1002,7 +948,9 @@ export const DoubleEliminationBracket = ({
 
       // Sort by field_number then created_at for deterministic ordering
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
-      const winnersBracket = (allMatches?.filter(m => !m.is_third_place_match) || []).sort(sortFn);
+      // Exclude sentinel matches (team1===team2 = BYE placeholder awaiting prelim winner) from logical processing
+      const winnersBracket = (allMatches?.filter(m => !m.is_third_place_match && m.team1_id !== m.team2_id) || []).sort(sortFn);
+      const winnersBracketAll = (allMatches?.filter(m => !m.is_third_place_match) || []).sort(sortFn); // includes sentinels (for field_number lookup)
       const losersBracket = (allMatches?.filter(m => m.is_third_place_match) || []).sort(sortFn);
 
       const grandFinalRound1 = winnersRounds + 1;
@@ -1038,101 +986,68 @@ export const DoubleEliminationBracket = ({
         const byeCount = bracketSz - totalTeams;
 
         if (roundNumber === 1 && byeCount > 0) {
-          // ── Non-power-of-2 R1 (Preliminary Round): field_number-based R2 update ──
+          // ── Non-power-of-2 R1 (Preliminary Round) ──
           //
-          // RULE: winner of prelim match field_number=K → fills the TBD slot in Winners QF match K.
-          // During generateBracket, R2 matches are pre-created with the BYE (directly qualified) team
-          // in one slot. We simply UPDATE that existing match to replace the other team with the winner.
-          // We NEVER create a new R2 match here — that would cause duplicates.
+          // NEW ARCHITECTURE: ALL R2 (W-QF) matches are pre-created by generateBracket.
+          // Sentinel pattern: team1=byeSeed (LOCKED TOP), team2=byeSeed (sentinel = TBD).
+          //
+          // Rule: prelim match field_number=K → update R2 match field_number=K team2 with winner.
+          // NEVER create new R2 matches here — they already exist.
 
-          const { data: freshStandings } = await supabase
-            .from("team_stats")
-            .select(`team_id, points, goals_for, team:team_id(id, name)`)
-            .eq("tournament_id", tournamentId)
-            .order("points", { ascending: false })
-            .order("goals_for", { ascending: false })
-            .order("team_id", { ascending: true })
-            .limit(totalTeams);
-
-          if (!freshStandings || freshStandings.length < totalTeams) {
-            console.error("[handleChallongeProgression] Not enough standings data");
-            return;
-          }
-
-          const fullPairs = getStandardSeedingPairs(bracketSz);
-          const teamBySeed = (seed: number): string | null =>
-            seed <= totalTeams ? (freshStandings[seed - 1]?.team_id ?? null) : null;
-
-          // Prelim match field_number = its position among R1 real matches (1-indexed)
           const thisFieldNum = completedMatch.field_number ?? 1;
 
-          // For R2 slot K, fullPairs contains two sub-slots: [2*(K-1)] and [2*(K-1)+1]
-          // One is the prelim match (both seeds real), the other is the BYE slot (one seed null)
-          const r2SlotIdx = thisFieldNum - 1;
-          const srcA = fullPairs[r2SlotIdx * 2];
-          const srcB = fullPairs[r2SlotIdx * 2 + 1];
+          // Find the pre-created R2 match for this slot by field_number
+          // Use winnersBracketAll to include sentinel matches (team1===team2)
+          const r2Match = winnersBracketAll.find(m =>
+            m.round_number === 2 && m.field_number === thisFieldNum
+          );
 
-          const tA1 = srcA ? teamBySeed(srcA[0]) : null;
-          const tA2 = srcA ? teamBySeed(srcA[1]) : null;
-          const tB1 = srcB ? teamBySeed(srcB[0]) : null;
-          const tB2 = srcB ? teamBySeed(srcB[1]) : null;
-
-          // BYE team = the single real team in the slot where one seed maps to null
-          const byeTeamId = (tA1 && !tA2) ? tA1
-                          : (tA2 && !tA1) ? tA2
-                          : (tB1 && !tB2) ? tB1
-                          : (tB2 && !tB1) ? tB2
-                          : null;
-
-          if (byeTeamId) {
-            const nextRound = 2;
-            // Find the existing R2 match containing the BYE team (created by generateBracket)
-            const existingR2 = winnersBracket.find(m =>
-              m.round_number === nextRound &&
-              (m.team1_id === byeTeamId || m.team2_id === byeTeamId)
-            );
-
-            if (existingR2) {
-              // STRICT RULE: BYE team is ALWAYS team1 (top/fixed slot).
-              // We ONLY ever update team2_id (the TBD/bottom slot) with the prelim winner.
-              // If BYE team is already team1, just set team2_id = winnerId.
-              // If somehow BYE team is team2 (shouldn't happen), fix both slots.
-              const updateData: any = {};
-              if (existingR2.team1_id === byeTeamId) {
-                // Correct orientation: update team2 slot only
-                if (existingR2.team2_id !== winnerId) updateData.team2_id = winnerId;
-              } else if (existingR2.team2_id === byeTeamId) {
-                // Wrong orientation: swap so BYE=team1, winner=team2
-                if (existingR2.team1_id !== winnerId) {
-                  updateData.team1_id = byeTeamId;
-                  updateData.team2_id = winnerId;
-                }
+          if (r2Match) {
+            // STRICT: Only update team2 (bottom slot).
+            // team1 (byeSeed) is immutable — never touch it.
+            // Sentinel: team1 === team2 means TBD slot awaiting prelim winner.
+            if (r2Match.team2_id !== winnerId) {
+              const { error: updateErr } = await supabase
+                .from("matches")
+                .update({ team2_id: winnerId })
+                .eq("id", r2Match.id);
+              if (!updateErr) {
+                setMatches(prev => prev.map(m =>
+                  m.id === r2Match.id ? { ...m, team2_id: winnerId } : m
+                ));
+              } else {
+                console.error("[handleChallongeProgression] R2 update error:", updateErr);
               }
-              if (Object.keys(updateData).length > 0) {
-                const { error: updateErr } = await supabase
-                  .from("matches")
-                  .update(updateData)
-                  .eq("id", existingR2.id);
-                if (!updateErr) {
-                  setMatches(prev => prev.map(m =>
-                    m.id === existingR2.id ? { ...m, ...updateData } : m
-                  ));
-                } else {
-                  console.error("[handleChallongeProgression] R2 update error:", updateErr);
+            }
+          } else {
+            // Fallback only: R2 match missing (shouldn't happen with new generateBracket)
+            // Fetch standings to identify byeTeamId as before
+            const { data: freshStandings } = await supabase
+              .from("team_stats").select(`team_id`)
+              .eq("tournament_id", tournamentId)
+              .order("points", { ascending: false }).order("goals_for", { ascending: false })
+              .order("team_id", { ascending: true }).limit(totalTeams);
+            if (freshStandings && freshStandings.length >= totalTeams) {
+              const fullPairs = getStandardSeedingPairs(bracketSz);
+              const teamBySeed = (seed: number): string | null =>
+                seed <= totalTeams ? (freshStandings[seed - 1]?.team_id ?? null) : null;
+              const r2SlotIdx = thisFieldNum - 1;
+              const srcA = fullPairs[r2SlotIdx * 2];
+              const srcB = fullPairs[r2SlotIdx * 2 + 1];
+              const tA1 = srcA ? teamBySeed(srcA[0]) : null;
+              const tA2 = srcA ? teamBySeed(srcA[1]) : null;
+              const tB1 = srcB ? teamBySeed(srcB[0]) : null;
+              const tB2 = srcB ? teamBySeed(srcB[1]) : null;
+              const byeTeamId = (tA1 && !tA2) ? tA1 : (tA2 && !tA1) ? tA2 : (tB1 && !tB2) ? tB1 : (tB2 && !tB1) ? tB2 : null;
+              if (byeTeamId) {
+                const r2Existing = winnersBracket.filter(m => m.round_number === 2);
+                if (!teamInRound(r2Existing, 2, byeTeamId) && !teamInRound(r2Existing, 2, winnerId)) {
+                  matchesToCreate.push({
+                    tournament_id: tournamentId, phase: "double_elimination" as const,
+                    round_number: 2, team1_id: byeTeamId, team2_id: winnerId,
+                    is_third_place_match: false, field_number: thisFieldNum,
+                  });
                 }
-              }
-            } else {
-              // Fallback: R2 match missing — create it.
-              // STRICT: BYE team = team1 (top), prelim winner = team2 (bottom).
-              // Guard: do not create if either team is already in round 2.
-              const r2Matches = winnersBracket.filter(m => m.round_number === nextRound);
-              if (!teamInRound(r2Matches, nextRound, byeTeamId)
-                && !teamInRound(r2Matches, nextRound, winnerId)) {
-                matchesToCreate.push({
-                  tournament_id: tournamentId, phase: "double_elimination" as const,
-                  round_number: nextRound, team1_id: byeTeamId, team2_id: winnerId,
-                  is_third_place_match: false, field_number: thisFieldNum,
-                });
               }
             }
           }
@@ -1795,10 +1710,28 @@ export const DoubleEliminationBracket = ({
                   {Array.from({ length: count }).map((_, slotIdx) => {
                     const realMatch = realRoundMatches[slotIdx];
 
-                    if (!realMatch) {
-                      const pendingSlot = pendingByRound.get(round)?.get(slotIdx);
-                      const t1 = pendingSlot?.team1 ?? null;
-                      const t2 = pendingSlot?.team2 ?? null;
+                    // Sentinel match: team1_id === team2_id means BYE seed waiting for prelim winner
+                    // Display as a pending slot showing the BYE seed and TBD for opponent
+                    const isSentinelMatch = realMatch && realMatch.team1_id === realMatch.team2_id && !realMatch.winner_id;
+
+                    if (!realMatch || isSentinelMatch) {
+                      // For sentinel matches, show BYE seed as team1 and TBD as team2
+                      let t1: { name: string; teamId: string; isBye?: boolean } | null = null;
+                      let t2: { name: string; teamId: string; isBye?: boolean } | null = null;
+
+                      if (isSentinelMatch && realMatch) {
+                        // BYE team is team1 — find its name from standingsTeams or match data
+                        const byeTeamData = realMatch.team1 as (Team | undefined);
+                        if (byeTeamData) {
+                          t1 = { name: byeTeamData.name, teamId: realMatch.team1_id, isBye: true };
+                        }
+                        t2 = null; // TBD (pending prelim winner)
+                      } else if (!realMatch) {
+                        const pendingSlot = pendingByRound.get(round)?.get(slotIdx);
+                        t1 = pendingSlot?.team1 ?? null;
+                        t2 = pendingSlot?.team2 ?? null;
+                      }
+
                       const hasPending = !!(t1 || t2);
                       const isLoserSlot = isLosers;
 
@@ -1828,7 +1761,7 @@ export const DoubleEliminationBracket = ({
 
                       return (
                         <div
-                          key={`tbd-${round}-${slotIdx}`}
+                          key={isSentinelMatch ? `sentinel-${realMatch!.id}` : `tbd-${round}-${slotIdx}`}
                           className={cn(
                             "rounded-lg border flex flex-col justify-center px-3",
                             hasPending

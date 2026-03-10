@@ -1,0 +1,1 @@
+DELETE FROM matches WHERE tournament_id = '24449eec-9cf0-4623-9ff5-8b25a542e0a5' AND phase = 'double_elimination';
