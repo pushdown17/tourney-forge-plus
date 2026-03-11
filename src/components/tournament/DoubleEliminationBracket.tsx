@@ -556,8 +556,7 @@ export const DoubleEliminationBracket = ({
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
 
       const winnersBracket = allMatchesData
-        .filter(m => !m.is_third_place_match && m.round_number <= winnersRoundsCount
-          && m.team1_id !== m.team2_id) // Exclude sentinel matches (BYE placeholder = team1===team2)
+        .filter(m => !m.is_third_place_match && m.round_number <= winnersRoundsCount)
         .sort(sortFn);
       const losersBracket = allMatchesData
         .filter(m => m.is_third_place_match)
