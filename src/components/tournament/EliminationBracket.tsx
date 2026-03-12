@@ -817,9 +817,12 @@ export const EliminationBracket = ({
         for (let s = 1; s <= bracketSize - numPreliminaryMatches; s++) directSeedSet.add(s);
 
         // Walk the full seeding order in pairs; create R1 only for pairs where BOTH seeds are direct
+        // field_number reflects the pair's position in the full seeding (slot index + 1), not insertion order,
+        // so that visual ordering in generateBracketStructure (sorted by field_number) matches standard seeding.
         for (let i = 0; i < seedingOrder.length; i += 2) {
           const s1 = seedingOrder[i];
           const s2 = seedingOrder[i + 1];
+          const pairSlot = i / 2; // 0-based slot in the full QF bracket
           if (directSeedSet.has(s1) && directSeedSet.has(s2)) {
             const team1 = standings[s1 - 1];
             const team2 = standings[s2 - 1];
@@ -830,10 +833,10 @@ export const EliminationBracket = ({
                 round_number: 1,
                 team1_id: team1.team_id,
                 team2_id: team2.team_id,
-                field_number: matchIndex + 1,
+                field_number: pairSlot + 1,
               });
               matchIndex++;
-              console.log(`R1 direct: #${s1} ${team1.team?.name} vs #${s2} ${team2.team?.name}`);
+              console.log(`R1 direct: #${s1} ${team1.team?.name} vs #${s2} ${team2.team?.name} (slot ${pairSlot})`);
             }
           }
           // Pairs with a prelim seed (#7,#8,...) are created after prelims complete (checkAndGenerateNextRound(0))
