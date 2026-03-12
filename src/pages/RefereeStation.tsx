@@ -803,14 +803,22 @@ const RefereeStation = () => {
         // team1 (BYE seed) is PERMANENTLY LOCKED. NO new match creation. Only UPDATE.
         // Prelim losers are ELIMINATED — they do NOT enter the Losers Bracket.
         const thisFieldNum = completedMatch.field_number ?? 1;
-        const r2Match = winnersBracketAll.find(m => m.round_number === 2 && m.field_number === thisFieldNum);
+
+        // Find the REAL sentinel for this field_number:
+        // Priority 1: match with team1_id === team2_id (untouched sentinel)
+        // Priority 2: match with no winner yet and team1_id !== loser (already partially updated)
+        const r2CandidatesForField = winnersBracketAll.filter(m => m.round_number === 2 && m.field_number === thisFieldNum);
+        const r2Match =
+          r2CandidatesForField.find(m => m.team1_id === m.team2_id) ||  // pure sentinel
+          r2CandidatesForField.find(m => !m.winner_id && m.team1_id !== loserId && m.team2_id !== winnerId) || // not yet assigned
+          r2CandidatesForField.find(m => !m.winner_id && m.team1_id !== loserId); // fallback: any unplayed with correct seed
 
         if (!r2Match) {
-          console.error(`[DE Station] CRITICAL: No R2 match for field_number=${thisFieldNum}.`);
+          console.error(`[DE Station] CRITICAL: No R2 sentinel found for field_number=${thisFieldNum}.`);
           return;
         }
 
-        // Protect TOP slot (BYE seed)
+        // Protect TOP slot (BYE seed) — never overwrite team1
         if (r2Match.team1_id === winnerId) {
           console.warn(`[DE Station] BLOCKED: winner is already the BYE seed in R2[fn=${thisFieldNum}].`);
           return;
@@ -823,10 +831,12 @@ const RefereeStation = () => {
             .update({ team2_id: winnerId })
             .eq("id", r2Match.id);
           if (!updateErr) {
-            console.log(`[DE Station] R1[fn=${thisFieldNum}] winner → R2[fn=${thisFieldNum}] team2 ✓`);
+            console.log(`[DE Station] R1[fn=${thisFieldNum}] winner → R2[fn=${thisFieldNum}] team2 slot ✓ (sentinel id=${r2Match.id})`);
           } else {
             console.error("[DE Station] DB update error:", updateErr);
           }
+        } else {
+          console.log(`[DE Station] R1[fn=${thisFieldNum}] sentinel already updated — skipping.`);
         }
         // Prelim losers are eliminated — no Losers Bracket entry
         return;
