@@ -636,7 +636,7 @@ export const EliminationBracket = ({
     setGenerating(true);
     try {
       // Get qualified teams according to ranking
-      const { data: standings, error: standingsError } = await supabase
+      const { data: standingsRaw, error: standingsError } = await supabase
         .from("team_stats")
         .select(`
           *,
@@ -649,9 +649,40 @@ export const EliminationBracket = ({
 
       if (standingsError) throw standingsError;
 
+      let standings = standingsRaw;
+
+      // Fallback: if no standings (tournament starts directly in elimination),
+      // use tournament_teams ordered alphabetically as seeds
       if (!standings || standings.length < teamsCount) {
-        toast.error(`Pas assez d'équipes qualifiées (${standings?.length || 0}/${teamsCount})`);
-        return;
+        const { data: ttData, error: ttError } = await supabase
+          .from("tournament_teams")
+          .select("team_id, team:team_id(id, name)")
+          .eq("tournament_id", tournamentId)
+          .order("created_at", { ascending: true })
+          .limit(teamsCount);
+
+        if (ttError) throw ttError;
+
+        if (!ttData || ttData.length < teamsCount) {
+          toast.error(`Pas assez d'équipes (${ttData?.length || 0}/${teamsCount})`);
+          return;
+        }
+
+        // Shape data to match standings format
+        standings = ttData.map((tt: any) => ({
+          id: tt.team_id,
+          team_id: tt.team_id,
+          tournament_id: tournamentId,
+          tournament_team_id: null,
+          updated_at: '',
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          team: tt.team,
+          points: 0,
+          goals_for: 0,
+          goals_against: 0,
+        })) as any;
       }
 
       const { bracketSize, numPreliminaryMatches, numByes } = computeBracketParams(teamsCount);
