@@ -51,6 +51,7 @@ const Tournament = () => {
   const [clearStationsDialogOpen, setClearStationsDialogOpen] = useState(false);
   const [bracketResetDialogOpen, setBracketResetDialogOpen] = useState(false);
   const [bracketResetTrigger, setBracketResetTrigger] = useState(0);
+  const [bracketGenerateTrigger, setBracketGenerateTrigger] = useState(0);
   
   const activeTab = searchParams.get("tab") || "teams";
   const activeSubTab = searchParams.get("subtab") || "manage-teams";
