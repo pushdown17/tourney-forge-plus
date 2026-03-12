@@ -343,19 +343,27 @@ const Tournament = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 animate-scale-in">
           <div className="overflow-x-auto -mx-4 px-4">
-            <TabsList className={`inline-flex w-auto min-w-full md:grid md:w-full h-auto p-1 bg-muted/50 ${tournament.elimination_type ? 'md:grid-cols-6' : 'md:grid-cols-5'}`}>
+          {/* Determine if the tournament has a preliminary phase (round robin or swiss) */}
+          {(() => {
+            const hasPrePhase = tournament.initial_phase === "round_robin" || tournament.initial_phase === "swiss" || (!tournament.initial_phase && tournament.current_phase !== "single_elimination" && tournament.current_phase !== "double_elimination");
+            const colCount = (hasPrePhase ? 1 : 0) + (tournament.elimination_type ? 1 : 0) + 4; // teams + matches? + elim? + standings + stats + history
+            const gridColsClass = colCount === 6 ? 'md:grid-cols-6' : colCount === 5 ? 'md:grid-cols-5' : 'md:grid-cols-4';
+            return (
+            <TabsList className={`inline-flex w-auto min-w-full md:grid md:w-full h-auto p-1 bg-muted/50 ${gridColsClass}`}>
               <TabsTrigger 
                 value="teams" 
                 className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
               >
                 Teams
               </TabsTrigger>
-              <TabsTrigger 
-                value="matches" 
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
-              >
-                {tournament.initial_phase === "swiss" ? "Swiss" : "Round Robin"}
-              </TabsTrigger>
+              {hasPrePhase && (
+                <TabsTrigger 
+                  value="matches" 
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-4 py-2.5 text-sm md:text-base"
+                >
+                  {tournament.initial_phase === "swiss" ? "Swiss" : "Round Robin"}
+                </TabsTrigger>
+              )}
               {tournament.elimination_type && (
                 <TabsTrigger 
                   value="elimination" 
@@ -383,6 +391,8 @@ const Tournament = () => {
                 History
               </TabsTrigger>
             </TabsList>
+            );
+          })()}
           </div>
 
           <TabsContent value="teams" className="animate-fade-in">
