@@ -1538,29 +1538,32 @@ export const EliminationBracket = ({
         for (let i = 0; i < expectedMatches; i++) {
           const existingMatch = r1BySlot.get(i);
           if (existingMatch) {
-            roundMatches.push(existingMatch);
+            // Detect "waiting" match: team1_id === team2_id (placeholder, awaiting prelim winner)
+            const isWaiting = existingMatch.team1_id === existingMatch.team2_id && !existingMatch.winner_id;
+            if (isWaiting) {
+              // Show direct seed as team1, TBD as team2
+              roundMatches.push({
+                ...existingMatch,
+                team2: null,
+                team2_id: "",
+                isPlaceholder: false, // It's a real match record, just waiting for opponent
+              });
+            } else {
+              roundMatches.push(existingMatch);
+            }
           } else {
-            // Determine which seeds belong in this slot
-            const seed1 = seeding[i * 2];     // team1 seed
-            const seed2 = seeding[i * 2 + 1]; // team2 seed
-
-            // The directly qualified team is the one with seed <= numDirectlyQualified
+            // Fallback: no DB match found — create a visual placeholder
+            const seed1 = seeding[i * 2];
+            const seed2 = seeding[i * 2 + 1];
             const directSeed = seed1 <= numDirectlyQualified ? seed1 : (seed2 <= numDirectlyQualified ? seed2 : null);
-
             const directTeam = directSeed ? seedToTeam.get(directSeed) || null : null;
-
-            // Try to find winner from feeder prelim match
             const feederPrelim = structure.length > 0 ? structure[0][i] : null;
             const prelimWinner = feederPrelim && !feederPrelim.isSpacer && feederPrelim.winner_id
               ? (feederPrelim.winner_id === feederPrelim.team1_id ? feederPrelim.team1 : feederPrelim.team2)
               : null;
-
-            // Place directly qualified team as team1, prelim winner/TBD as team2
-            // (following seeding order: lower seed = team1)
             const isDirectSeedTeam1 = seed1 <= numDirectlyQualified;
             const team1 = isDirectSeedTeam1 ? directTeam : prelimWinner;
             const team2 = isDirectSeedTeam1 ? prelimWinner : directTeam;
-
             roundMatches.push({
               id: `placeholder-${round}-${i}`,
               round_number: round,
