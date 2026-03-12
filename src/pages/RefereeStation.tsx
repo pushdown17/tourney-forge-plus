@@ -877,11 +877,15 @@ const RefereeStation = () => {
 
       } else if (roundNumber === 2 && byeCount > 0) {
         // ── HYBRID: W-QF (R2) loser enters L-R1 ──
-        // These are the first teams to enter the Losers Bracket (prelim losers are eliminated)
-        const allQFSorted = winnersBracket.filter(m => m.round_number === 2).sort(sortFn);
-        const myPosInR = allQFSorted.findIndex(m => m.id === completedMatch.id);
+        // CRITICAL: use winnersBracketAll (includes sentinels) for position counting
+        // so that fn=1..4 positions are 0,1,2,3 even when sentinels are present.
+        // Pairs: (fn=1,fn=2) → SF1, (fn=3,fn=4) → SF2
+        const allQFSortedAll = winnersBracketAll.filter(m => m.round_number === 2).sort(sortFn);
+        const myPosInR = allQFSortedAll.findIndex(m => m.id === completedMatch.id);
         const partnerPos = myPosInR % 2 === 0 ? myPosInR + 1 : myPosInR - 1;
-        const partnerMatch = allQFSorted[partnerPos];
+        const partnerMatchRaw = allQFSortedAll[partnerPos];
+        // Resolve sentinel: if partner has team1===team2, it's a BYE → treat its winner as team1 (the seed)
+        const partnerMatch = partnerMatchRaw;
 
         // Winners advancement to R3 (Semi-Finals)
         if (partnerMatch?.winner_id) {

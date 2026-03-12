@@ -242,15 +242,12 @@ export const DoubleEliminationBracket = ({
           }
         }
       })
-      .on('broadcast', { event: 'de_match_completed' }, (payload) => {
-        // Triggered by the referee station after validating a double_elimination match
-        // → trigger bracket progression in real-time without waiting for INSERT postgres_changes
-        const { matchId, winnerId, loserId } = payload.payload;
-        if (!matchId || !winnerId || !loserId) return;
-        const completedMatch = matchesRef.current.find(m => m.id === matchId);
-        if (completedMatch) {
-          handleChallongeProgression(completedMatch, winnerId, loserId);
-        }
+      .on('broadcast', { event: 'de_match_completed' }, (_payload) => {
+        // Triggered by the referee station after validating a double_elimination match.
+        // The station already handles ALL bracket progression (DB writes).
+        // Here we ONLY refresh local state for UI update.
+        // DO NOT call handleChallongeProgression — it would create duplicate matches.
+        fetchTournamentAndMatches();
       })
       .subscribe();
 
@@ -1148,7 +1145,9 @@ export const DoubleEliminationBracket = ({
         } else if (roundNumber === 2 && byeCount > 0) {
           // ── BYE/hybrid W-QF: loser enters L-R1 (minor round) ──
           // These 4 QF losers are the first teams to enter the Losers Bracket
-          const allQFSorted = winnersBracket.filter(m => m.round_number === 2).sort(sortFn);
+          // CRITICAL: use winnersBracketAll (includes sentinels) so positions are 0,1,2,3
+          // across all 4 QF slots, not just 0,1 for the non-sentinel ones.
+          const allQFSorted = winnersBracketAll.filter(m => m.round_number === 2).sort(sortFn);
           const myPosInR = allQFSorted.findIndex(m => m.id === completedMatch.id);
           const partnerPos = myPosInR % 2 === 0 ? myPosInR + 1 : myPosInR - 1;
           const partnerMatch = allQFSorted[partnerPos];
