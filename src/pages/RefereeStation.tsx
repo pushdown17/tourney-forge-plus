@@ -56,6 +56,8 @@ interface Match {
   team2_score: number | null;
   phase: string;
   round_number: number;
+  winner_id?: string | null;
+  field_number?: number | null;
 }
 
 const RefereeStation = () => {
