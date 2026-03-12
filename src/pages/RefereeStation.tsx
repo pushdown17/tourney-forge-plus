@@ -1027,108 +1027,37 @@ const RefereeStation = () => {
 
           const matchesToCreate: any[] = [];
 
-          // SPECIAL HANDLING: Preliminary round (round 0) → use seeding logic
+          // SPECIAL HANDLING: Preliminary round (round 0)
+          // The bracket was generated with "waiting" placeholder QF matches (team1_id === team2_id).
+          // When a prelim completes, we UPDATE the waiting match's team2_id with the prelim winner.
+          // We never INSERT new QF matches from the station — the bracket component owns that logic.
           if (match.round_number === 0) {
-            // All prelim matches must be complete before creating QF matches
-            const allPrelimsComplete = roundMatches.every(m => m.winner_id);
-            if (!allPrelimsComplete) {
-              console.log('Not all preliminary matches complete yet, skipping QF generation');
+            const prelimWinnerId = match.winner_id;
+            if (!prelimWinnerId) {
+              console.log('Station: No winner for prelim match, skipping QF update');
             } else {
-              // Get tournament info for teams_for_elimination
-              const { data: tournamentInfo } = await supabase
-                .from("tournaments")
-                .select("teams_for_elimination, number_of_fields")
-                .eq("id", station.tournament_id)
-                .single();
+              // Find the "waiting" placeholder QF match for this prelim's field_number
+              const waitingQF = existingNextRound?.find((m: any) =>
+                m.field_number === match.field_number &&
+                m.team1_id === m.team2_id &&
+                !m.winner_id
+              );
 
-              const teamsCount = tournamentInfo?.teams_for_elimination || 8;
-              const numFields = tournamentInfo?.number_of_fields || 1;
-
-              // Compute bracket size (next power of 2 >= prelim matches * 2 ... actually just compute properly)
-              const bracketSize = Math.pow(2, Math.ceil(Math.log2(teamsCount)));
-              const numPreliminaryMatches = teamsCount - bracketSize / 2;
-              // bracketSize/2 because that's how many QF slots exist (= bracketSize when bracketSize is used as total bracket)
-              // Actually: bracketSize = nearest power of 2 that accommodates all teams
-              // numPreliminaryMatches = teamsCount - bracketSize (where bracketSize is next lower power of 2)
-              // Let me recalculate:
-              const lowerPow2 = Math.pow(2, Math.floor(Math.log2(teamsCount)));
-              const actualBracketSize = teamsCount <= lowerPow2 ? lowerPow2 : lowerPow2; // bracketSize for R1
-              const actualPrelimCount = teamsCount - lowerPow2;
-
-              // Get standings for seed mapping
-              const { data: standings } = await supabase
-                .from("team_stats")
-                .select("team_id")
-                .eq("tournament_id", station.tournament_id)
-                .order("points", { ascending: false })
-                .order("goals_for", { ascending: false })
-                .limit(teamsCount);
-
-              if (standings) {
-                // Build seed → team_id map
-                const seedToTeam = new Map<number, string>();
-
-                // Direct seeds (teams not in any prelim match)
-                for (let s = 0; s < standings.length; s++) {
-                  const playedPrelim = roundMatches.some(m =>
-                    m.team1_id === standings[s].team_id || m.team2_id === standings[s].team_id
-                  );
-                  if (!playedPrelim) {
-                    seedToTeam.set(s + 1, standings[s].team_id);
-                  }
+              if (waitingQF) {
+                const { error: updateError } = await supabase
+                  .from("matches")
+                  .update({ team2_id: prelimWinnerId })
+                  .eq("id", waitingQF.id);
+                if (updateError) {
+                  console.error(`Station: Failed to update QF waiting match:`, updateError);
+                } else {
+                  console.log(`Station: Updated QF waiting match field_number=${match.field_number} with prelim winner ${prelimWinnerId}`);
                 }
-
-                // Prelim winners take the higher seed's slot
-                for (const pm of roundMatches) {
-                  if (!pm.winner_id) continue;
-                  const idx1 = standings.findIndex(s => s.team_id === pm.team1_id);
-                  const idx2 = standings.findIndex(s => s.team_id === pm.team2_id);
-                  const highSeed = Math.min(idx1, idx2) + 1;
-                  seedToTeam.set(highSeed, pm.winner_id);
-                }
-
-                // Standard seeding order
-                const getStandardSeeding = (size: number): number[] => {
-                  if (size === 1) return [1];
-                  const prev = getStandardSeeding(size / 2);
-                  const result: number[] = [];
-                  for (const seed of prev) {
-                    result.push(seed, size + 1 - seed);
-                  }
-                  return result;
-                };
-
-                const seeding = getStandardSeeding(lowerPow2);
-                let qfFieldNumber = actualPrelimCount + 1; // Continue field numbering after prelim matches
-                for (let i = 0; i < seeding.length; i += 2) {
-                  const s1 = seeding[i];
-                  const s2 = seeding[i + 1];
-                  const team1Id = seedToTeam.get(s1);
-                  const team2Id = seedToTeam.get(s2);
-
-                  if (!team1Id || !team2Id) continue;
-
-                  const exists = existingNextRound?.some(m =>
-                    (m.team1_id === team1Id && m.team2_id === team2Id) ||
-                    (m.team1_id === team2Id && m.team2_id === team1Id)
-                  );
-
-                  if (!exists) {
-                    matchesToCreate.push({
-                      tournament_id: station.tournament_id,
-                      phase: currentPhase,
-                      round_number: 1,
-                      team1_id: team1Id,
-                      team2_id: team2Id,
-                      is_third_place_match: false,
-                      field_number: qfFieldNumber,
-                    });
-                    console.log(`R1 from station: Seed #${s1} vs Seed #${s2}, field_number=${qfFieldNumber}`);
-                    qfFieldNumber++;
-                  }
-                }
+              } else {
+                console.log(`Station: No waiting QF match found for field_number=${match.field_number} (already updated or no placeholder)`);
               }
             }
+            // For round 0, we never push to matchesToCreate — fall through without INSERT
           } else {
             // Standard progression for R1 and beyond: pair consecutive matches
             for (let i = 0; i < roundMatches.length; i += 2) {
