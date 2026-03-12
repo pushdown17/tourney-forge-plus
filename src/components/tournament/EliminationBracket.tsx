@@ -136,11 +136,20 @@ export const EliminationBracket = ({
     thirdPlace: any;
   } | null>(null);
   const thirdPlaceDecisionMadeRef = useRef(false);
+  const prevResetTrigger = useRef(resetTrigger);
 
   useEffect(() => {
     fetchTournamentAndMatches(true);
     fetchActiveTimers();
   }, [tournamentId]);
+
+  // Reset bracket when triggered from parent (settings gear)
+  useEffect(() => {
+    if (resetTrigger > 0 && resetTrigger !== prevResetTrigger.current) {
+      prevResetTrigger.current = resetTrigger;
+      handleResetBracket();
+    }
+  }, [resetTrigger]);
 
   // Generate bracket when triggered from parent (settings gear)
   useEffect(() => {
@@ -614,6 +623,33 @@ export const EliminationBracket = ({
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetBracket = async () => {
+    setGenerating(true);
+    try {
+      const { error } = await supabase
+        .from("matches")
+        .delete()
+        .eq("tournament_id", tournamentId)
+        .eq("phase", currentPhase);
+      if (error) throw error;
+      setMatches([]);
+      toast.success("Bracket réinitialisé! Régénération en cours...");
+      const { data: tournamentData } = await supabase
+        .from("tournaments")
+        .select("teams_for_elimination")
+        .eq("id", tournamentId)
+        .single();
+      if (tournamentData?.teams_for_elimination) {
+        await generateBracket(tournamentData.teams_for_elimination);
+      }
+    } catch (error: any) {
+      toast.error("Erreur lors de la réinitialisation");
+      console.error(error);
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -1463,22 +1499,22 @@ export const EliminationBracket = ({
       const roundMatches: any[] = [];
 
       if (round === 1 && hasPreliminary) {
-        // Sort R1 matches by field_number then created_at for stable ordering
-        const sortedR1 = [...roundMatchesSorted].sort((a, b) => {
-          const fn1 = a.field_number || 0;
-          const fn2 = b.field_number || 0;
-          if (fn1 !== fn2) return fn1 - fn2;
-          if ((a.created_at || '') !== (b.created_at || '')) return (a.created_at || '').localeCompare(b.created_at || '');
-          return a.id.localeCompare(b.id);
-        });
+        // Build a slot map: field_number-1 → match (field_number encodes the seeding slot position)
+        const r1BySlot = new Map<number, any>();
+        for (const m of roundMatchesSorted) {
+          if (m.field_number != null) {
+            r1BySlot.set(m.field_number - 1, m);
+          }
+        }
 
         // Use seeding to show directly qualified teams in QF placeholders
         const seeding = getStandardSeeding(bracketSize);
         const numDirectlyQualified = bracketSize - numPreliminaryMatches;
 
         for (let i = 0; i < expectedMatches; i++) {
-          if (i < sortedR1.length) {
-            roundMatches.push(sortedR1[i]);
+          const existingMatch = r1BySlot.get(i);
+          if (existingMatch) {
+            roundMatches.push(existingMatch);
           } else {
             // Determine which seeds belong in this slot
             const seed1 = seeding[i * 2];     // team1 seed
@@ -1486,7 +1522,6 @@ export const EliminationBracket = ({
 
             // The directly qualified team is the one with seed <= numDirectlyQualified
             const directSeed = seed1 <= numDirectlyQualified ? seed1 : (seed2 <= numDirectlyQualified ? seed2 : null);
-            const prelimSeed = seed1 <= numDirectlyQualified ? seed2 : seed1;
 
             const directTeam = directSeed ? seedToTeam.get(directSeed) || null : null;
 
