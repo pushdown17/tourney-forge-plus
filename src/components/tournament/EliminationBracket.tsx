@@ -626,6 +626,33 @@ export const EliminationBracket = ({
     }
   };
 
+  const handleResetBracket = async () => {
+    setGenerating(true);
+    try {
+      const { error } = await supabase
+        .from("matches")
+        .delete()
+        .eq("tournament_id", tournamentId)
+        .eq("phase", currentPhase);
+      if (error) throw error;
+      setMatches([]);
+      toast.success("Bracket réinitialisé! Régénération en cours...");
+      const { data: tournamentData } = await supabase
+        .from("tournaments")
+        .select("teams_for_elimination")
+        .eq("id", tournamentId)
+        .single();
+      if (tournamentData?.teams_for_elimination) {
+        await generateBracket(tournamentData.teams_for_elimination);
+      }
+    } catch (error: any) {
+      toast.error("Erreur lors de la réinitialisation");
+      console.error(error);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   // Helper: compute bracket parameters for any team count
   const computeBracketParams = (teamsCount: number) => {
     if (teamsCount <= 1) return { bracketSize: 2, numPreliminaryMatches: 0, numByes: 2 - teamsCount };
