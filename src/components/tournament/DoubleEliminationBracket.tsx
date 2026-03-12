@@ -1148,7 +1148,9 @@ export const DoubleEliminationBracket = ({
         } else if (roundNumber === 2 && byeCount > 0) {
           // ── BYE/hybrid W-QF: loser enters L-R1 (minor round) ──
           // These 4 QF losers are the first teams to enter the Losers Bracket
-          const allQFSorted = winnersBracket.filter(m => m.round_number === 2).sort(sortFn);
+          // CRITICAL: use winnersBracketAll (includes sentinels) so positions are 0,1,2,3
+          // across all 4 QF slots, not just 0,1 for the non-sentinel ones.
+          const allQFSorted = winnersBracketAll.filter(m => m.round_number === 2).sort(sortFn);
           const myPosInR = allQFSorted.findIndex(m => m.id === completedMatch.id);
           const partnerPos = myPosInR % 2 === 0 ? myPosInR + 1 : myPosInR - 1;
           const partnerMatch = allQFSorted[partnerPos];
