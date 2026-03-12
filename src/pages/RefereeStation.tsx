@@ -1131,7 +1131,9 @@ const RefereeStation = () => {
     let skipAutoAdvance = false;
 
     // For elimination phases, generate next round matches if needed
-    if (currentPhase === 'single_elimination' || currentPhase === 'double_elimination') {
+    // NOTE: double_elimination progression is fully handled by handleDoubleEliminationProgression above.
+    //       Only run the generic pairing logic for single_elimination.
+    if (currentPhase === 'single_elimination') {
       try {
         // Get all matches from the completed match's round
         const { data: roundMatches } = await supabase
