@@ -430,6 +430,7 @@ const Tournament = () => {
                 isClosed={tournament.is_closed}
                 isCreator={isCreator}
                 resetTrigger={bracketResetTrigger}
+                generateTrigger={bracketGenerateTrigger}
               />
             </TabsContent>
           )}
