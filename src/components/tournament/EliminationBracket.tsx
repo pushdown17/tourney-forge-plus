@@ -1137,99 +1137,86 @@ export const EliminationBracket = ({
       const matchesToCreate: any[] = [];
 
       // SPECIAL: Preliminary round (round 0) completed
+      // Strategy: QF "waiting" matches were already created at generation time with
+      // team1 = directSeed, team2 = directSeed (placeholder same-id).
+      // Now we UPDATE each waiting match's team2_id (or team1_id) with the prelim winner,
+      // keyed by field_number (prelim field_number = QF field_number).
       if (completedRound === 0) {
-        // Get preliminary winners
+        // Process each completed prelim individually — don't wait for all to finish
         const completedPrelims = roundMatches.filter(m => m.winner_id);
-        if (completedPrelims.length !== roundMatches.length) {
-          console.log('Not all preliminary matches complete yet');
-          return;
-        }
+        if (completedPrelims.length === 0) return;
 
-        // Get standings to find seeds
+        // Get standings to find seed numbers
         const { data: standingsRaw, error: standingsError } = await supabase
           .from("team_stats")
-          .select("team_id, points, goals_for, goals_against, team:team_id(id, name)")
+          .select("team_id, points, goals_for, goals_against")
           .eq("tournament_id", tournamentId);
 
         if (standingsError) throw standingsError;
         if (!standingsRaw) return;
 
-        // Sort consistently with StandingsTable: points > goal diff > goals_for
         const standings = [...standingsRaw].sort((a: any, b: any) => {
           if (b.points !== a.points) return b.points - a.points;
           const diffA = a.goals_for - a.goals_against;
           const diffB = b.goals_for - b.goals_against;
           if (diffB !== diffA) return diffB - diffA;
-          return b.goals_for - a.goals_for;
+          if (b.goals_for !== a.goals_for) return b.goals_for - a.goals_for;
+          return a.team_id.localeCompare(b.team_id);
         }).slice(0, teamsCount);
 
-        if (standingsError) throw standingsError;
-        if (!standings) return;
-
-        // Build map: seed position → team_id
-        // Prelim winners take the slot of the higher-seeded team in their match
-        const seedToTeam = new Map<number, string>();
-
-        // Direct seeds (teams not in any prelim match)
-        for (let s = 0; s < standings.length; s++) {
-          const playedPrelim = roundMatches.some(m =>
-            m.team1_id === standings[s].team_id || m.team2_id === standings[s].team_id
-          );
-          if (!playedPrelim) {
-            seedToTeam.set(s + 1, standings[s].team_id);
-          }
-        }
-
-        // Prelim winners take the high seed's slot
-        for (const pm of completedPrelims) {
-          const idx1 = standings.findIndex(s => s.team_id === pm.team1_id);
-          const idx2 = standings.findIndex(s => s.team_id === pm.team2_id);
-          const highSeed = Math.min(idx1, idx2) + 1;
-          seedToTeam.set(highSeed, pm.winner_id!);
-        }
-
-        // Use standard seeding to create R1 matches
-        // field_number = pair slot index + 1 (position in full seeding), so visual ordering is correct.
         const seeding = getStandardSeeding(bracketSize);
-        for (let i = 0; i < seeding.length; i += 2) {
-          const s1 = seeding[i];
-          const s2 = seeding[i + 1];
-          const pairSlot = i / 2; // 0-based QF slot position
-          const team1Id = seedToTeam.get(s1);
-          const team2Id = seedToTeam.get(s2);
 
-          if (!team1Id || !team2Id) continue;
-
-          const exists = existingNextRoundMatches?.some(m =>
-            (m.team1_id === team1Id && m.team2_id === team2Id) ||
-            (m.team1_id === team2Id && m.team2_id === team1Id)
+        for (const pm of completedPrelims) {
+          // The QF match for this prelim has the same field_number
+          const qfMatch = existingNextRoundMatches?.find(m =>
+            m.field_number === pm.field_number && !m.is_third_place_match
           );
-
-          if (!exists) {
-            const fieldNum = pairSlot + 1;
-            matchesToCreate.push({
-              tournament_id: tournamentId,
-              phase: currentPhase as any,
-              round_number: 1,
-              team1_id: team1Id,
-              team2_id: team2Id,
-              is_third_place_match: false,
-              field_number: fieldNum,
-            });
-            console.log(`R1: Seed #${s1} vs Seed #${s2}, field_number=${fieldNum} (slot ${pairSlot})`);
+          if (!qfMatch) {
+            console.warn(`No QF match found for prelim field_number=${pm.field_number}`);
+            continue;
           }
-        }
 
-        if (matchesToCreate.length > 0) {
-          const { error: insertError } = await supabase
+          // Determine which slot is the "waiting" slot (team1 === team2 = placeholder)
+          // In generation: waiting = team1_id === team2_id (same team = placeholder)
+          const isWaitingSlot = qfMatch.team1_id === qfMatch.team2_id;
+          if (!isWaitingSlot) {
+            console.log(`QF match ${qfMatch.id} already fully populated, skipping`);
+            continue;
+          }
+
+          // Determine if the prelim winner goes to team1 or team2 based on seeding
+          const pairSlot = (pm.field_number || 1) - 1;
+          const s1 = seeding[pairSlot * 2];
+          const s2 = seeding[pairSlot * 2 + 1];
+          const s1Seed = standings.findIndex(s => s.team_id === qfMatch.team1_id) + 1;
+          
+          // The direct seed occupies team1; prelim winner goes to team2
+          // (generated as: team1=directSeed, team2=directSeed placeholder)
+          const updateData: any = { team2_id: pm.winner_id };
+          
+          // Special case: if direct seed is s2 (lower in pair), winner goes to team1
+          const directSeedInSlot = qfMatch.team1_id;
+          const directSeedPosition = standings.findIndex(s => s.team_id === directSeedInSlot) + 1;
+          const isDirectSeedS2 = directSeedPosition === s2;
+          if (isDirectSeedS2) {
+            updateData.team1_id = pm.winner_id;
+            updateData.team2_id = qfMatch.team1_id; // move direct seed to team2
+          }
+
+          const { error: updateError } = await supabase
             .from("matches")
-            .insert(matchesToCreate);
+            .update(updateData)
+            .eq("id", qfMatch.id);
 
-          if (insertError) throw insertError;
+          if (updateError) {
+            console.error(`Failed to update QF match ${qfMatch.id}:`, updateError);
+            throw updateError;
+          }
 
-          toast.success(`${matchesToCreate.length} match(s) de R1 créés !`);
-          await fetchTournamentAndMatches();
+          console.log(`Updated QF match field_number=${pm.field_number}: prelim winner ${pm.winner_id} inserted`);
         }
+
+        await fetchTournamentAndMatches();
         return;
       }
 
