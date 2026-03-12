@@ -1034,9 +1034,11 @@ const RefereeStation = () => {
           // When a prelim completes, we UPDATE the waiting match's team2_id with the prelim winner.
           // We never INSERT new QF matches from the station — the bracket component owns that logic.
           if (match.round_number === 0) {
-            const prelimWinnerId = match.winner_id;
+            // Use the winner_id from the freshly-fetched roundMatches (set by saveStats above)
+            const completedMatchData = roundMatches?.find((m: any) => m.id === match.id);
+            const prelimWinnerId = completedMatchData?.winner_id;
             if (!prelimWinnerId) {
-              console.log('Station: No winner for prelim match, skipping QF update');
+              console.log('Station: No winner for prelim match in roundMatches, skipping QF update');
             } else {
               // Find the "waiting" placeholder QF match for this prelim's field_number
               const waitingQF = existingNextRound?.find((m: any) =>
