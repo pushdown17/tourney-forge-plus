@@ -260,7 +260,9 @@ const Tournament = () => {
                     <Users className="h-4 w-4 text-primary" />
                     <span className="font-medium">
                       Phase: {tournament.current_phase === "round_robin" ? "Round Robin" : 
-                              tournament.current_phase === "swiss" ? "Swiss Round" : "Elimination"}
+                              tournament.current_phase === "swiss" ? "Swiss Round" :
+                              tournament.current_phase === "single_elimination" ? "Single Elimination" :
+                              tournament.current_phase === "double_elimination" ? "Double Elimination" : "Elimination"}
                     </span>
                   </div>
                 </div>
