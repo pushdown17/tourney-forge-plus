@@ -142,6 +142,15 @@ export const EliminationBracket = ({
     fetchActiveTimers();
   }, [tournamentId]);
 
+  // Generate bracket when triggered from parent (settings gear)
+  useEffect(() => {
+    if (generateTrigger > 0) {
+      fetchTournamentAndMatches(false).then(() => {
+        // generateBracket is called automatically in fetchTournamentAndMatches when matches.length === 0
+      });
+    }
+  }, [generateTrigger]);
+
   // Fetch active timers from referee stations
   const fetchActiveTimers = async () => {
     const { data: stations, error } = await supabase
