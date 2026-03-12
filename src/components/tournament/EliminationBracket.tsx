@@ -52,6 +52,7 @@ interface EliminationBracketProps {
   isClosed?: boolean;
   isCreator?: boolean;
   resetTrigger?: number;
+  generateTrigger?: number;
 }
 
 export const EliminationBracket = ({ 
@@ -61,7 +62,8 @@ export const EliminationBracket = ({
   onPhaseChanged,
   isClosed = false,
   isCreator = false,
-  resetTrigger = 0
+  resetTrigger = 0,
+  generateTrigger = 0
 }: EliminationBracketProps) => {
   // If double elimination, use dedicated component
   if (eliminationType === "double" || currentPhase === "double_elimination") {
