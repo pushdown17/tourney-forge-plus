@@ -1167,53 +1167,53 @@ export const EliminationBracket = ({
         const seeding = getStandardSeeding(bracketSize);
 
         for (const pm of completedPrelims) {
-          // The QF match for this prelim has the same field_number
-          const qfMatch = existingNextRoundMatches?.find(m =>
-            m.field_number === pm.field_number && !m.is_third_place_match
-          );
-          if (!qfMatch) {
-            console.warn(`No QF match found for prelim field_number=${pm.field_number}`);
-            continue;
-          }
-
-          // Determine which slot is the "waiting" slot (team1 === team2 = placeholder)
-          // In generation: waiting = team1_id === team2_id (same team = placeholder)
-          const isWaitingSlot = qfMatch.team1_id === qfMatch.team2_id;
-          if (!isWaitingSlot) {
-            console.log(`QF match ${qfMatch.id} already fully populated, skipping`);
-            continue;
-          }
-
-          // Determine if the prelim winner goes to team1 or team2 based on seeding
           const pairSlot = (pm.field_number || 1) - 1;
           const s1 = seeding[pairSlot * 2];
           const s2 = seeding[pairSlot * 2 + 1];
-          const s1Seed = standings.findIndex(s => s.team_id === qfMatch.team1_id) + 1;
-          
-          // The direct seed occupies team1; prelim winner goes to team2
-          // (generated as: team1=directSeed, team2=directSeed placeholder)
-          const updateData: any = { team2_id: pm.winner_id };
-          
-          // Special case: if direct seed is s2 (lower in pair), winner goes to team1
-          const directSeedInSlot = qfMatch.team1_id;
-          const directSeedPosition = standings.findIndex(s => s.team_id === directSeedInSlot) + 1;
-          const isDirectSeedS2 = directSeedPosition === s2;
-          if (isDirectSeedS2) {
-            updateData.team1_id = pm.winner_id;
-            updateData.team2_id = qfMatch.team1_id; // move direct seed to team2
+
+          // Find all QF matches for this field_number slot
+          const qfMatchesForSlot = (existingNextRoundMatches || []).filter(m =>
+            m.field_number === pm.field_number && !m.is_third_place_match
+          );
+
+          // Prefer the "waiting" match (team1_id === team2_id placeholder)
+          const waitingMatch = qfMatchesForSlot.find(m => m.team1_id === m.team2_id && !m.winner_id);
+          const alreadyUpdated = qfMatchesForSlot.find(m => m.team1_id !== m.team2_id && !m.winner_id);
+
+          if (alreadyUpdated) {
+            // Check if this specific prelim winner is already in the match
+            if (alreadyUpdated.team1_id === pm.winner_id || alreadyUpdated.team2_id === pm.winner_id) {
+              console.log(`QF field_number=${pm.field_number} already has winner ${pm.winner_id}, skipping`);
+              continue;
+            }
           }
+
+          if (!waitingMatch) {
+            // If no waiting placeholder, check if the winner already appears in a completed QF
+            const completedQF = qfMatchesForSlot.find(m => m.winner_id);
+            if (completedQF) {
+              console.log(`QF field_number=${pm.field_number} already completed, skipping`);
+              continue;
+            }
+            console.warn(`No waiting QF match found for prelim field_number=${pm.field_number}`);
+            continue;
+          }
+
+          // The direct seed occupies team1 (generated as team1=directSeed, team2=directSeed placeholder)
+          // Prelim winner always goes to team2 slot
+          const updateData: any = { team2_id: pm.winner_id };
 
           const { error: updateError } = await supabase
             .from("matches")
             .update(updateData)
-            .eq("id", qfMatch.id);
+            .eq("id", waitingMatch.id);
 
           if (updateError) {
-            console.error(`Failed to update QF match ${qfMatch.id}:`, updateError);
+            console.error(`Failed to update QF match ${waitingMatch.id}:`, updateError);
             throw updateError;
           }
 
-          console.log(`Updated QF match field_number=${pm.field_number}: prelim winner ${pm.winner_id} inserted`);
+          console.log(`Updated QF match field_number=${pm.field_number}: prelim winner ${pm.winner_id} inserted (id=${waitingMatch.id})`);
         }
 
         await fetchTournamentAndMatches();
