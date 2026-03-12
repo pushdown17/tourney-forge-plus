@@ -136,11 +136,20 @@ export const EliminationBracket = ({
     thirdPlace: any;
   } | null>(null);
   const thirdPlaceDecisionMadeRef = useRef(false);
+  const prevResetTrigger = useRef(resetTrigger);
 
   useEffect(() => {
     fetchTournamentAndMatches(true);
     fetchActiveTimers();
   }, [tournamentId]);
+
+  // Reset bracket when triggered from parent (settings gear)
+  useEffect(() => {
+    if (resetTrigger > 0 && resetTrigger !== prevResetTrigger.current) {
+      prevResetTrigger.current = resetTrigger;
+      handleResetBracket();
+    }
+  }, [resetTrigger]);
 
   // Generate bracket when triggered from parent (settings gear)
   useEffect(() => {
