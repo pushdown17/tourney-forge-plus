@@ -1116,11 +1116,12 @@ export const EliminationBracket = ({
         }
 
         // Use standard seeding to create R1 matches
+        // field_number = pair slot index + 1 (position in full seeding), so visual ordering is correct.
         const seeding = getStandardSeeding(bracketSize);
-        let qfMatchIndex = 0;
         for (let i = 0; i < seeding.length; i += 2) {
           const s1 = seeding[i];
           const s2 = seeding[i + 1];
+          const pairSlot = i / 2; // 0-based QF slot position
           const team1Id = seedToTeam.get(s1);
           const team2Id = seedToTeam.get(s2);
 
@@ -1132,7 +1133,7 @@ export const EliminationBracket = ({
           );
 
           if (!exists) {
-            const fieldNum = qfMatchIndex + 1;
+            const fieldNum = pairSlot + 1;
             matchesToCreate.push({
               tournament_id: tournamentId,
               phase: currentPhase as any,
@@ -1142,8 +1143,7 @@ export const EliminationBracket = ({
               is_third_place_match: false,
               field_number: fieldNum,
             });
-            console.log(`R1: Seed #${s1} vs Seed #${s2}, field_number=${fieldNum}`);
-            qfMatchIndex++;
+            console.log(`R1: Seed #${s1} vs Seed #${s2}, field_number=${fieldNum} (slot ${pairSlot})`);
           }
         }
 
