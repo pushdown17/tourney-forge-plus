@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Calendar, Lock, Unlock, Settings, Save, Trash2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Lock, Unlock, Settings, Save, Trash2, RotateCcw, Trophy } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { TeamsManager } from "@/components/tournament/TeamsManager";
 import { PlayersManager } from "@/components/tournament/PlayersManager";
@@ -51,6 +51,7 @@ const Tournament = () => {
   const [clearStationsDialogOpen, setClearStationsDialogOpen] = useState(false);
   const [bracketResetDialogOpen, setBracketResetDialogOpen] = useState(false);
   const [bracketResetTrigger, setBracketResetTrigger] = useState(0);
+  const [bracketGenerateTrigger, setBracketGenerateTrigger] = useState(0);
   
   const activeTab = searchParams.get("tab") || "teams";
   const activeSubTab = searchParams.get("subtab") || "manage-teams";
@@ -274,6 +275,20 @@ const Tournament = () => {
                     </PopoverTrigger>
                     <PopoverContent className="w-72">
                        <div className="space-y-4">
+                         {tournament.elimination_type && tournament.current_phase === "single_elimination" && !tournament.is_closed && (
+                           <>
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               className="w-full"
+                               onClick={() => { setSettingsOpen(false); setBracketGenerateTrigger(t => t + 1); }}
+                             >
+                               <Trophy className="h-4 w-4 mr-2" />
+                               Generate Bracket
+                             </Button>
+                             <Separator />
+                           </>
+                         )}
                          <Button
                           variant="destructive"
                           size="sm"
@@ -415,6 +430,7 @@ const Tournament = () => {
                 isClosed={tournament.is_closed}
                 isCreator={isCreator}
                 resetTrigger={bracketResetTrigger}
+                generateTrigger={bracketGenerateTrigger}
               />
             </TabsContent>
           )}

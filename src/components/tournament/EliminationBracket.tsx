@@ -52,6 +52,7 @@ interface EliminationBracketProps {
   isClosed?: boolean;
   isCreator?: boolean;
   resetTrigger?: number;
+  generateTrigger?: number;
 }
 
 export const EliminationBracket = ({ 
@@ -61,7 +62,8 @@ export const EliminationBracket = ({
   onPhaseChanged,
   isClosed = false,
   isCreator = false,
-  resetTrigger = 0
+  resetTrigger = 0,
+  generateTrigger = 0
 }: EliminationBracketProps) => {
   // If double elimination, use dedicated component
   if (eliminationType === "double" || currentPhase === "double_elimination") {
@@ -139,6 +141,15 @@ export const EliminationBracket = ({
     fetchTournamentAndMatches(true);
     fetchActiveTimers();
   }, [tournamentId]);
+
+  // Generate bracket when triggered from parent (settings gear)
+  useEffect(() => {
+    if (generateTrigger > 0) {
+      fetchTournamentAndMatches(false).then(() => {
+        // generateBracket is called automatically in fetchTournamentAndMatches when matches.length === 0
+      });
+    }
+  }, [generateTrigger]);
 
   // Fetch active timers from referee stations
   const fetchActiveTimers = async () => {
