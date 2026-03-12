@@ -670,12 +670,19 @@ export const EliminationBracket = ({
 
         // Shape data to match standings format
         standings = ttData.map((tt: any) => ({
+          id: tt.team_id,
           team_id: tt.team_id,
+          tournament_id: tournamentId,
+          tournament_team_id: null,
+          updated_at: '',
+          wins: 0,
+          losses: 0,
+          draws: 0,
           team: tt.team,
           points: 0,
           goals_for: 0,
           goals_against: 0,
-        }));
+        })) as any;
       }
 
       const { bracketSize, numPreliminaryMatches, numByes } = computeBracketParams(teamsCount);
