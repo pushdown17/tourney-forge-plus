@@ -275,6 +275,20 @@ const Tournament = () => {
                     </PopoverTrigger>
                     <PopoverContent className="w-72">
                        <div className="space-y-4">
+                         {tournament.elimination_type && tournament.current_phase === "single_elimination" && !tournament.is_closed && (
+                           <>
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               className="w-full"
+                               onClick={() => { setSettingsOpen(false); setBracketGenerateTrigger(t => t + 1); }}
+                             >
+                               <Trophy className="h-4 w-4 mr-2" />
+                               Generate Bracket
+                             </Button>
+                             <Separator />
+                           </>
+                         )}
                          <Button
                           variant="destructive"
                           size="sm"
