@@ -841,10 +841,11 @@ export const EliminationBracket = ({
             round_number: 0,
             team1_id: pm.highSeed.team_id,
             team2_id: pm.lowSeed.team_id,
-            field_number: matchIndex + 1,
+            // Use pairIndex + 1 so field_number matches the QF slot this prelim feeds into
+            field_number: pm.pairIndex + 1,
           });
           matchIndex++;
-          console.log(`Preliminary: #${pm.highSeedNum} ${pm.highSeed.team?.name} vs #${pm.lowSeedNum} ${pm.lowSeed.team?.name} (pair ${pm.pairIndex})`);
+          console.log(`Preliminary: #${pm.highSeedNum} ${pm.highSeed.team?.name} vs #${pm.lowSeedNum} ${pm.lowSeed.team?.name} (pair ${pm.pairIndex}, field ${pm.pairIndex + 1})`);
         }
 
         // Create R1 matches for seeds that advance directly (seeds #1 to #(B-P))
