@@ -277,7 +277,7 @@ const Tournament = () => {
                     </PopoverTrigger>
                     <PopoverContent className="w-72">
                        <div className="space-y-4">
-                         {tournament.elimination_type && tournament.current_phase === "single_elimination" && !tournament.is_closed && (
+                         {tournament.elimination_type && !tournament.is_closed && (
                            <>
                              <Button
                                variant="outline"
@@ -291,29 +291,29 @@ const Tournament = () => {
                              <Separator />
                            </>
                          )}
-                         <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => setClearStationsDialogOpen(true)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Clear station matches
-                        </Button>
-                        {tournament.elimination_type === "double" && !tournament.is_closed && (
-                          <>
-                            <Separator />
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="w-full"
-                              onClick={() => { setSettingsOpen(false); setBracketResetDialogOpen(true); }}
-                            >
-                              <RotateCcw className="h-4 w-4 mr-2" />
-                              Réinitialiser le bracket
-                            </Button>
-                          </>
-                        )}
+                          <Button
+                           variant="destructive"
+                           size="sm"
+                           className="w-full"
+                           onClick={() => setClearStationsDialogOpen(true)}
+                         >
+                           <Trash2 className="h-4 w-4 mr-2" />
+                           Clear station matches
+                         </Button>
+                         {tournament.elimination_type && !tournament.is_closed && (
+                           <>
+                             <Separator />
+                             <Button
+                               variant="destructive"
+                               size="sm"
+                               className="w-full"
+                               onClick={() => { setSettingsOpen(false); setBracketResetDialogOpen(true); }}
+                             >
+                               <RotateCcw className="h-4 w-4 mr-2" />
+                               Réinitialiser le bracket
+                             </Button>
+                           </>
+                         )}
                       </div>
                     </PopoverContent>
                   </Popover>
