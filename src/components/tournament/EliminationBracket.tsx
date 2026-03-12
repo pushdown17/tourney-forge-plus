@@ -756,39 +756,38 @@ export const EliminationBracket = ({
           console.log(`R1: #${seed1} ${team1.team?.name} vs #${seed2} ${team2.team?.name}`);
         }
       } else if (numPreliminaryMatches > 0) {
-        // Create preliminary matches pairing lowest seeds
-        // For 12 teams (bracketSize=8): prelim seeds are #5-#12
-        // Pairs: #5v#12, #6v#11, #7v#10, #8v#9 (crossed seeding)
-        const prelimTeams = standings.slice(bracketSize - numPreliminaryMatches, teamsCount);
-        
-        // Compute QF slot for each prelim match so field_number matches visual position
-        const seedingOrder = getStandardSeeding(bracketSize);
-        const seedToQFSlot = new Map<number, number>();
-        for (let si = 0; si < seedingOrder.length; si += 2) {
-          seedToQFSlot.set(seedingOrder[si], Math.floor(si / 2));
-          seedToQFSlot.set(seedingOrder[si + 1], Math.floor(si / 2));
-        }
-        
-        // Build prelim matches with their visual slot
-        const prelimWithSlot: { highSeed: any; lowSeed: any; qfSlot: number; seed1: number; seed2: number }[] = [];
+        // For N teams with bracketSize=B and numPrelim=P:
+        // - The 2P lowest seeds (#(B-P+1) to #N) play in preliminary rounds
+        //   - "High prelim" seeds: #(B-P+1) to #B → indices [B-P .. B-1]  e.g. for 10t: #7,#8
+        //   - "Low prelim"  seeds: #(B+1) to #N   → indices [B .. N-1]    e.g. for 10t: #9,#10
+        // - Seeds #1 to #(B-P) advance directly to R1 (bracketSize - numPrelim = 6 for 10t)
+        // Standard bracket seeding on B slots determines the matchup structure.
+        // Prelim winners take the slot of their high-seed partner in R1.
+
+        const seedingOrder = getStandardSeeding(bracketSize); // e.g. [1,8,5,4,3,6,7,2] for 8
+
+        // "High prelim" seeds are the last P seeds within the bracketSize window
+        const highPrelimSeeds = standings.slice(bracketSize - numPreliminaryMatches, bracketSize); // e.g. indices 6,7 → seeds #7,#8
+        // "Low prelim" seeds are the extra teams beyond bracketSize
+        const lowPrelimSeeds  = standings.slice(bracketSize, teamsCount); // e.g. indices 8,9 → seeds #9,#10
+
+        // Build prelim pairs with visual slot (pairIndex in the full seeding order)
+        const prelimPairs: { highSeed: any; lowSeed: any; pairIndex: number; highSeedNum: number; lowSeedNum: number }[] = [];
         for (let i = 0; i < numPreliminaryMatches; i++) {
-          const highSeed = prelimTeams[i];
-          const lowSeed = prelimTeams[prelimTeams.length - 1 - i];
-          if (highSeed && lowSeed) {
-            const originalHighSeedNum = bracketSize - numPreliminaryMatches + i + 1;
-            const qfSlot = seedToQFSlot.get(originalHighSeedNum) ?? i;
-            prelimWithSlot.push({
-              highSeed, lowSeed, qfSlot,
-              seed1: standings.indexOf(highSeed) + 1,
-              seed2: standings.indexOf(lowSeed) + 1,
-            });
-          }
+          const highSeed = highPrelimSeeds[i];                            // e.g. #7, then #8
+          const lowSeed  = lowPrelimSeeds[numPreliminaryMatches - 1 - i]; // cross: #10 vs #7, #9 vs #8
+          if (!highSeed || !lowSeed) continue;
+          const highSeedNum = standings.indexOf(highSeed) + 1;
+          const lowSeedNum  = standings.indexOf(lowSeed)  + 1;
+          // Find position in seeding order to determine visual row
+          const posInSeeding = seedingOrder.indexOf(highSeedNum);
+          const pairIndex = Math.floor(posInSeeding / 2);
+          prelimPairs.push({ highSeed, lowSeed, pairIndex, highSeedNum, lowSeedNum });
         }
-        
-        // Sort by QF slot so field_number 1 = top of bracket
-        prelimWithSlot.sort((a, b) => a.qfSlot - b.qfSlot);
-        
-        for (const pm of prelimWithSlot) {
+        // Sort by visual position (top → bottom)
+        prelimPairs.sort((a, b) => a.pairIndex - b.pairIndex);
+
+        for (const pm of prelimPairs) {
           matchesToInsert.push({
             tournament_id: tournamentId,
             phase: currentPhase,
@@ -798,33 +797,35 @@ export const EliminationBracket = ({
             field_number: matchIndex + 1,
           });
           matchIndex++;
-          console.log(`Preliminary: #${pm.seed1} ${pm.highSeed.team?.name} vs #${pm.seed2} ${pm.lowSeed.team?.name} (QF slot ${pm.qfSlot}, M${matchIndex})`);
+          console.log(`Preliminary: #${pm.highSeedNum} ${pm.highSeed.team?.name} vs #${pm.lowSeedNum} ${pm.lowSeed.team?.name} (pair ${pm.pairIndex})`);
         }
 
-        // Create Round 1 matches for directly qualified teams
-        const numDirectTeams = bracketSize - numPreliminaryMatches;
-        const directR1Teams = standings.slice(numPreliminaryMatches, bracketSize - numPreliminaryMatches);
-        const numR1Matches = Math.floor(directR1Teams.length / 2);
-        
-        for (let i = 0; i < numR1Matches; i++) {
-          const highSeed = directR1Teams[i];
-          const lowSeed = directR1Teams[directR1Teams.length - 1 - i];
-          
-          if (highSeed && lowSeed && highSeed.team_id !== lowSeed.team_id) {
-            matchesToInsert.push({
-              tournament_id: tournamentId,
-              phase: currentPhase,
-              round_number: 1,
-              team1_id: highSeed.team_id,
-              team2_id: lowSeed.team_id,
-              field_number: matchIndex + 1,
-            });
-            matchIndex++;
-            
-            const seed1 = standings.indexOf(highSeed) + 1;
-            const seed2 = standings.indexOf(lowSeed) + 1;
-            console.log(`R1: #${seed1} ${highSeed.team?.name} vs #${seed2} ${lowSeed.team?.name}`);
+        // Create R1 matches for seeds that advance directly (seeds #1 to #(B-P))
+        // These are all seeds NOT in the prelim: seeds 1 to (bracketSize - numPreliminaryMatches)
+        const directSeedSet = new Set<number>();
+        for (let s = 1; s <= bracketSize - numPreliminaryMatches; s++) directSeedSet.add(s);
+
+        // Walk the full seeding order in pairs; create R1 only for pairs where BOTH seeds are direct
+        for (let i = 0; i < seedingOrder.length; i += 2) {
+          const s1 = seedingOrder[i];
+          const s2 = seedingOrder[i + 1];
+          if (directSeedSet.has(s1) && directSeedSet.has(s2)) {
+            const team1 = standings[s1 - 1];
+            const team2 = standings[s2 - 1];
+            if (team1 && team2 && team1.team_id !== team2.team_id) {
+              matchesToInsert.push({
+                tournament_id: tournamentId,
+                phase: currentPhase,
+                round_number: 1,
+                team1_id: team1.team_id,
+                team2_id: team2.team_id,
+                field_number: matchIndex + 1,
+              });
+              matchIndex++;
+              console.log(`R1 direct: #${s1} ${team1.team?.name} vs #${s2} ${team2.team?.name}`);
+            }
           }
+          // Pairs with a prelim seed (#7,#8,...) are created after prelims complete (checkAndGenerateNextRound(0))
         }
       }
 
