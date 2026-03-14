@@ -1633,15 +1633,12 @@ export const DoubleEliminationBracket = ({
                 </div>
 
                 {isPlayInColumn ? (
-                  // ── Play-in column: position each match absolutely by field_number to align with R2 ──
-                  <div className="relative" style={{ width: `${COL_W + CONNECTOR_W}px`, height: `${playInColHeight}px` }}>
-                    {/* SVG: dashed connector from each play-in match center → corresponding R2 slot center */}
-                    <svg
-                      className="absolute top-0 pointer-events-none"
-                      style={{ left: COL_W, width: CONNECTOR_W, height: "100%", overflow: "visible" }}
-                    >
+                  // ── Play-in column: absolute by field_number, height = absColHeight ──
+                  <div className="relative" style={{ width: `${COL_W + CONNECTOR_W}px`, height: `${absColHeight}px` }}>
+                    <svg className="absolute top-0 pointer-events-none"
+                      style={{ left: COL_W, width: CONNECTOR_W, height: "100%", overflow: "visible" }}>
                       {realRoundMatches.map((m) => {
-                        const fn = (m.field_number ?? 1) - 1; // 0-indexed slot in R2
+                        const fn = (m.field_number ?? 1) - 1;
                         const y = fn * unit + matchCenterY;
                         return (
                           <line key={m.id} x1="0" y1={y} x2={CONNECTOR_W} y2={y}
@@ -1658,57 +1655,43 @@ export const DoubleEliminationBracket = ({
                       );
                     })}
                   </div>
-                ) : (
-                /* ── Standard column: flex layout with computed gap/offset ── */
-                <div
-                  className="flex flex-col relative"
-                  style={{
-                    gap: `${verticalGap}px`,
-                    marginTop: `${topOffset}px`,
-                    width: `${COL_W + CONNECTOR_W}px`,
-                  }}
-                >
-                  {/* SVG connector lines — only draw bracket connectors when next round has FEWER matches (2→1 merge) */}
-                  {!isThisLastRound && (() => {
-                    const isPairMerge = nextCount < count; // 2 matches → 1: draw bracket connector
-                    // For same-count (drop-in round): draw simple pass-through arrow
-                    return (
-                      <svg
-                        className="absolute left-full top-0 pointer-events-none"
-                        style={{ left: COL_W, width: `${CONNECTOR_W}px`, height: "100%", overflow: "visible" }}
-                      >
-                        {Array.from({ length: count }).map((_, matchIndex) => {
-                          const totalSlotHeight = matchHeight + verticalGap;
-                          const baseY = matchIndex * totalSlotHeight;
-                          const y = baseY + matchCenterY;
-
-                          if (isPairMerge) {
-                            // Only draw on even indices (pair start)
-                            if (matchIndex % 2 !== 0) return null;
-                            if (matchIndex + 1 >= count) return null;
-                            const y1 = baseY + matchCenterY;
-                            const y2 = baseY + totalSlotHeight + matchCenterY;
-                            const yMid = (y1 + y2) / 2;
-                            return (
-                              <g key={matchIndex}>
-                                <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                              </g>
-                            );
-                          } else {
-                            // 1:1 pass-through: simple horizontal arrow
-                            return (
-                              <g key={matchIndex}>
-                                <line x1="0" y1={y} x2="32" y2={y} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.4" strokeDasharray="4 2" />
-                              </g>
-                            );
-                          }
-                        })}
-                      </svg>
-                    );
-                  })()}
+                ) : isPostPlayInColumn ? (
+                  // ── R2 post-play-in: absolute layout so slots match play-in field_number positions ──
+                  <div className="relative" style={{ width: `${COL_W + CONNECTOR_W}px`, height: `${absColHeight}px` }}>
+                    {/* SVG connectors for R2 → R3 */}
+                    {!isThisLastRound && (() => {
+                      const isPairMerge = nextCount < count;
+                      return (
+                        <svg className="absolute top-0 pointer-events-none"
+                          style={{ left: COL_W, width: `${CONNECTOR_W}px`, height: "100%", overflow: "visible" }}>
+                          {Array.from({ length: count }).map((_, matchIndex) => {
+                            const baseY = matchIndex * unit;
+                            const y = baseY + matchCenterY;
+                            if (isPairMerge) {
+                              if (matchIndex % 2 !== 0) return null;
+                              if (matchIndex + 1 >= count) return null;
+                              const y1 = baseY + matchCenterY;
+                              const y2 = (matchIndex + 1) * unit + matchCenterY;
+                              const yMid = (y1 + y2) / 2;
+                              return (
+                                <g key={matchIndex}>
+                                  <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                  <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                  <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                  <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                </g>
+                              );
+                            } else {
+                              return (
+                                <g key={matchIndex}>
+                                  <line x1="0" y1={y} x2="32" y2={y} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.4" strokeDasharray="4 2" />
+                                </g>
+                              );
+                            }
+                          })}
+                        </svg>
+                      );
+                    })()}
 
                   {/* Render match slots */}
                   {Array.from({ length: count }).map((_, slotIdx) => {
