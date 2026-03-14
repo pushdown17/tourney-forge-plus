@@ -1021,7 +1021,7 @@ export const DoubleEliminationBracket = ({
           // Return early — no Losers bracket creation for prelim round
           return;
 
-        } else if (roundNumber === 1 && byeCount === 0) {
+        } else if (roundNumber === 1 && playInCountW === 0) {
           // ── Standard power-of-2: W-R1 → winner advances to R2, loser enters L-R1 ──
           const allR1Sorted = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
           const myPosInR = allR1Sorted.findIndex(m => m.id === completedMatch.id);
