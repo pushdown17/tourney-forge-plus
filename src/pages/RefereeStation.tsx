@@ -735,7 +735,7 @@ const RefereeStation = () => {
     const totalTeams = tournamentInfo?.teams_for_elimination || 8;
 
     // Use bracketSize (next power of 2) — critical for hybrid formats like 12 teams
-    const bracketSize = nextPow2Station(totalTeams);
+    const bracketSize = prevPow2Station(totalTeams);
     const byeCount = bracketSize - totalTeams;
     const winnersRounds = Math.log2(bracketSize);
     const losersRoundsCount = getLosersRoundsCountDE(bracketSize, byeCount);
@@ -1354,7 +1354,7 @@ const RefereeStation = () => {
         .eq("id", station.tournament_id)
         .single();
       const totalTeamsDE = tiInfo?.teams_for_elimination || 8;
-      const bracketSizeDE = nextPow2Station(totalTeamsDE);
+      const bracketSizeDE = prevPow2Station(totalTeamsDE);
       deByeCount = bracketSizeDE - totalTeamsDE;
     }
 
