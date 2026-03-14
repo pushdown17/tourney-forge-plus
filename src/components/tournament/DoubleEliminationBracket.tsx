@@ -1689,7 +1689,7 @@ export const DoubleEliminationBracket = ({
     const matchHeight = 108;
     const baseGap = 4;
     const unit = matchHeight + baseGap;
-    const matchCenterY = 60; // visual center of match card (header ~20px + card center ~40px)
+    const matchCenterY = 54; // header ~20px + card ~68px, center at ~54px
     const COL_W = 200;
     const CONNECTOR_W = 32;
 
