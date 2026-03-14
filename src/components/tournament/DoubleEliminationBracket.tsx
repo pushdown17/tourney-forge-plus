@@ -465,8 +465,8 @@ export const DoubleEliminationBracket = ({
     try {
       const totalTeams = teamsCount ?? (tournament ?? tournamentRef.current)?.teams_for_elimination ?? 8;
       const bracketSz = getBracketSize(totalTeams);
-      const byeCount = bracketSz - totalTeams;
-      if (byeCount === 0) return; // No prelim round for perfect power-of-2
+      const playInCount = getPlayInCount(totalTeams);
+      if (playInCount === 0) return; // No prelim round for perfect power-of-2
 
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
       const winnersBracket = allMatchesData.filter(m => !m.is_third_place_match).sort(sortFn);
