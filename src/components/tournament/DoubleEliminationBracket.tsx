@@ -1447,71 +1447,49 @@ export const DoubleEliminationBracket = ({
         return pending;
       }
 
-      if (round === 2 && byeCount > 0) {
-        // R2 with BYEs: show pending slots for each bracketSize/4 R2 slot.
-        // BYE teams = top byeCount seeds from standings (they skip R1 entirely).
-        // standingsTeams[0] = seed #1 ... standingsTeams[byeCount-1] = seed #byeCount
+      if (round === 2 && playInCount > 0) {
+        // R2 with play-ins: show pending slots for each bracketSize/2 R2 slot.
+        // Direct teams (seeds 1..bracketSize-playInSlotsCount) are known; play-in slots show "TBD".
+        const playInSlotsCount = playInCount / 2;
+        const playInThreshold = bracketSize - playInSlotsCount;
         const r1Matches = allW.filter(m => m.round_number === 1).sort(sortFnField);
-
-        // Use standard seeding to determine which R2 slot each BYE team belongs to
         const fullPairs = getStandardSeedingPairs(bracketSize);
-        const r2SlotCount = bracketSize / 4;
 
-        // Map each full-bracket pair slot to its "contributor type": bye or real
-        // BYE slot: exactly one of the two seeds > totalTeams
-        const slotIsBye = fullPairs.map(([s1, s2]) =>
-          (s1 <= totalTeams && s2 > totalTeams) || (s2 <= totalTeams && s1 > totalTeams)
+        // Identify which pair slots are play-in slots (contested seed > playInThreshold)
+        const slotIsPlayIn = fullPairs.map(([s1, s2]) =>
+          s1 > playInThreshold || s2 > playInThreshold
         );
 
-        // Assign BYE teams to BYE slots using the actual seed from the pair.
-        // For a BYE slot (s1 ≤ totalTeams, s2 > totalTeams) the real seed is s1.
-        // standingsTeams is ordered by seed: [0]=seed1, [1]=seed2, ...
-        const byeSlotToTeam = new Map<number, { name: string; teamId: string }>();
+        // For play-in slots: the direct seed (the one ≤ playInThreshold) is known
+        const playInSlotToDirectTeam = new Map<number, { name: string; teamId: string }>();
         fullPairs.forEach(([s1, s2], pairIdx) => {
-          if (!slotIsBye[pairIdx]) return;
-          // The real team seed is whichever is ≤ totalTeams
-          const realSeed = s1 <= totalTeams ? s1 : s2;
-          const team = standingsTeams[realSeed - 1]; // seed is 1-indexed
-          if (team) byeSlotToTeam.set(pairIdx, team);
+          if (!slotIsPlayIn[pairIdx]) return;
+          const directSeed = s1 <= playInThreshold ? s1 : s2;
+          const team = standingsTeams[directSeed - 1];
+          if (team) playInSlotToDirectTeam.set(pairIdx, team);
         });
 
-        // Map R1 matches to their full-bracket pair slot by seed
-        // R1 real matches: slots where both seeds ≤ totalTeams — in creation order = sorted by field_number
-        const realR1Slots: number[] = [];
+        // Map R1 play-in matches to their pair slots (sorted by field_number)
+        const playInSlotIndices: number[] = [];
         fullPairs.forEach(([s1, s2], pairIdx) => {
-          if (s1 <= totalTeams && s2 <= totalTeams) realR1Slots.push(pairIdx);
+          if (slotIsPlayIn[pairIdx]) playInSlotIndices.push(pairIdx);
         });
-        // r1Matches[k] corresponds to realR1Slots[k] (both sorted by field_number / creation order)
         const pairSlotToR1Match = new Map<number, Match>();
-        realR1Slots.forEach((pairSlotIdx, k) => {
+        playInSlotIndices.forEach((pairSlotIdx, k) => {
           if (r1Matches[k]) pairSlotToR1Match.set(pairSlotIdx, r1Matches[k]);
         });
 
-        for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
-          if (currentRoundMatches[r2Slot]) continue; // real match exists, skip
+        for (let pairIdx = 0; pairIdx < fullPairs.length; pairIdx++) {
+          if (currentRoundMatches.find(m => m.field_number === pairIdx + 1)) continue;
 
-          const srcAIdx = r2Slot * 2;
-          const srcBIdx = r2Slot * 2 + 1;
+          const directTeam = playInSlotToDirectTeam.get(pairIdx);
+          const r1M = pairSlotToR1Match.get(pairIdx);
+          const playInWinner = r1M ? teamFromMatch(r1M, 'winner') : null;
 
-          const resolveContrib = (pairSlotIdx: number): { name: string; teamId: string; isBye?: boolean } | null => {
-            if (slotIsBye[pairSlotIdx]) {
-              const byeTeam = byeSlotToTeam.get(pairSlotIdx);
-              return byeTeam ? { ...byeTeam, isBye: true } : null;
-            } else {
-              // Real R1 match — show winner if known
-              const r1M = pairSlotToR1Match.get(pairSlotIdx);
-              return r1M ? teamFromMatch(r1M, 'winner') : null;
-            }
-          };
-
-          const contribA = resolveContrib(srcAIdx);
-          const contribB = resolveContrib(srcBIdx);
-
-          // Show this R2 slot as pending if at least one BYE is involved (or a winner is known)
-          const srcAIsBye = slotIsBye[srcAIdx];
-          const srcBIsBye = slotIsBye[srcBIdx];
-          if (contribA || contribB || srcAIsBye || srcBIsBye) {
-            pending.set(r2Slot, { team1: contribA, team2: contribB });
+          if (slotIsPlayIn[pairIdx]) {
+            const t1 = directTeam ? { ...directTeam, isBye: true } : null;
+            const t2 = playInWinner;
+            if (t1 || t2) pending.set(pairIdx, { team1: t1, team2: t2 });
           }
         }
         return pending;
