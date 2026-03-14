@@ -1770,13 +1770,14 @@ export const EliminationBracket = ({
                 const hasPreliminaryRound = bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0;
                 const isPreliminaryRound = roundNumber === 0;
                 
-                // Dimensions - compact layout (no Enter score button)
-                const matchHeight = 108;
+                // Dimensions — slot = header row + card
+                const HEADER_H = 24;   // M1/badge row height above the Card
+                const cardHeight = 88; // actual Card height (two team rows)
+                const matchHeight = HEADER_H + cardHeight; // 112px total slot
                 const baseGap = 4;
                 const unit = matchHeight + baseGap;
-                // Visual center of the match card within the fixed-height slot
-                // Header (~20px) + card (~68px), center ~20 + 34 = 54px
-                const matchCenterY = 54;
+                // Visual center of the card within the slot (not the slot midpoint)
+                const matchCenterY = HEADER_H + cardHeight / 2; // 24 + 44 = 68px
                 
                 // When there's a preliminary round, both prelim and R1 share the same spacing level
                 // (they have the same number of slots). Subsequent rounds shift accordingly.
