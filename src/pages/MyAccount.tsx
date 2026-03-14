@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, BarChart3 } from "lucide-react";
+import { User, BarChart3, Trophy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileTab } from "@/components/account/ProfileTab";
 import { StatsTab } from "@/components/account/StatsTab";
+import { TournamentsCreatedTab } from "@/components/account/TournamentsCreatedTab";
 
 export default function MyAccount() {
   const [user, setUser] = useState<any>(null);
