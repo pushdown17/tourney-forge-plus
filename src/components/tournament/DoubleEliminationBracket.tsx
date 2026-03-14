@@ -1602,20 +1602,23 @@ export const DoubleEliminationBracket = ({
             const isThisLastRound = colIdx === expectedRounds.length - 1;
 
             // ── Spacing logic ──
-            // For "play-in → main bracket" columns (nextCount > count, e.g. 2 play-ins before 8 QF):
-            //   Each play-in match must align with its R2 counterpart by field_number.
-            //   We use absolute positioning within a fixed-height container matching R2's total height.
-            // For all other columns: standard spacingLevel formula (maxCount from the whole bracket).
+            // Play-in column (R1 with fewer matches than R2): absolute positioning by field_number.
+            // R2 column right after play-in: also absolute positioning (slotIdx * unit) so slots
+            //   align 1:1 with play-in connectors. No topOffset/gap used.
+            // All other columns: standard spacingLevel formula (maxCount from the whole bracket).
             const nextCount = expectedRounds[colIdx + 1]?.count ?? 0;
+            const prevCount = colIdx > 0 ? expectedRounds[colIdx - 1]?.count ?? 0 : 0;
             const isPlayInColumn = !isLosers && playInCount > 0 && round === 1 && nextCount > count;
+            // The column immediately after play-in (R2) must also use absolute layout
+            const isPostPlayInColumn = !isLosers && playInCount > 0 && colIdx === 1 && prevCount < count;
 
             const maxCount = Math.max(...expectedRounds.map(e => e.count));
             const spacingLevel = count > 0 ? Math.max(0, Math.log2(maxCount / count)) : 0;
             const verticalGap = unit * Math.pow(2, spacingLevel) - matchHeight;
             const topOffset = unit * (Math.pow(2, spacingLevel) - 1) / 2;
 
-            // Play-in column height = same as the R2 column so connectors align perfectly
-            const playInColHeight = maxCount * unit - baseGap;
+            // Height for absolute-layout columns = total slots * unit - last gap
+            const absColHeight = count * unit - baseGap;
 
             return (
               <div key={`${isLosers ? 'L' : 'W'}-R${round}`} className="flex flex-col" style={{ minWidth: `${COL_W + CONNECTOR_W}px` }}>
@@ -1629,174 +1632,214 @@ export const DoubleEliminationBracket = ({
                   {roundName}
                 </div>
 
-                {isPlayInColumn ? (
-                  // ── Play-in column: position each match absolutely by field_number to align with R2 ──
-                  <div className="relative" style={{ width: `${COL_W + CONNECTOR_W}px`, height: `${playInColHeight}px` }}>
-                    {/* SVG: dashed connector from each play-in match center → corresponding R2 slot center */}
-                    <svg
-                      className="absolute top-0 pointer-events-none"
-                      style={{ left: COL_W, width: CONNECTOR_W, height: "100%", overflow: "visible" }}
-                    >
-                      {realRoundMatches.map((m) => {
-                        const fn = (m.field_number ?? 1) - 1; // 0-indexed slot in R2
-                        const y = fn * unit + matchCenterY;
-                        return (
-                          <line key={m.id} x1="0" y1={y} x2={CONNECTOR_W} y2={y}
-                            stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" strokeDasharray="4 3" />
-                        );
-                      })}
-                    </svg>
-                    {realRoundMatches.map((m) => {
-                      const fn = (m.field_number ?? 1) - 1;
-                      return (
-                        <div key={m.id} className="absolute" style={{ top: fn * unit, height: matchHeight, width: COL_W }}>
-                          {renderMatchCard(m, realMatches, false)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                /* ── Standard column: flex layout with computed gap/offset ── */
-                <div
-                  className="flex flex-col relative"
-                  style={{
-                    gap: `${verticalGap}px`,
-                    marginTop: `${topOffset}px`,
-                    width: `${COL_W + CONNECTOR_W}px`,
-                  }}
-                >
-                  {/* SVG connector lines — only draw bracket connectors when next round has FEWER matches (2→1 merge) */}
-                  {!isThisLastRound && (() => {
-                    const isPairMerge = nextCount < count; // 2 matches → 1: draw bracket connector
-                    // For same-count (drop-in round): draw simple pass-through arrow
-                    return (
-                      <svg
-                        className="absolute left-full top-0 pointer-events-none"
-                        style={{ left: COL_W, width: `${CONNECTOR_W}px`, height: "100%", overflow: "visible" }}
-                      >
-                        {Array.from({ length: count }).map((_, matchIndex) => {
-                          const totalSlotHeight = matchHeight + verticalGap;
-                          const baseY = matchIndex * totalSlotHeight;
-                          const y = baseY + matchCenterY;
+                {/* Helper: renders all match slots for a column */}
+                {(() => {
+                  const renderSlots = (useAbsoluteLayout: boolean) =>
+                    Array.from({ length: count }).map((_, slotIdx) => {
+                      const realMatch = realRoundMatches[slotIdx];
+                      const isSentinelMatch = realMatch && realMatch.team1_id === realMatch.team2_id && !realMatch.winner_id;
 
-                          if (isPairMerge) {
-                            // Only draw on even indices (pair start)
-                            if (matchIndex % 2 !== 0) return null;
-                            if (matchIndex + 1 >= count) return null;
-                            const y1 = baseY + matchCenterY;
-                            const y2 = baseY + totalSlotHeight + matchCenterY;
-                            const yMid = (y1 + y2) / 2;
-                            return (
-                              <g key={matchIndex}>
-                                <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                              </g>
-                            );
-                          } else {
-                            // 1:1 pass-through: simple horizontal arrow
-                            return (
-                              <g key={matchIndex}>
-                                <line x1="0" y1={y} x2="32" y2={y} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.4" strokeDasharray="4 2" />
-                              </g>
-                            );
+                      let slotContent: React.ReactNode;
+
+                      if (!realMatch || isSentinelMatch) {
+                        let t1: { name: string; teamId: string; isBye?: boolean; seed?: number } | null = null;
+                        let t2: { name: string; teamId: string; isBye?: boolean; seed?: number } | null = null;
+
+                        if (isSentinelMatch && realMatch) {
+                          const byeTeamData = realMatch.team1 as (Team | undefined);
+                          if (byeTeamData) {
+                            t1 = { name: byeTeamData.name, teamId: realMatch.team1_id, isBye: true, seed: byeTeamData.seed };
                           }
-                        })}
-                      </svg>
-                    );
-                  })()}
-
-                  {/* Render match slots */}
-                  {Array.from({ length: count }).map((_, slotIdx) => {
-                    const realMatch = realRoundMatches[slotIdx];
-
-                    // Sentinel match: team1_id === team2_id means BYE seed waiting for prelim winner
-                    // Display as a pending slot showing the BYE seed and TBD for opponent
-                    const isSentinelMatch = realMatch && realMatch.team1_id === realMatch.team2_id && !realMatch.winner_id;
-
-                    if (!realMatch || isSentinelMatch) {
-                      // For sentinel matches, show BYE seed as team1 and TBD as team2
-                      let t1: { name: string; teamId: string; isBye?: boolean; seed?: number } | null = null;
-                      let t2: { name: string; teamId: string; isBye?: boolean; seed?: number } | null = null;
-
-                      if (isSentinelMatch && realMatch) {
-                        // BYE team is team1 — find its name and seed from match data
-                        const byeTeamData = realMatch.team1 as (Team | undefined);
-                        if (byeTeamData) {
-                          t1 = { name: byeTeamData.name, teamId: realMatch.team1_id, isBye: true, seed: byeTeamData.seed };
+                          t2 = null;
+                        } else if (!realMatch) {
+                          const pendingSlot = pendingByRound.get(round)?.get(slotIdx);
+                          t1 = pendingSlot?.team1 ?? null;
+                          t2 = pendingSlot?.team2 ?? null;
                         }
-                        t2 = null; // TBD (pending prelim winner)
-                      } else if (!realMatch) {
-                        const pendingSlot = pendingByRound.get(round)?.get(slotIdx);
-                        t1 = pendingSlot?.team1 ?? null;
-                        t2 = pendingSlot?.team2 ?? null;
+
+                        const hasPending = !!(t1 || t2);
+                        const isLoserSlot = isLosers;
+
+                        const renderTeamSlot = (t: typeof t1, mb: boolean) => (
+                          <div className={cn(
+                            "flex items-center gap-2 py-1.5 px-2 rounded border",
+                            mb ? "mb-1" : "",
+                            t
+                              ? (isLoserSlot ? "bg-orange-500/10 border-orange-500/20" : "bg-primary/10 border-primary/20")
+                              : "bg-muted/20 border-dashed border-border/30"
+                          )}>
+                            {t ? (
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
+                                {t.seed && (
+                                  <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
+                                    #{t.seed}
+                                  </span>
+                                )}
+                                <span className="text-sm font-semibold text-foreground truncate">{t.name}</span>
+                                {(t as any).isBye && (
+                                  <span className="ml-auto shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">
+                                    BYE
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">TBD</span>
+                            )}
+                          </div>
+                        );
+
+                        slotContent = (
+                          <div
+                            className={cn(
+                              "rounded-lg border flex flex-col justify-center px-3",
+                              hasPending
+                                ? (isLoserSlot ? "border-orange-500/40 bg-orange-500/5" : "border-primary/30 bg-primary/5")
+                                : "border-dashed border-border/30 bg-muted/10 items-center"
+                            )}
+                            style={{ height: `${matchHeight}px`, width: COL_W }}
+                          >
+                            {hasPending ? (
+                              <>
+                                <p className="text-xs text-muted-foreground mb-1.5 font-medium">En attente…</p>
+                                {renderTeamSlot(t1, true)}
+                                {renderTeamSlot(t2, false)}
+                              </>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/40 font-medium">TBD</span>
+                            )}
+                          </div>
+                        );
+                      } else {
+                        slotContent = (
+                          <div style={{ height: `${matchHeight}px`, width: COL_W }}>
+                            {renderMatchCard(realMatch, realMatches, isLosers)}
+                          </div>
+                        );
                       }
 
-                      const hasPending = !!(t1 || t2);
-                      const isLoserSlot = isLosers;
-
-                      const renderTeamSlot = (t: typeof t1, mb: boolean) => (
-                        <div className={cn(
-                          "flex items-center gap-2 py-1.5 px-2 rounded border",
-                          mb ? "mb-1" : "",
-                          t
-                            ? (isLoserSlot ? "bg-orange-500/10 border-orange-500/20" : "bg-primary/10 border-primary/20")
-                            : "bg-muted/20 border-dashed border-border/30"
-                        )}>
-                          {t ? (
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
-                              {t.seed && (
-                                <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
-                                  #{t.seed}
-                                </span>
-                              )}
-                              <span className="text-sm font-semibold text-foreground truncate">{t.name}</span>
-                              {(t as any).isBye && (
-                                <span className="ml-auto shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">
-                                  BYE
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground italic">TBD</span>
-                          )}
-                        </div>
-                      );
-
+                      if (useAbsoluteLayout) {
+                        return (
+                          <div key={isSentinelMatch ? `sentinel-${realMatch!.id}` : (realMatch ? realMatch.id : `tbd-${round}-${slotIdx}`)}
+                            className="absolute" style={{ top: slotIdx * unit, width: COL_W }}>
+                            {slotContent}
+                          </div>
+                        );
+                      }
                       return (
-                        <div
-                          key={isSentinelMatch ? `sentinel-${realMatch!.id}` : `tbd-${round}-${slotIdx}`}
-                          className={cn(
-                            "rounded-lg border flex flex-col justify-center px-3",
-                            hasPending
-                              ? (isLoserSlot ? "border-orange-500/40 bg-orange-500/5" : "border-primary/30 bg-primary/5")
-                              : "border-dashed border-border/30 bg-muted/10 items-center"
-                          )}
-                          style={{ height: `${matchHeight}px`, width: COL_W }}
-                        >
-                          {hasPending ? (
-                            <>
-                              <p className="text-xs text-muted-foreground mb-1.5 font-medium">En attente…</p>
-                              {renderTeamSlot(t1, true)}
-                              {renderTeamSlot(t2, false)}
-                            </>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/40 font-medium">TBD</span>
-                          )}
+                        <div key={isSentinelMatch ? `sentinel-${realMatch!.id}` : (realMatch ? realMatch.id : `tbd-${round}-${slotIdx}`)}>
+                          {slotContent}
                         </div>
                       );
-                    }
+                    });
 
+                  if (isPlayInColumn) {
+                    // ── Play-in column: absolute by field_number ──
                     return (
-                      <div key={realMatch.id} style={{ height: `${matchHeight}px`, width: COL_W }}>
-                        {renderMatchCard(realMatch, realMatches, isLosers)}
+                      <div className="relative" style={{ width: `${COL_W + CONNECTOR_W}px`, height: `${absColHeight}px` }}>
+                        <svg className="absolute top-0 pointer-events-none"
+                          style={{ left: COL_W, width: CONNECTOR_W, height: "100%", overflow: "visible" }}>
+                          {realRoundMatches.map((m) => {
+                            const fn = (m.field_number ?? 1) - 1;
+                            const y = fn * unit + matchCenterY;
+                            return (
+                              <line key={m.id} x1="0" y1={y} x2={CONNECTOR_W} y2={y}
+                                stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" strokeDasharray="4 3" />
+                            );
+                          })}
+                        </svg>
+                        {realRoundMatches.map((m) => {
+                          const fn = (m.field_number ?? 1) - 1;
+                          return (
+                            <div key={m.id} className="absolute" style={{ top: fn * unit, height: matchHeight, width: COL_W }}>
+                              {renderMatchCard(m, realMatches, false)}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
-                  })}
-                </div>
-                )} {/* end isPlayInColumn ternary */}
+                  }
+
+                  if (isPostPlayInColumn) {
+                    // ── R2 after play-in: absolute layout (slotIdx * unit), no gap/topOffset ──
+                    const isPairMerge = nextCount < count;
+                    return (
+                      <div className="relative" style={{ width: `${COL_W + CONNECTOR_W}px`, height: `${absColHeight}px` }}>
+                        {!isThisLastRound && (
+                          <svg className="absolute top-0 pointer-events-none"
+                            style={{ left: COL_W, width: `${CONNECTOR_W}px`, height: "100%", overflow: "visible" }}>
+                            {Array.from({ length: count }).map((_, matchIndex) => {
+                              const baseY = matchIndex * unit;
+                              const y = baseY + matchCenterY;
+                              if (isPairMerge) {
+                                if (matchIndex % 2 !== 0) return null;
+                                if (matchIndex + 1 >= count) return null;
+                                const y1 = baseY + matchCenterY;
+                                const y2 = (matchIndex + 1) * unit + matchCenterY;
+                                const yMid = (y1 + y2) / 2;
+                                return (
+                                  <g key={matchIndex}>
+                                    <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                    <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                    <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                    <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                  </g>
+                                );
+                              } else {
+                                return (
+                                  <g key={matchIndex}>
+                                    <line x1="0" y1={y} x2="32" y2={y} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.4" strokeDasharray="4 2" />
+                                  </g>
+                                );
+                              }
+                            })}
+                          </svg>
+                        )}
+                        {renderSlots(true)}
+                      </div>
+                    );
+                  }
+
+                  // ── Standard column: flex layout ──
+                  const isPairMerge = nextCount < count;
+                  return (
+                    <div className="flex flex-col relative"
+                      style={{ gap: `${verticalGap}px`, marginTop: `${topOffset}px`, width: `${COL_W + CONNECTOR_W}px` }}>
+                      {!isThisLastRound && (
+                        <svg className="absolute left-full top-0 pointer-events-none"
+                          style={{ left: COL_W, width: `${CONNECTOR_W}px`, height: "100%", overflow: "visible" }}>
+                          {Array.from({ length: count }).map((_, matchIndex) => {
+                            const totalSlotHeight = matchHeight + verticalGap;
+                            const baseY = matchIndex * totalSlotHeight;
+                            const y = baseY + matchCenterY;
+                            if (isPairMerge) {
+                              if (matchIndex % 2 !== 0) return null;
+                              if (matchIndex + 1 >= count) return null;
+                              const y1 = baseY + matchCenterY;
+                              const y2 = baseY + totalSlotHeight + matchCenterY;
+                              const yMid = (y1 + y2) / 2;
+                              return (
+                                <g key={matchIndex}>
+                                  <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                  <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                  <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                  <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                </g>
+                              );
+                            } else {
+                              return (
+                                <g key={matchIndex}>
+                                  <line x1="0" y1={y} x2="32" y2={y} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.4" strokeDasharray="4 2" />
+                                </g>
+                              );
+                            }
+                          })}
+                        </svg>
+                      )}
+                      {renderSlots(false)}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
