@@ -1133,9 +1133,9 @@ export const DoubleEliminationBracket = ({
             // Standard formula: L-R2←W-R2, L-R4←W-R3, L-R6←W-R4 → wFeederRound = nextMajorRound/2 + 1
             // Play-in formula: L-R2←W-R3, L-R4←W-R4 → wFeederRound = nextMajorRound/2 + 2
             const nextMajorRound = nextRound;
-            const wFeederRound = byeCount > 0
-              ? nextMajorRound / 2 + 2  // Play-in: L-R2←W-R3, L-R4←W-R4
-              : nextMajorRound / 2 + 1; // Standard: L-R2←W-R2, L-R4←W-R3, L-R6←W-R4
+            const wFeederRound = playInCount > 0
+              ? nextMajorRound / 2 + 2
+              : nextMajorRound / 2 + 1;
 
             // Get all minor round matches sorted by field_number, map winner (or null if not done)
             const allMinorMatches = currentLosersRound.sort(sortFn);
