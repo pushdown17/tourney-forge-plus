@@ -1759,46 +1759,6 @@ export const DoubleEliminationBracket = ({
                     );
                   }
 
-                  if (isPostPlayInColumn) {
-                    // ── R2 after play-in: absolute layout (slotIdx * unit), no gap/topOffset ──
-                    const isPairMerge = nextCount < count;
-                    return (
-                      <div className="relative" style={{ width: `${COL_W + CONNECTOR_W}px`, height: `${absColHeight}px` }}>
-                        {!isThisLastRound && (
-                          <svg className="absolute top-0 pointer-events-none"
-                            style={{ left: COL_W, width: `${CONNECTOR_W}px`, height: "100%", overflow: "visible" }}>
-                            {Array.from({ length: count }).map((_, matchIndex) => {
-                              const baseY = matchIndex * unit;
-                              const y = baseY + matchCenterY;
-                              if (isPairMerge) {
-                                if (matchIndex % 2 !== 0) return null;
-                                if (matchIndex + 1 >= count) return null;
-                                const y1 = baseY + matchCenterY;
-                                const y2 = (matchIndex + 1) * unit + matchCenterY;
-                                const yMid = (y1 + y2) / 2;
-                                return (
-                                  <g key={matchIndex}>
-                                    <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                    <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                    <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                    <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                  </g>
-                                );
-                              } else {
-                                return (
-                                  <g key={matchIndex}>
-                                    <line x1="0" y1={y} x2="32" y2={y} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.4" strokeDasharray="4 2" />
-                                  </g>
-                                );
-                              }
-                            })}
-                          </svg>
-                        )}
-                        {renderSlots(true)}
-                      </div>
-                    );
-                  }
-
                   // ── Standard column: flex layout ──
                   const isPairMerge = nextCount < count;
                   return (
