@@ -1644,7 +1644,7 @@ export const DoubleEliminationBracket = ({
                         const y = fn * unit + matchCenterY;
                         return (
                           <line key={m.id} x1="0" y1={y} x2={CONNECTOR_W} y2={y}
-                            stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.4" strokeDasharray="4 2" />
+                            stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" strokeDasharray="4 3" />
                         );
                       })}
                     </svg>
