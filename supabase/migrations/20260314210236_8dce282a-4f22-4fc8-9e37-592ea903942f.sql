@@ -1,0 +1,1 @@
+UPDATE public.tournaments SET created_by = 'b67902f3-9849-42c5-8132-1e2789838856' WHERE name = 'Test DE 24 Équipes'
