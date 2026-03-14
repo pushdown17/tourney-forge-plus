@@ -1860,14 +1860,14 @@ export const EliminationBracket = ({
                               const y2 = baseY + totalSlotHeight + matchCenterY;
                               const yMid = (y1 + y2) / 2;
 
-                              return (
-                                <g key={matchIndex} className="animate-fade-in">
-                                  <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
-                                  <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
-                                  <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
-                                  <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
-                                </g>
-                              );
+                            return (
+                              <g key={matchIndex}>
+                                <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.45" />
+                                <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.45" />
+                                <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.45" />
+                                <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.45" />
+                              </g>
+                            );
                             })
                           )}
                         </svg>
