@@ -1366,8 +1366,9 @@ const RefereeStation = () => {
     // Standard (8-team example):
     //   W-R1→1, L-R1→2, W-R2→3, L-R2→4, L-R3→5, W-R3→6, L-R4→7, W-R4→8, GF→9
     //
-    // Play-in/12-team (bracketSize=8, byeCount=4):
-    //   W-R1→1(Prelim), W-R2→2(QF), L-R1→3, W-R3→4(SF), L-R2→5, W-R4→6(WF), L-R3→7, L-R4→8(LF), GF→9
+    // Play-in/12-team (bracketSize=8, byeCount=4) — strict order as requested:
+    //   W-R1→1(Prelim), W-R2→2(QF), L-R1→3, W-R3→4(SF), L-R2→5, L-R3→6(LosersSemi), W-R4→7(WF), L-R4→8(LF), GF→9
+    //   NOTE: Losers Semi (L-R3) must come BEFORE Winners Final (W-R4)
     //
     const getDeSeq = (m: any): number => {
       const r = m.round_number;
@@ -1375,19 +1376,22 @@ const RefereeStation = () => {
 
       if (deByeCount > 0) {
         // Play-in sequence map (12-team / hybrid):
-        // W-Rk → k   (Winners rounds stay at their natural position)
-        // L-R1→3, L-R2→5, L-R3→7, L-R4→8(final), GF→9
+        // Strict order: Prelim→QF→LR1→WSF→LR2→LosersSemi→WF→LF→GF
         if (!isL) {
-          // Winners: W-R1=1, W-R2=2, W-R3=4, W-R4=6, GF=9
-          // Formula: W-R1→1, W-R2→2, W-Rk (k≥3) → (k-1)*2
-          if (r === 1) return 1;
-          if (r === 2) return 2;
-          // Grand Final rounds (beyond winnersRounds)
+          if (r === 1) return 1;  // W-R1 = Prelim
+          if (r === 2) return 2;  // W-R2 = Winners QF
+          if (r === 3) return 4;  // W-R3 = Winners SF
+          if (r === 4) return 7;  // W-R4 = Winners Final (AFTER Losers Semi)
           if (r >= 10) return 50 + r; // GF M1, reset M2
-          return (r - 1) * 2; // R3→4, R4→6, R5→8...
+          return (r - 1) * 2;    // fallback
         } else {
-          // Losers play-in: L-R1→3, L-R2→5, L-R3→7, L-R4→9...
-          return r * 2 + 1; // L-R1→3, L-R2→5, L-R3→7, L-R4→9
+          // Losers play-in strict order:
+          // L-R1→3, L-R2→5, L-R3→6(Losers Semi BEFORE W-Final), L-R4→8(Losers Final)
+          if (r === 1) return 3;  // L-R1 = Losers R1 (post QF)
+          if (r === 2) return 5;  // L-R2 = Losers R2
+          if (r === 3) return 6;  // L-R3 = Losers Semi (BEFORE Winners Final)
+          if (r === 4) return 8;  // L-R4 = Losers Final
+          return r * 2 + 1;       // fallback
         }
       } else {
         // Standard sequence map (power-of-2):
