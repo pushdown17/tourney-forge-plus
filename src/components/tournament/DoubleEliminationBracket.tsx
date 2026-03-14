@@ -1566,7 +1566,7 @@ export const DoubleEliminationBracket = ({
     const matchHeight = 88;
     const baseGap = 12;
     const unit = matchHeight + baseGap;
-    const matchCenterY = 58;
+    const matchCenterY = 61;
     const COL_W = 200;
     const CONNECTOR_W = 32;
 
