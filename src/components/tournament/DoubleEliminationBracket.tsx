@@ -1718,14 +1718,14 @@ export const DoubleEliminationBracket = ({
 
                     if (!realMatch || isSentinelMatch) {
                       // For sentinel matches, show BYE seed as team1 and TBD as team2
-                      let t1: { name: string; teamId: string; isBye?: boolean } | null = null;
-                      let t2: { name: string; teamId: string; isBye?: boolean } | null = null;
+                      let t1: { name: string; teamId: string; isBye?: boolean; seed?: number } | null = null;
+                      let t2: { name: string; teamId: string; isBye?: boolean; seed?: number } | null = null;
 
                       if (isSentinelMatch && realMatch) {
-                        // BYE team is team1 — find its name from standingsTeams or match data
+                        // BYE team is team1 — find its name and seed from match data
                         const byeTeamData = realMatch.team1 as (Team | undefined);
                         if (byeTeamData) {
-                          t1 = { name: byeTeamData.name, teamId: realMatch.team1_id, isBye: true };
+                          t1 = { name: byeTeamData.name, teamId: realMatch.team1_id, isBye: true, seed: byeTeamData.seed };
                         }
                         t2 = null; // TBD (pending prelim winner)
                       } else if (!realMatch) {
@@ -1748,6 +1748,11 @@ export const DoubleEliminationBracket = ({
                           {t ? (
                             <div className="flex items-center gap-1.5 min-w-0">
                               {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
+                              {t.seed && (
+                                <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
+                                  #{t.seed}
+                                </span>
+                              )}
                               <span className="text-sm font-semibold text-foreground truncate">{t.name}</span>
                               {(t as any).isBye && (
                                 <span className="ml-auto shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">
