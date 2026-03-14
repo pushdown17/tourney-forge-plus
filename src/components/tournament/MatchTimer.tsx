@@ -177,10 +177,16 @@ export const MatchTimer = ({
   const pauseTimer = async () => {
     const now = new Date(getSyncedNowMs()).toISOString();
     
-    // Calculate total elapsed time including previous pauses (ms precision for freeze display)
-    const startTime = new Date(startedAt!).getTime();
-    const currentElapsed = (getSyncedNowMs() - startTime) / 1000;
-    const totalElapsed = currentElapsed + elapsedWhenPaused;
+    // Use ref to get the freshest startedAt and elapsedWhenPaused values,
+    // avoiding stale React prop closures that cause time jumps on pause.
+    const currentStartedAt = startedAtRef.current;
+    const currentElapsedBase = elapsedWhenPausedRef.current;
+
+    if (!currentStartedAt) return;
+
+    const startTime = new Date(currentStartedAt).getTime();
+    const runningElapsed = (getSyncedNowMs() - startTime) / 1000;
+    const totalElapsed = runningElapsed + currentElapsedBase;
     
     const { error } = await supabase
       .from('referee_stations')
@@ -191,9 +197,11 @@ export const MatchTimer = ({
       .eq('id', stationId);
     
     if (!error) {
+      // Update ref immediately so a rapid resume doesn't read the old value
+      elapsedWhenPausedRef.current = totalElapsed;
       broadcastTimerUpdate({
         action: 'pause',
-        timer_started_at: startedAt,
+        timer_started_at: currentStartedAt,
         timer_paused_at: now,
         timer_elapsed_when_paused: totalElapsed
       });
@@ -203,14 +211,9 @@ export const MatchTimer = ({
   const resumeTimer = async () => {
     const now = new Date(getSyncedNowMs()).toISOString();
     
-    // First, get the current elapsed time from DB (set during pause)
-    const { data: stationData } = await supabase
-      .from('referee_stations')
-      .select('timer_elapsed_when_paused')
-      .eq('id', stationId)
-      .single();
-    
-    const currentElapsed = stationData?.timer_elapsed_when_paused || elapsedWhenPaused;
+    // Use ref value — it was updated optimistically when we paused,
+    // so no DB round-trip needed and no stale-closure risk.
+    const currentElapsed = elapsedWhenPausedRef.current;
     
     const { error } = await supabase
       .from('referee_stations')
@@ -221,6 +224,9 @@ export const MatchTimer = ({
       .eq('id', stationId);
     
     if (!error) {
+      // Update refs immediately for consistency
+      startedAtRef.current = now;
+      pausedAtRef.current = null;
       broadcastTimerUpdate({
         action: 'resume',
         timer_started_at: now,
