@@ -1360,48 +1360,48 @@ const RefereeStation = () => {
     }
 
     // ── Sequence function for Double Elimination ──
-    // Uses SEPARATE tables for play-in (byeCount>0) vs standard (byeCount=0)
-    // to ensure correct interleaving when rounds are shifted by the preliminary round.
+    // Uses SEPARATE formulas for play-in (byeCount>0) vs standard (byeCount=0).
     //
     // Standard (8-team example):
-    //   W-R1→1, L-R1→2, W-R2→3, L-R2→4, L-R3→5, W-R3→6, L-R4→7, W-R4→8, GF→9
+    //   W-R1→1, L-R1→2, W-R2→3, L-R2→4, L-R3→5, W-R3→6, L-R4→7, W-R4→8, GF→50+
     //
-    // Play-in/12-team (bracketSize=8, byeCount=4) — strict order as requested:
-    //   W-R1→1(Prelim), W-R2→2(QF), L-R1→3, W-R3→4(SF), L-R2→5, L-R3→6(LosersSemi), W-R4→7(WF), L-R4→8(LF), GF→9
-    //   NOTE: Losers Semi (L-R3) must come BEFORE Winners Final (W-R4)
+    // Play-in / hybrid (any byeCount>0: 6,10,12,14,20,24...):
+    //   Strict order: W-R1(Prelim)→1, W-R2→2, L-R1→3, W-R3→4, L-R2→5, L-R3→6,
+    //                 W-R4→7, L-R4→8, L-R5→9, W-R5→10, L-R6→11, W-R6→12, …, GF→50+
+    //
+    // Hybrid formula derivation:
+    //   wSeqHybrid(k): k=1→1, k=2→2, k≥3→ 3k-5   (e.g. k=3→4, k=4→7, k=5→10)
+    //   lSeqHybrid(r): pairIdx=ceil(r/2), wFeed=pairIdx+2
+    //     minor (r odd) → wSeqHybrid(wFeed) - 1
+    //     major (r even)→ wSeqHybrid(wFeed) + 1
     //
     const getDeSeq = (m: any): number => {
       const r = m.round_number;
       const isL = !!m.is_third_place_match;
 
+      // GF rounds use high sentinel values regardless of bracket type
+      if (r >= 10 && !isL) return 50 + r;
+
       if (deByeCount > 0) {
-        // Play-in sequence map (12-team / hybrid):
-        // Strict order: Prelim→QF→LR1→WSF→LR2→LosersSemi→WF→LF→GF
+        // ── Hybrid (play-in) formula — works for ALL sizes (6,10,12,14,20,24…) ──
+        const wSeqH = (k: number): number =>
+          k === 1 ? 1 : k === 2 ? 2 : 3 * k - 5;
+
         if (!isL) {
-          if (r === 1) return 1;  // W-R1 = Prelim
-          if (r === 2) return 2;  // W-R2 = Winners QF
-          if (r === 3) return 4;  // W-R3 = Winners SF
-          if (r === 4) return 7;  // W-R4 = Winners Final (AFTER Losers Semi)
-          if (r >= 10) return 50 + r; // GF M1, reset M2
-          return (r - 1) * 2;    // fallback
+          return wSeqH(r); // W-R1=1, W-R2=2, W-R3=4, W-R4=7, W-R5=10…
         } else {
-          // Losers play-in strict order:
-          // L-R1→3, L-R2→5, L-R3→6(Losers Semi BEFORE W-Final), L-R4→8(Losers Final)
-          if (r === 1) return 3;  // L-R1 = Losers R1 (post QF)
-          if (r === 2) return 5;  // L-R2 = Losers R2
-          if (r === 3) return 6;  // L-R3 = Losers Semi (BEFORE Winners Final)
-          if (r === 4) return 8;  // L-R4 = Losers Final
-          return r * 2 + 1;       // fallback
+          const pairIdx = Math.ceil(r / 2);     // which (minor,major) pair
+          const wFeed = pairIdx + 2;             // which Winners round feeds this pair
+          const base = wSeqH(wFeed);
+          return r % 2 === 1 ? base - 1 : base + 1; // minor = before W, major = after W
         }
       } else {
-        // Standard sequence map (power-of-2):
-        // W-R1→1, L-R1→2, W-R2→3, L-R2→4, L-R3→5, W-R3→6, L-R4→7, W-R4→8...
-        // W-Rk seq: k=1→1, k≥2→3*(k-1)
-        // L-Rr (minor, r odd): W-seq(ceil(r/2)+1) - 1
-        // L-Rr (major, r even): W-seq(r/2+1) + 1
+        // ── Standard (power-of-2) formula ──
+        // W-Rk: k=1→1, k≥2→3*(k-1)
+        // L-Rr minor (odd): wSeq(ceil(r/2)+1) - 1
+        // L-Rr major (even): wSeq(r/2+1) + 1
         const wSeq = (k: number): number => k === 1 ? 1 : 3 * (k - 1);
         if (!isL) {
-          if (r >= 10) return 50 + r; // GF
           return wSeq(r);
         } else {
           const isMinor = r % 2 === 1;
