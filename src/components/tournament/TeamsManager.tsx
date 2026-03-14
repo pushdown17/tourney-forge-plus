@@ -15,9 +15,10 @@ interface TeamsManagerProps {
   isClosed?: boolean;
   isCreator?: boolean;
   numberOfGroups?: number;
+  showPlayers?: boolean;
 }
 
-export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false, numberOfGroups = 1 }: TeamsManagerProps) => {
+export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false, numberOfGroups = 1, showPlayers = false }: TeamsManagerProps) => {
   const [teams, setTeams] = useState<any[]>([]);
   const [teamName, setTeamName] = useState("");
   const [loading, setLoading] = useState(false);
