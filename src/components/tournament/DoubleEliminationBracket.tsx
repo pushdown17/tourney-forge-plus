@@ -793,10 +793,7 @@ export const DoubleEliminationBracket = ({
         return;
       }
 
-      // ── Branch: 12-team dedicated generator ──
-      if (teamsCount === 12) {
-        await generateBracket12(standings);
-      } else if (byeCount === 0) {
+      if (byeCount === 0) {
         // ── Perfect power-of-2: standard bracket generation ──
         const pairs = getStandardSeedingPairs(teamsCount);
         const allMatches = pairs.map((pair, i) => ({
@@ -811,87 +808,8 @@ export const DoubleEliminationBracket = ({
         const { error: insertError } = await supabase.from("matches").insert(allMatches);
         if (insertError) throw insertError;
       } else {
-        // ── Generic BYE / Hybrid bracket (other non-power-of-2 counts) ──
-        //
-        // KEY INVARIANT: field_number on R1 match K directly maps to R2 match K.
-        //   R2 match with field_number=K has:
-        //     - team1 = the BYE seed from that slot (immutable)
-        //     - team2 = winner of R1 prelim match K (updated on completion)
-
-        const fullPairs = getStandardSeedingPairs(bracketSz);
-        const teamBySeed = (seed: number) => seed <= teamsCount ? standings[seed - 1].team_id : null;
-
-        const r2SlotCount = bracketSz / 4;
-        const r1Matches: any[] = [];
-        const r2Matches: any[] = [];
-
-        for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
-          const r2FieldNum = r2Slot + 1;
-          const srcA = fullPairs[r2Slot * 2];
-          const srcB = fullPairs[r2Slot * 2 + 1];
-          const [sA1, sA2] = srcA;
-          const [sB1, sB2] = srcB;
-          const tA1 = teamBySeed(sA1), tA2 = teamBySeed(sA2);
-          const tB1 = teamBySeed(sB1), tB2 = teamBySeed(sB2);
-
-          const slotAisBye = (tA1 !== null && tA2 === null) || (tA1 === null && tA2 !== null);
-          const slotBisBye = (tB1 !== null && tB2 === null) || (tB1 === null && tB2 !== null);
-
-          const byeTeamForSlotA = slotAisBye ? (tA1 ?? tA2)! : null;
-          const byeTeamForSlotB = slotBisBye ? (tB1 ?? tB2)! : null;
-
-          if (slotAisBye && slotBisBye) {
-            r2Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 2, team1_id: byeTeamForSlotA!, team2_id: byeTeamForSlotB!,
-              field_number: r2FieldNum, is_third_place_match: false,
-            });
-          } else if (slotAisBye) {
-            r1Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 1, team1_id: tB1!, team2_id: tB2!,
-              field_number: r2FieldNum, is_third_place_match: false,
-            });
-            r2Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 2, team1_id: byeTeamForSlotA!, team2_id: byeTeamForSlotA!,
-              field_number: r2FieldNum, is_third_place_match: false,
-            });
-          } else if (slotBisBye) {
-            r1Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 1, team1_id: tA1!, team2_id: tA2!,
-              field_number: r2FieldNum, is_third_place_match: false,
-            });
-            r2Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 2, team1_id: byeTeamForSlotB!, team2_id: byeTeamForSlotB!,
-              field_number: r2FieldNum, is_third_place_match: false,
-            });
-          } else {
-            const fn1 = r2FieldNum * 2 - 1;
-            const fn2 = r2FieldNum * 2;
-            r1Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 1, team1_id: tA1!, team2_id: tA2!,
-              field_number: fn1, is_third_place_match: false,
-            });
-            r1Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 1, team1_id: tB1!, team2_id: tB2!,
-              field_number: fn2, is_third_place_match: false,
-            });
-          }
-        }
-
-        if (r1Matches.length > 0) {
-          const { error: r1Err } = await supabase.from("matches").insert(r1Matches);
-          if (r1Err) throw r1Err;
-        }
-        if (r2Matches.length > 0) {
-          const { error: r2Err } = await supabase.from("matches").insert(r2Matches);
-          if (r2Err) throw r2Err;
-        }
+        // ── Hybrid / play-in bracket (any byeCount > 0: 6,10,12,14,20,24…) ──
+        await generateBracketHybrid(standings, teamsCount);
       }
 
       toast.success(`Double elimination bracket generated! (${teamsCount} teams${byeCount > 0 ? `, ${byeCount} BYE${byeCount > 1 ? 's' : ''}` : ''})`);
