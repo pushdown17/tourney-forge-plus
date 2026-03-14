@@ -1563,10 +1563,10 @@ export const DoubleEliminationBracket = ({
   };
 
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
-    const matchHeight = 88;
-    const baseGap = 12;
+    const matchHeight = 108;
+    const baseGap = 16;
     const unit = matchHeight + baseGap;
-    const matchCenterY = 61;
+    const matchCenterY = 75; // header ~24px + card_center ~51px
     const COL_W = 200;
     const CONNECTOR_W = 32;
 
