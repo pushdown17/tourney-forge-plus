@@ -64,7 +64,7 @@ export default function MyAccount() {
               Stats
             </TabsTrigger>
             <TabsTrigger value="tournaments" className="gap-2">
-              <Trophy className="h-4 w-4" />
+              <CalendarDays className="h-4 w-4" />
               Tournaments
             </TabsTrigger>
           </TabsList>
