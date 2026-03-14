@@ -1075,7 +1075,7 @@ export const DoubleEliminationBracket = ({
 
         } else {
           // ── W-R(k≥3) play-in / W-R(k≥2) standard: loser drops into L major round ──
-          const targetLosersRound = byeCount > 0
+          const targetLosersRound = playInCountW > 0
             ? (roundNumber - 2) * 2  // Play-in: W-R3→L-R2, W-R4→L-R4
             : (roundNumber - 1) * 2; // Standard: W-R2→L-R2, W-R3→L-R4
           const prevMinorRound = targetLosersRound - 1;
