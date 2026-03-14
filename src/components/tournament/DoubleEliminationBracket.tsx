@@ -795,7 +795,7 @@ export const DoubleEliminationBracket = ({
         return;
       }
 
-      if (byeCount === 0) {
+      if (playInCount === 0) {
         // ── Perfect power-of-2: standard bracket generation ──
         const pairs = getStandardSeedingPairs(teamsCount);
         const allMatches = pairs.map((pair, i) => ({
@@ -810,11 +810,11 @@ export const DoubleEliminationBracket = ({
         const { error: insertError } = await supabase.from("matches").insert(allMatches);
         if (insertError) throw insertError;
       } else {
-        // ── Hybrid / play-in bracket (any byeCount > 0: 6,10,12,14,20,24…) ──
+        // ── Hybrid / play-in bracket (any playInCount > 0: 6,10,12,14,20,24…) ──
         await generateBracketHybrid(standings, teamsCount);
       }
 
-      toast.success(`Double elimination bracket generated! (${teamsCount} teams${byeCount > 0 ? `, ${byeCount} BYE${byeCount > 1 ? 's' : ''}` : ''})`);
+      toast.success(`Double elimination bracket generated! (${teamsCount} teams${playInCount > 0 ? `, ${playInCount} play-in teams` : ''})`);
       await fetchTournamentAndMatches();
     } catch (error: any) {
       toast.error("Error generating bracket");
