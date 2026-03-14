@@ -1727,9 +1727,9 @@ export const DoubleEliminationBracket = ({
                         );
                       }
                       return (
-                        <React.Fragment key={isSentinelMatch ? `sentinel-${realMatch!.id}` : (realMatch ? realMatch.id : `tbd-${round}-${slotIdx}`)}>
+                        <div key={isSentinelMatch ? `sentinel-${realMatch!.id}` : (realMatch ? realMatch.id : `tbd-${round}-${slotIdx}`)}>
                           {slotContent}
-                        </React.Fragment>
+                        </div>
                       );
                     });
 
