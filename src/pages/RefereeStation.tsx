@@ -767,6 +767,7 @@ const RefereeStation = () => {
       arr.some(m => m.round_number === r && (m.team1_id === teamId || m.team2_id === teamId));
 
     const matchesToCreate: any[] = [];
+    let gfPushed = false; // guard: only one Grand Final match created per validateMatch call
 
     // ── GRAND FINAL M1 completed ──
     if (!isLosersBracket && roundNumber === grandFinalRound) {
