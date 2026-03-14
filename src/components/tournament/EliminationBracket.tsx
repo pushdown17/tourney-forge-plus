@@ -1770,13 +1770,13 @@ export const EliminationBracket = ({
                 const hasPreliminaryRound = bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0;
                 const isPreliminaryRound = roundNumber === 0;
                 
-                // Dimensions - include space for the "Enter score" button area
-                const matchHeight = 148;
+                // Dimensions - compact layout (no Enter score button)
+                const matchHeight = 108;
                 const baseGap = 4;
                 const unit = matchHeight + baseGap;
                 // Visual center of the match card within the fixed-height slot
-                // Header (~20px) + card (~80px), so center of card is around 20 + 40 = 60px
-                const matchCenterY = 60;
+                // Header (~20px) + card (~68px), center ~20 + 34 = 54px
+                const matchCenterY = 54;
                 
                 // When there's a preliminary round, both prelim and R1 share the same spacing level
                 // (they have the same number of slots). Subsequent rounds shift accordingly.

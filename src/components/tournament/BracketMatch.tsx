@@ -370,56 +370,6 @@ export const BracketMatch = ({
         </PopoverContent>
       </Popover>
 
-      {/* Score edit section - Only display if user is creator and match is not completed */}
-      {!isPlaceholder && hasTeams && canEdit && (
-        <div className="mt-1.5">
-          {isEditing ? (
-            <div className="flex gap-1 items-center justify-center bg-muted/30 rounded-md p-1.5">
-              <ScoreInput
-                compact
-                value={parseInt(scores.team1 || "0")}
-                onChange={(value) => onScoreChange("team1", value.toString())}
-                onIncrement={() => onIncrementScore(match.team1_id, match.team1?.name || "TBD")}
-                disabled={!canEdit}
-              />
-              <span className="text-xs text-muted-foreground font-bold">-</span>
-              <ScoreInput
-                compact
-                value={parseInt(scores.team2 || "0")}
-                onChange={(value) => onScoreChange("team2", value.toString())}
-                onIncrement={() => onIncrementScore(match.team2_id, match.team2?.name || "TBD")}
-                disabled={!canEdit}
-              />
-              <Button 
-                onClick={(e) => { e.stopPropagation(); onSaveScore(); }} 
-                size="sm" 
-                className="h-6 px-2 text-xs ml-1"
-                disabled={!canEdit}
-              >
-                ✓
-              </Button>
-              <Button 
-                onClick={(e) => { e.stopPropagation(); onCancelEdit(); }} 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 px-1.5 text-xs"
-              >
-                ✗
-              </Button>
-            </div>
-          ) : (
-            <Button
-              onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
-              variant="outline"
-              size="sm"
-              className="w-full h-7 text-xs"
-              disabled={!canEdit}
-            >
-              {match.team1_score !== null ? "Edit" : "Enter score"}
-            </Button>
-          )}
-        </div>
-      )}
     </div>
   );
 };
