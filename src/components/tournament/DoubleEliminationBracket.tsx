@@ -78,40 +78,47 @@ function getStandardSeedingPairs(count: number): [number, number][] {
   return pairs;
 }
 
-/** Next power of 2 ≥ n */
-const nextPow2 = (n: number): number => Math.pow(2, Math.ceil(Math.log2(n)));
+/** Previous power of 2 ≤ n (or same if n is already a power of 2) */
+const prevPow2 = (n: number): number => Math.pow(2, Math.floor(Math.log2(n)));
 
 /**
- * For a given teamsCount, the bracket size is the next power of 2.
- * For power-of-2 counts it's the same value.
+ * For a given teamsCount, the bracket size is the PREVIOUS (or equal) power of 2.
+ * e.g. 20 → 16, 24 → 16, 12 → 8, 8 → 8.
+ * Extra teams (teamsCount - bracketSize) play in "play-in" matches.
  */
-const getBracketSize = (teamsCount: number): number => nextPow2(teamsCount);
+const getBracketSize = (teamsCount: number): number => prevPow2(teamsCount);
+
+/**
+ * Number of play-in teams = teams that don't fit in the main bracket.
+ * e.g. 20 teams → 4 play-in teams → 2 play-in matches.
+ */
+const getPlayInCount = (teamsCount: number): number => teamsCount - getBracketSize(teamsCount);
 
 /**
  * Total number of losers bracket rounds.
- * For play-in brackets (byeCount > 0), W-R1 is play-in (losers eliminated),
- * so the effective DE starts at W-R2 with bracketSize/2 teams → fewer losers rounds.
+ * For play-in brackets (playInCount > 0), W-R1 is play-in (losers eliminated),
+ * so the effective DE starts at W-R2 → losers rounds = (log2(bracketSize) - 1) * 2.
  */
-const getLosersRoundsCount = (bracketSize: number, byeCount = 0): number => {
-  if (byeCount > 0) {
-    // Effective DE = 8-team equivalent (bracketSize/2), losers rounds = (log2(bs/2)-1)*2
-    return (Math.log2(bracketSize) - 2) * 2;
+const getLosersRoundsCount = (bracketSize: number, playInCount = 0): number => {
+  if (playInCount > 0) {
+    return (Math.log2(bracketSize) - 1) * 2;
   }
   return (Math.log2(bracketSize) - 1) * 2;
 };
 
-const getWinnersRoundName = (roundNumber: number, bracketSize: number, byeCount = 0) => {
-  const w = Math.log2(bracketSize);
-  // Round 1 is "Play-in" for non-power-of-2 brackets
-  if (roundNumber === 1 && byeCount > 0) return "Preliminary Round";
+const getWinnersRoundName = (roundNumber: number, bracketSize: number, playInCount = 0) => {
+  // With play-in: actual bracket rounds are 2..log2(bracketSize)+1, R1 = play-in
+  const w = Math.log2(bracketSize) + (playInCount > 0 ? 1 : 0);
+  if (roundNumber === 1 && playInCount > 0) return "Preliminary Round";
   if (roundNumber === w) return "Winners Final";
-  if (roundNumber === w - 1) return w >= 3 ? "Winners Semi" : "Winners Final";
-  if (roundNumber === w - 2 && w >= 4) return "Winners QF";
+  if (roundNumber === w - 1) return w >= 4 ? "Winners Semi" : "Winners Final";
+  if (roundNumber === w - 2 && w >= 5) return "Winners QF";
+  if (roundNumber === w - 3 && w >= 6) return "Winners R16";
   return `Winners R${roundNumber}`;
 };
 
-const getLosersRoundName = (roundNumber: number, bracketSize: number, byeCount = 0) => {
-  const lr = getLosersRoundsCount(bracketSize, byeCount);
+const getLosersRoundName = (roundNumber: number, bracketSize: number, playInCount = 0) => {
+  const lr = getLosersRoundsCount(bracketSize, playInCount);
   if (roundNumber === lr) return "Losers Final";
   if (roundNumber === lr - 1) return "Losers Semi";
   return `Losers R${roundNumber}`;
