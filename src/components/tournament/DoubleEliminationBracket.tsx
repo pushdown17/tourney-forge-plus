@@ -1282,8 +1282,8 @@ export const DoubleEliminationBracket = ({
 
   const totalTeams = tournament?.teams_for_elimination || 8;
   const bracketSize = getBracketSize(totalTeams);
-  const byeCount = bracketSize - totalTeams;
-  const winnersRoundsCount = Math.log2(bracketSize);
+  const playInCount = getPlayInCount(totalTeams);
+  const winnersRoundsCount = Math.log2(bracketSize) + (playInCount > 0 ? 1 : 0);
 
   const grandFinalMatches = matches
     .filter(m => !m.is_third_place_match && m.round_number > winnersRoundsCount)
