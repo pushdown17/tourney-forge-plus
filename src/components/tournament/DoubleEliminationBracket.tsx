@@ -1046,7 +1046,7 @@ export const DoubleEliminationBracket = ({
             }
           }
 
-        } else if (roundNumber === 2 && byeCount > 0) {
+        } else if (roundNumber === 2 && playInCountW > 0) {
           // ── BYE/hybrid W-QF: loser enters L-R1 (minor round) ──
           // These 4 QF losers are the first teams to enter the Losers Bracket
           // CRITICAL: use winnersBracketAll (includes sentinels) so positions are 0,1,2,3
