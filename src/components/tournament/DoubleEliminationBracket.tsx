@@ -656,66 +656,45 @@ export const DoubleEliminationBracket = ({
   };
 
   // ══════════════════════════════════════════════════════════════════════════════
-  // DEDICATED 12-TEAM BRACKET GENERATOR
+  // GENERIC HYBRID BRACKET GENERATOR  (any byeCount > 0: 6, 10, 12, 14, 20, 24…)
   // ══════════════════════════════════════════════════════════════════════════════
-  // Activated ONLY when teamsCount === 12. Completely isolated from generic logic.
   //
-  // Fixed Layout (bracket of 16, 4 BYEs):
-  //   Prelim R1:  4 matches (Seeds 5-12 paired by standard seeding)
-  //     M1: Seed5 vs Seed12  → feeds QF1 Bottom
-  //     M2: Seed8 vs Seed9   → feeds QF2 Bottom
-  //     M3: Seed6 vs Seed11  → feeds QF3 Bottom   (seeding order: 1,16,8,9,5,12,4,13,3,14,6,11,7,10,2,15)
-  //     M4: Seed7 vs Seed10  → feeds QF4 Bottom
+  // Algorithm (works for ANY team count with BYEs):
   //
-  //   Winners QF (R2): 4 matches, seeds LOCKED in team1 (TOP, IMMUTABLE)
-  //     QF1 [fn=1]: Seed1 TOP  vs Winner-M1 BOTTOM
-  //     QF2 [fn=2]: Seed4 TOP  vs Winner-M2 BOTTOM  ← standard seeding pairs them
-  //     QF3 [fn=3]: Seed2 TOP  vs Winner-M3 BOTTOM
-  //     QF4 [fn=4]: Seed3 TOP  vs Winner-M4 BOTTOM
+  //   bracketSize = next power of 2 ≥ teamsCount
+  //   Use getStandardSeedingPairs(bracketSize) → gives bracketSize/2 pair slots.
+  //   Group pair slots by "QF group" (2 pair slots → 1 QF slot):
+  //     Each QF group (= 1 R2 slot) contains exactly one BYE sub-pair and one real sub-pair,
+  //     OR two real sub-pairs (when bracketSize/2 → teamsCount ratio is different).
   //
-  // Routing Map (ABSOLUTE, static):
-  //   Prelim fn=K winner → QF fn=K team2 (BOTTOM slot only, TOP slot FOREVER locked)
+  //   For each QF group of 2 pair slots:
+  //     - If exactly one sub-pair has a phantom seed (>teamsCount) → BYE slot:
+  //         • R2 sentinel: team1=byeSeed (LOCKED), team2=byeSeed (SENTINEL=TBD)
+  //         • R1 prelim:   real sub-pair seeds
+  //     - If both sub-pairs are real:
+  //         • Two R1 prelim matches with separate field_numbers
+  //         • R2 sentinel: two winners (unknown) → will be created dynamically on completion
+  //     - If both are BYE (impossible for odd-factor sizes, possible for extreme cases):
+  //         • R2 real match directly (both teams known)
   //
-  // Losers Bracket:
-  //   L-R1: 2 matches (4 QF losers paired: QF1-loser vs QF2-loser, QF3-loser vs QF4-loser)
-  //   Prelim losers are ELIMINATED (no Losers entry)
+  //   field_number invariant: R1 prelim with field_number=K → R2 slot with field_number=K
+  //   This guarantees the ABSOLUTE routing rule: Prelim winner → R2.team2 (BOTTOM slot only)
+  //
   // ══════════════════════════════════════════════════════════════════════════════
-  const generateBracket12 = async (standings: any[]) => {
-    // ── Standard seeding for 16-slot bracket → pairs for 12 real teams ──
-    // getStandardSeedingPairs(16) gives all 8 pair slots:
-    //   [0]: [1,16], [1]: [8,9], [2]: [5,12], [3]: [4,13],
-    //   [4]: [3,14], [5]: [6,11], [6]: [7,10], [7]: [2,15]
-    // For 12 teams: seeds 13-16 don't exist → slots [3] and [7] are BYE slots
-    // → But wait: pairs [0],[1],[2] have seed1=≤12, seed2=≤12 or seed2>12
-    // Let's compute explicitly:
-    const fullPairs16 = getStandardSeedingPairs(16);
-    // Identify which of the 8 R1 slots contain a BYE (one seed > 12)
-    // For 12 teams: seeds > 12 = 13,14,15,16 → these are phantom BYEs
+  const generateBracketHybrid = async (standings: any[], teamsCount: number) => {
+    const bracketSz = getBracketSize(teamsCount);
+    const fullPairs = getStandardSeedingPairs(bracketSz);
+    const r2SlotCount = bracketSz / 4; // = bracketSz / 2 / 2
+
     const teamBySeed = (seed: number): string | null =>
-      seed >= 1 && seed <= 12 ? standings[seed - 1].team_id : null;
+      seed >= 1 && seed <= teamsCount ? standings[seed - 1].team_id : null;
 
-    // Build Prelim matches (real vs real within BYE slot pairs):
-    // Each BYE slot has one real seed (the BYE recipient, e.g. Seed1) and one phantom (Seed16)
-    // → The 4 BYE seeds are: Seed1, Seed4, Seed2, Seed3 (from slots 0,3,4,7 of fullPairs16)
-    // → The 4 Prelim matches come from slots 1,2,5,6 of fullPairs16 (both seeds ≤ 12)
-    // Let's map slot index → QF field_number using a fixed routing table:
-    // We need 4 QF slots total. Standard seeding groups 2 R1 slots per QF:
-    //   QF1 [fn=1]: pair_slots 0 & 1 → BYE=slot0(Seed1), Prelim=slot1(Seed8 vs Seed9)
-    //   QF2 [fn=2]: pair_slots 2 & 3 → BYE=slot3(Seed4), Prelim=slot2(Seed5 vs Seed12)
-    //   QF3 [fn=3]: pair_slots 4 & 5 → BYE=slot4(Seed3), Prelim=slot5(Seed6 vs Seed11)
-    //   QF4 [fn=4]: pair_slots 6 & 7 → BYE=slot7(Seed2), Prelim=slot6(Seed7 vs Seed10)
-    //
-    // HARDCODED ROUTING TABLE for 12 teams:
-    const ROUTING_MAP_12: Array<{
-      qfFieldNum: number;
-      byeSeedIdx: number; // 0-indexed into standings (standings[i] = seed i+1)
-      prelimPair: [number, number]; // seed numbers for the prelim match
-    }> = [];
+    const r1Matches: any[] = [];
+    const r2Matches: any[] = [];
 
-    // Walk the 8 pairs, group into QF slots (2 pairs each)
-    for (let qfIdx = 0; qfIdx < 4; qfIdx++) {
-      const pA = fullPairs16[qfIdx * 2];     // sub-pair A
-      const pB = fullPairs16[qfIdx * 2 + 1]; // sub-pair B
+    for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
+      const pA = fullPairs[r2Slot * 2];
+      const pB = fullPairs[r2Slot * 2 + 1];
       const [sA1, sA2] = pA;
       const [sB1, sB2] = pB;
       const tA1 = teamBySeed(sA1), tA2 = teamBySeed(sA2);
@@ -724,50 +703,72 @@ export const DoubleEliminationBracket = ({
       const slotAisBye = (tA1 !== null && tA2 === null) || (tA1 === null && tA2 !== null);
       const slotBisBye = (tB1 !== null && tB2 === null) || (tB1 === null && tB2 !== null);
 
-      if (slotAisBye) {
-        const byeSeed = tA1 !== null ? sA1 : sA2;
-        const prelimSeeds: [number, number] = [sB1, sB2];
-        ROUTING_MAP_12.push({ qfFieldNum: qfIdx + 1, byeSeedIdx: byeSeed - 1, prelimPair: prelimSeeds });
+      const r2FieldNum = r2Slot + 1;
+
+      if (slotAisBye && slotBisBye) {
+        // Both BYEs → direct R2 real match (both seeds known, no prelim needed)
+        const byeTeamA = (tA1 ?? tA2)!;
+        const byeTeamB = (tB1 ?? tB2)!;
+        r2Matches.push({
+          tournament_id: tournamentId, phase: "double_elimination" as const,
+          round_number: 2, team1_id: byeTeamA, team2_id: byeTeamB,
+          field_number: r2FieldNum, is_third_place_match: false,
+        });
+      } else if (slotAisBye) {
+        // A is BYE seed → R2 sentinel (A seed locked in team1), R1 = B's real matchup
+        const byeTeam = (tA1 ?? tA2)!;
+        r1Matches.push({
+          tournament_id: tournamentId, phase: "double_elimination" as const,
+          round_number: 1, team1_id: tB1!, team2_id: tB2!,
+          field_number: r2FieldNum, is_third_place_match: false,
+        });
+        r2Matches.push({
+          tournament_id: tournamentId, phase: "double_elimination" as const,
+          round_number: 2, team1_id: byeTeam, team2_id: byeTeam, // SENTINEL
+          field_number: r2FieldNum, is_third_place_match: false,
+        });
       } else if (slotBisBye) {
-        const byeSeed = tB1 !== null ? sB1 : sB2;
-        const prelimSeeds: [number, number] = [sA1, sA2];
-        ROUTING_MAP_12.push({ qfFieldNum: qfIdx + 1, byeSeedIdx: byeSeed - 1, prelimPair: prelimSeeds });
+        // B is BYE seed → R2 sentinel (B seed locked in team1), R1 = A's real matchup
+        const byeTeam = (tB1 ?? tB2)!;
+        r1Matches.push({
+          tournament_id: tournamentId, phase: "double_elimination" as const,
+          round_number: 1, team1_id: tA1!, team2_id: tA2!,
+          field_number: r2FieldNum, is_third_place_match: false,
+        });
+        r2Matches.push({
+          tournament_id: tournamentId, phase: "double_elimination" as const,
+          round_number: 2, team1_id: byeTeam, team2_id: byeTeam, // SENTINEL
+          field_number: r2FieldNum, is_third_place_match: false,
+        });
+      } else {
+        // Both sub-pairs are real → two R1 prelim matches with distinct field_numbers
+        // These feed a R2 match that will be CREATED dynamically (not pre-allocated here)
+        // because we can't determine the top seed (no BYE involved).
+        const fn1 = r2FieldNum * 2 - 1;
+        const fn2 = r2FieldNum * 2;
+        r1Matches.push({
+          tournament_id: tournamentId, phase: "double_elimination" as const,
+          round_number: 1, team1_id: tA1!, team2_id: tA2!,
+          field_number: fn1, is_third_place_match: false,
+        });
+        r1Matches.push({
+          tournament_id: tournamentId, phase: "double_elimination" as const,
+          round_number: 1, team1_id: tB1!, team2_id: tB2!,
+          field_number: fn2, is_third_place_match: false,
+        });
       }
-      // If neither is BYE (impossible for 12-team 16-slot) or both BYE: skip
     }
 
-    console.log("[generateBracket12] Routing Map:", ROUTING_MAP_12);
+    console.log(`[generateBracketHybrid] ${teamsCount} teams → bracketSz=${bracketSz}, R1=${r1Matches.length} matches, R2=${r2Matches.length} sentinels`);
 
-    // Build R1 prelim matches
-    const r1Matches = ROUTING_MAP_12.map(({ qfFieldNum, prelimPair }) => ({
-      tournament_id: tournamentId,
-      phase: "double_elimination" as const,
-      round_number: 1,
-      team1_id: standings[prelimPair[0] - 1].team_id,
-      team2_id: standings[prelimPair[1] - 1].team_id,
-      field_number: qfFieldNum, // SAME as QF field_number → absolute routing key
-      is_third_place_match: false,
-    }));
-
-    // Build R2 QF sentinel matches (byeSeed=team1 LOCKED, team2=sentinel=TBD)
-    const r2Matches = ROUTING_MAP_12.map(({ qfFieldNum, byeSeedIdx }) => ({
-      tournament_id: tournamentId,
-      phase: "double_elimination" as const,
-      round_number: 2,
-      team1_id: standings[byeSeedIdx].team_id, // LOCKED TOP (BYE seed)
-      team2_id: standings[byeSeedIdx].team_id, // SENTINEL = TBD (same as team1)
-      field_number: qfFieldNum,
-      is_third_place_match: false,
-    }));
-
-    console.log("[generateBracket12] R1 matches:", r1Matches.map(m => `fn${m.field_number}: ${m.team1_id.slice(0,6)} vs ${m.team2_id.slice(0,6)}`));
-    console.log("[generateBracket12] R2 QF matches:", r2Matches.map(m => `fn${m.field_number}: SEED=${m.team1_id.slice(0,6)} SENTINEL`));
-
-    // Insert R1 first, then R2
-    const { error: r1Err } = await supabase.from("matches").insert(r1Matches);
-    if (r1Err) throw r1Err;
-    const { error: r2Err } = await supabase.from("matches").insert(r2Matches);
-    if (r2Err) throw r2Err;
+    if (r1Matches.length > 0) {
+      const { error: r1Err } = await supabase.from("matches").insert(r1Matches);
+      if (r1Err) throw r1Err;
+    }
+    if (r2Matches.length > 0) {
+      const { error: r2Err } = await supabase.from("matches").insert(r2Matches);
+      if (r2Err) throw r2Err;
+    }
   };
 
   const generateBracket = async (teamsCount: number) => {
@@ -792,10 +793,7 @@ export const DoubleEliminationBracket = ({
         return;
       }
 
-      // ── Branch: 12-team dedicated generator ──
-      if (teamsCount === 12) {
-        await generateBracket12(standings);
-      } else if (byeCount === 0) {
+      if (byeCount === 0) {
         // ── Perfect power-of-2: standard bracket generation ──
         const pairs = getStandardSeedingPairs(teamsCount);
         const allMatches = pairs.map((pair, i) => ({
@@ -810,87 +808,8 @@ export const DoubleEliminationBracket = ({
         const { error: insertError } = await supabase.from("matches").insert(allMatches);
         if (insertError) throw insertError;
       } else {
-        // ── Generic BYE / Hybrid bracket (other non-power-of-2 counts) ──
-        //
-        // KEY INVARIANT: field_number on R1 match K directly maps to R2 match K.
-        //   R2 match with field_number=K has:
-        //     - team1 = the BYE seed from that slot (immutable)
-        //     - team2 = winner of R1 prelim match K (updated on completion)
-
-        const fullPairs = getStandardSeedingPairs(bracketSz);
-        const teamBySeed = (seed: number) => seed <= teamsCount ? standings[seed - 1].team_id : null;
-
-        const r2SlotCount = bracketSz / 4;
-        const r1Matches: any[] = [];
-        const r2Matches: any[] = [];
-
-        for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
-          const r2FieldNum = r2Slot + 1;
-          const srcA = fullPairs[r2Slot * 2];
-          const srcB = fullPairs[r2Slot * 2 + 1];
-          const [sA1, sA2] = srcA;
-          const [sB1, sB2] = srcB;
-          const tA1 = teamBySeed(sA1), tA2 = teamBySeed(sA2);
-          const tB1 = teamBySeed(sB1), tB2 = teamBySeed(sB2);
-
-          const slotAisBye = (tA1 !== null && tA2 === null) || (tA1 === null && tA2 !== null);
-          const slotBisBye = (tB1 !== null && tB2 === null) || (tB1 === null && tB2 !== null);
-
-          const byeTeamForSlotA = slotAisBye ? (tA1 ?? tA2)! : null;
-          const byeTeamForSlotB = slotBisBye ? (tB1 ?? tB2)! : null;
-
-          if (slotAisBye && slotBisBye) {
-            r2Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 2, team1_id: byeTeamForSlotA!, team2_id: byeTeamForSlotB!,
-              field_number: r2FieldNum, is_third_place_match: false,
-            });
-          } else if (slotAisBye) {
-            r1Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 1, team1_id: tB1!, team2_id: tB2!,
-              field_number: r2FieldNum, is_third_place_match: false,
-            });
-            r2Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 2, team1_id: byeTeamForSlotA!, team2_id: byeTeamForSlotA!,
-              field_number: r2FieldNum, is_third_place_match: false,
-            });
-          } else if (slotBisBye) {
-            r1Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 1, team1_id: tA1!, team2_id: tA2!,
-              field_number: r2FieldNum, is_third_place_match: false,
-            });
-            r2Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 2, team1_id: byeTeamForSlotB!, team2_id: byeTeamForSlotB!,
-              field_number: r2FieldNum, is_third_place_match: false,
-            });
-          } else {
-            const fn1 = r2FieldNum * 2 - 1;
-            const fn2 = r2FieldNum * 2;
-            r1Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 1, team1_id: tA1!, team2_id: tA2!,
-              field_number: fn1, is_third_place_match: false,
-            });
-            r1Matches.push({
-              tournament_id: tournamentId, phase: "double_elimination" as const,
-              round_number: 1, team1_id: tB1!, team2_id: tB2!,
-              field_number: fn2, is_third_place_match: false,
-            });
-          }
-        }
-
-        if (r1Matches.length > 0) {
-          const { error: r1Err } = await supabase.from("matches").insert(r1Matches);
-          if (r1Err) throw r1Err;
-        }
-        if (r2Matches.length > 0) {
-          const { error: r2Err } = await supabase.from("matches").insert(r2Matches);
-          if (r2Err) throw r2Err;
-        }
+        // ── Hybrid / play-in bracket (any byeCount > 0: 6,10,12,14,20,24…) ──
+        await generateBracketHybrid(standings, teamsCount);
       }
 
       toast.success(`Double elimination bracket generated! (${teamsCount} teams${byeCount > 0 ? `, ${byeCount} BYE${byeCount > 1 ? 's' : ''}` : ''})`);
