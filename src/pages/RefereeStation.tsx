@@ -936,8 +936,8 @@ const RefereeStation = () => {
           }
         }
 
-        // Grand Final check
-        if (roundNumber === winnersRounds && winnerId) {
+        // Grand Final check — use gfPushed flag to avoid duplicating with the Losers path below
+        if (roundNumber === winnersRounds && winnerId && !gfPushed) {
           const losersFinal = losersBracket.find(m => m.round_number === losersRoundsCount && m.winner_id);
           if (losersFinal?.winner_id) {
             const grandFinalExists = allMatches.some(m => m.round_number === grandFinalRound && !m.is_third_place_match);
@@ -947,6 +947,7 @@ const RefereeStation = () => {
                 round_number: grandFinalRound, team1_id: winnerId, team2_id: losersFinal.winner_id,
                 is_third_place_match: false, field_number: 1,
               });
+              gfPushed = true;
             }
           }
         }
