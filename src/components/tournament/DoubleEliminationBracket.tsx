@@ -1602,17 +1602,21 @@ export const DoubleEliminationBracket = ({
               : getWinnersRoundName(round, bracketSize, playInCount);
             const isThisLastRound = colIdx === expectedRounds.length - 1;
 
-            // Compute spacingLevel based on the MAXIMUM match count across all rounds.
-            // CRITICAL for play-in brackets: R1 may have fewer matches (e.g. 2) than R2 (e.g. 8),
-            // so maxCount must be the global max, not just expectedRounds[0].count.
+            // ── Spacing logic ──
+            // For "play-in → main bracket" columns (nextCount > count, e.g. 2 play-ins before 8 QF):
+            //   Each play-in match must align with its R2 counterpart by field_number.
+            //   We use absolute positioning within a fixed-height container matching R2's total height.
+            // For all other columns: standard spacingLevel formula (maxCount from the whole bracket).
+            const nextCount = expectedRounds[colIdx + 1]?.count ?? 0;
+            const isPlayInColumn = !isLosers && playInCount > 0 && round === 1 && nextCount > count;
+
             const maxCount = Math.max(...expectedRounds.map(e => e.count));
             const spacingLevel = count > 0 ? Math.max(0, Math.log2(maxCount / count)) : 0;
-
             const verticalGap = unit * Math.pow(2, spacingLevel) - matchHeight;
             const topOffset = unit * (Math.pow(2, spacingLevel) - 1) / 2;
 
-            // For losers bracket, same-count consecutive rounds keep same spacing
-            // but SVG connectors only drawn when next round has fewer matches (pairs merge)
+            // Play-in column height = same as the R2 column so connectors align perfectly
+            const playInColHeight = maxCount * unit - baseGap;
 
             return (
               <div key={`${isLosers ? 'L' : 'W'}-R${round}`} className="flex flex-col" style={{ minWidth: `${COL_W + CONNECTOR_W}px` }}>
@@ -1626,7 +1630,34 @@ export const DoubleEliminationBracket = ({
                   {roundName}
                 </div>
 
-                {/* Matches column with same gap+marginTop as Single Elim */}
+                {isPlayInColumn ? (
+                  // ── Play-in column: position each match absolutely by field_number to align with R2 ──
+                  <div className="relative" style={{ width: `${COL_W + CONNECTOR_W}px`, height: `${playInColHeight}px` }}>
+                    {/* SVG: dashed connector from each play-in match center → corresponding R2 slot center */}
+                    <svg
+                      className="absolute top-0 pointer-events-none"
+                      style={{ left: COL_W, width: CONNECTOR_W, height: "100%", overflow: "visible" }}
+                    >
+                      {realRoundMatches.map((m) => {
+                        const fn = (m.field_number ?? 1) - 1; // 0-indexed slot in R2
+                        const y = fn * unit + matchCenterY;
+                        return (
+                          <line key={m.id} x1="0" y1={y} x2={CONNECTOR_W} y2={y}
+                            stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.4" strokeDasharray="4 2" />
+                        );
+                      })}
+                    </svg>
+                    {realRoundMatches.map((m) => {
+                      const fn = (m.field_number ?? 1) - 1;
+                      return (
+                        <div key={m.id} className="absolute" style={{ top: fn * unit, height: matchHeight, width: COL_W }}>
+                          {renderMatchCard(m, realMatches, false)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                /* ── Standard column: flex layout with computed gap/offset ── */
                 <div
                   className="flex flex-col relative"
                   style={{
@@ -1637,7 +1668,6 @@ export const DoubleEliminationBracket = ({
                 >
                   {/* SVG connector lines — only draw bracket connectors when next round has FEWER matches (2→1 merge) */}
                   {!isThisLastRound && (() => {
-                    const nextCount = expectedRounds[colIdx + 1]?.count ?? count;
                     const isPairMerge = nextCount < count; // 2 matches → 1: draw bracket connector
                     // For same-count (drop-in round): draw simple pass-through arrow
                     return (
