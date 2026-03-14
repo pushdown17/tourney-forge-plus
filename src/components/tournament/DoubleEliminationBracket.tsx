@@ -179,27 +179,9 @@ export const DoubleEliminationBracket = ({
     fetchActiveTimers();
   }, [tournamentId, currentPhase]);
 
-  // Auto-create Grand Final match as soon as both champions are known
-  // This replaces the placeholder with a real interactive BracketMatch
-  useEffect(() => {
-    if (!tournament || !isCreator) return;
-    const totalT = tournament.teams_for_elimination || 8;
-    const bracketSz = getBracketSize(totalT);
-    const byeCountT = bracketSz - totalT;
-    const wRounds = Math.log2(bracketSz);
-    const lRounds = getLosersRoundsCount(bracketSz, byeCountT);
-    const grandFinalRound = wRounds + 1;
-
-    const wFinal = matches.find(m => !m.is_third_place_match && m.round_number === wRounds && m.winner_id);
-    const lFinal = matches.find(m => m.is_third_place_match && m.round_number === lRounds && m.winner_id);
-    const grandFinalExists = matches.some(m => !m.is_third_place_match && m.round_number === grandFinalRound);
-
-    if (wFinal?.winner_id && lFinal?.winner_id && !grandFinalExists) {
-      createGrandFinal(wFinal.winner_id, lFinal.winner_id).then(() => {
-        setActiveTab("finals");
-      });
-    }
-  }, [matches, tournament, isCreator]);
+  // Grand Final is created exclusively by RefereeStation.tsx upon match completion.
+  // This bracket component only DISPLAYS matches; it no longer auto-creates the GF
+  // to avoid race-condition duplicates when both the station and bracket fire simultaneously.
 
   useEffect(() => {
     if (currentPhase !== "double_elimination") return;
