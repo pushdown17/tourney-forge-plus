@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, BarChart3, Trophy } from "lucide-react";
+import { User, BarChart3, CalendarDays } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileTab } from "@/components/account/ProfileTab";
 import { StatsTab } from "@/components/account/StatsTab";
@@ -64,7 +64,7 @@ export default function MyAccount() {
               Stats
             </TabsTrigger>
             <TabsTrigger value="tournaments" className="gap-2">
-              <Trophy className="h-4 w-4" />
+              <CalendarDays className="h-4 w-4" />
               Tournaments
             </TabsTrigger>
           </TabsList>
