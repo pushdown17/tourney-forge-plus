@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, BarChart3 } from "lucide-react";
+import { User, BarChart3, Trophy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileTab } from "@/components/account/ProfileTab";
 import { StatsTab } from "@/components/account/StatsTab";
+import { TournamentsCreatedTab } from "@/components/account/TournamentsCreatedTab";
 
 export default function MyAccount() {
   const [user, setUser] = useState<any>(null);
@@ -62,6 +63,10 @@ export default function MyAccount() {
               <BarChart3 className="h-4 w-4" />
               Stats
             </TabsTrigger>
+            <TabsTrigger value="tournaments" className="gap-2">
+              <Trophy className="h-4 w-4" />
+              Tournaments
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -70,6 +75,10 @@ export default function MyAccount() {
 
           <TabsContent value="stats">
             <StatsTab userId={user.id} />
+          </TabsContent>
+
+          <TabsContent value="tournaments">
+            <TournamentsCreatedTab userId={user.id} />
           </TabsContent>
         </Tabs>
       </div>
