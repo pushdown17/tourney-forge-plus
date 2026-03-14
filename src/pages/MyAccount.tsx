@@ -63,6 +63,10 @@ export default function MyAccount() {
               <BarChart3 className="h-4 w-4" />
               Stats
             </TabsTrigger>
+            <TabsTrigger value="tournaments" className="gap-2">
+              <Trophy className="h-4 w-4" />
+              Tournaments
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -71,6 +75,10 @@ export default function MyAccount() {
 
           <TabsContent value="stats">
             <StatsTab userId={user.id} />
+          </TabsContent>
+
+          <TabsContent value="tournaments">
+            <TournamentsCreatedTab userId={user.id} />
           </TabsContent>
         </Tabs>
       </div>
