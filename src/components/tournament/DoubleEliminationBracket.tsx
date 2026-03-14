@@ -973,9 +973,9 @@ export const DoubleEliminationBracket = ({
 
       if (!isLosersBracket) {
         // ========== WINNERS BRACKET ==========
-        const byeCount = bracketSz - totalTeams;
+        const playInCountW = getPlayInCount(totalTeams);
 
-        if (roundNumber === 1 && byeCount > 0) {
+        if (roundNumber === 1 && playInCountW > 0) {
           // ══════════════════════════════════════════════════════════════════
           // ROUTING MAP — Preliminary Round progression (BYE/hybrid brackets)
           // ══════════════════════════════════════════════════════════════════
