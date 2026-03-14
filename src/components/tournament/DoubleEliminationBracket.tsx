@@ -1563,12 +1563,11 @@ export const DoubleEliminationBracket = ({
   };
 
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
-    // matchHeight = total slot height (header row ~20px + card ~80px = ~100px rendered).
-    // matchCenterY = vertical center of the Card element within the slot, not the slot midpoint.
+    // Measured from DOM: header row = 36px, card = 64px → total slot = 100px
     const matchHeight = 100;
     const baseGap = 16;
     const unit = matchHeight + baseGap;
-    const matchCenterY = 60; // header ~20px + card center ~40px = 60px from slot top
+    const matchCenterY = 36 + 32; // header 36px + half card 32px = 68px from slot top
     const COL_W = 200;
     const CONNECTOR_W = 32;
 
