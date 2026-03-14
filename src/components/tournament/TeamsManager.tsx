@@ -334,16 +334,31 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
         <Card className="glass-card p-4 md:p-6">
           <h2 className="text-xl md:text-2xl font-bold mb-4">Registered Teams ({teams.length})</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            {teams.map((team) => (
-              <div key={team.id} className="flex items-center justify-between p-3 md:p-4 bg-secondary/20 rounded-lg min-h-[56px]">
-                <span className="font-medium text-sm md:text-base">{team.name}</span>
-                {isCreator && (
-                  <Button variant="ghost" size="sm" onClick={() => handleDeleteTeam(team.tournament_team_id)} className="h-10 w-10 p-0" disabled={isClosed}>
-                    <Trash2 className="h-5 w-5 text-destructive" />
-                  </Button>
-                )}
-              </div>
-            ))}
+            {teams.map((team) => {
+              const players = teamPlayers[team.tournament_team_id] || [];
+              return (
+                <div key={team.id} className="flex flex-col p-3 md:p-4 bg-secondary/20 rounded-lg gap-2">
+                  <div className="flex items-center justify-between min-h-[32px]">
+                    <span className="font-medium text-sm md:text-base">{team.name}</span>
+                    {isCreator && (
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteTeam(team.tournament_team_id)} className="h-10 w-10 p-0" disabled={isClosed}>
+                        <Trash2 className="h-5 w-5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                  {showPlayers && players.length > 0 && (
+                    <ul className="space-y-1 pl-1 border-t border-border/30 pt-2">
+                      {players.map((name, i) => (
+                        <li key={i} className="text-xs text-muted-foreground flex items-center gap-1">
+                          <span className="w-1 h-1 rounded-full bg-primary inline-block shrink-0" />
+                          {name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
           </div>
           {teams.length === 0 && <p className="text-muted-foreground text-center py-8">No teams registered yet</p>}
         </Card>
