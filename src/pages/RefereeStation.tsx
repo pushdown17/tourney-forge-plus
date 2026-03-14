@@ -704,16 +704,15 @@ const RefereeStation = () => {
     }
   };
 
-  // ── Helper: next power of 2 ≥ n ──
-  const nextPow2Station = (n: number): number => Math.pow(2, Math.ceil(Math.log2(n)));
+  // ── Helper: previous power of 2 ≤ n ──
+  const prevPow2Station = (n: number): number => Math.pow(2, Math.floor(Math.log2(n)));
 
   /**
-   * Losers bracket rounds count, aware of hybrid (bye) formats.
-   * For play-in (byeCount > 0): effective DE = bracketSize/2 teams → fewer losers rounds.
+   * Losers bracket rounds count, aware of hybrid (play-in) formats.
+   * For play-in (playInCount > 0): losers rounds = (log2(bracketSize) - 1) * 2.
    * Mirrors getLosersRoundsCount in DoubleEliminationBracket.tsx exactly.
    */
-  const getLosersRoundsCountDE = (bracketSize: number, byeCount: number): number => {
-    if (byeCount > 0) return (Math.log2(bracketSize) - 2) * 2;
+  const getLosersRoundsCountDE = (bracketSize: number, _playInCount: number): number => {
     return (Math.log2(bracketSize) - 1) * 2;
   };
 

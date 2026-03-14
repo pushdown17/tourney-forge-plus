@@ -78,40 +78,47 @@ function getStandardSeedingPairs(count: number): [number, number][] {
   return pairs;
 }
 
-/** Next power of 2 ≥ n */
-const nextPow2 = (n: number): number => Math.pow(2, Math.ceil(Math.log2(n)));
+/** Previous power of 2 ≤ n (or same if n is already a power of 2) */
+const prevPow2 = (n: number): number => Math.pow(2, Math.floor(Math.log2(n)));
 
 /**
- * For a given teamsCount, the bracket size is the next power of 2.
- * For power-of-2 counts it's the same value.
+ * For a given teamsCount, the bracket size is the PREVIOUS (or equal) power of 2.
+ * e.g. 20 → 16, 24 → 16, 12 → 8, 8 → 8.
+ * Extra teams (teamsCount - bracketSize) play in "play-in" matches.
  */
-const getBracketSize = (teamsCount: number): number => nextPow2(teamsCount);
+const getBracketSize = (teamsCount: number): number => prevPow2(teamsCount);
+
+/**
+ * Number of play-in teams = teams that don't fit in the main bracket.
+ * e.g. 20 teams → 4 play-in teams → 2 play-in matches.
+ */
+const getPlayInCount = (teamsCount: number): number => teamsCount - getBracketSize(teamsCount);
 
 /**
  * Total number of losers bracket rounds.
- * For play-in brackets (byeCount > 0), W-R1 is play-in (losers eliminated),
- * so the effective DE starts at W-R2 with bracketSize/2 teams → fewer losers rounds.
+ * For play-in brackets (playInCount > 0), W-R1 is play-in (losers eliminated),
+ * so the effective DE starts at W-R2 → losers rounds = (log2(bracketSize) - 1) * 2.
  */
-const getLosersRoundsCount = (bracketSize: number, byeCount = 0): number => {
-  if (byeCount > 0) {
-    // Effective DE = 8-team equivalent (bracketSize/2), losers rounds = (log2(bs/2)-1)*2
-    return (Math.log2(bracketSize) - 2) * 2;
+const getLosersRoundsCount = (bracketSize: number, playInCount = 0): number => {
+  if (playInCount > 0) {
+    return (Math.log2(bracketSize) - 1) * 2;
   }
   return (Math.log2(bracketSize) - 1) * 2;
 };
 
-const getWinnersRoundName = (roundNumber: number, bracketSize: number, byeCount = 0) => {
-  const w = Math.log2(bracketSize);
-  // Round 1 is "Play-in" for non-power-of-2 brackets
-  if (roundNumber === 1 && byeCount > 0) return "Preliminary Round";
+const getWinnersRoundName = (roundNumber: number, bracketSize: number, playInCount = 0) => {
+  // With play-in: actual bracket rounds are 2..log2(bracketSize)+1, R1 = play-in
+  const w = Math.log2(bracketSize) + (playInCount > 0 ? 1 : 0);
+  if (roundNumber === 1 && playInCount > 0) return "Preliminary Round";
   if (roundNumber === w) return "Winners Final";
-  if (roundNumber === w - 1) return w >= 3 ? "Winners Semi" : "Winners Final";
-  if (roundNumber === w - 2 && w >= 4) return "Winners QF";
+  if (roundNumber === w - 1) return w >= 4 ? "Winners Semi" : "Winners Final";
+  if (roundNumber === w - 2 && w >= 5) return "Winners QF";
+  if (roundNumber === w - 3 && w >= 6) return "Winners R16";
   return `Winners R${roundNumber}`;
 };
 
-const getLosersRoundName = (roundNumber: number, bracketSize: number, byeCount = 0) => {
-  const lr = getLosersRoundsCount(bracketSize, byeCount);
+const getLosersRoundName = (roundNumber: number, bracketSize: number, playInCount = 0) => {
+  const lr = getLosersRoundsCount(bracketSize, playInCount);
   if (roundNumber === lr) return "Losers Final";
   if (roundNumber === lr - 1) return "Losers Semi";
   return `Losers R${roundNumber}`;
@@ -458,8 +465,8 @@ export const DoubleEliminationBracket = ({
     try {
       const totalTeams = teamsCount ?? (tournament ?? tournamentRef.current)?.teams_for_elimination ?? 8;
       const bracketSz = getBracketSize(totalTeams);
-      const byeCount = bracketSz - totalTeams;
-      if (byeCount === 0) return; // No prelim round for perfect power-of-2
+      const playInCount = getPlayInCount(totalTeams);
+      if (playInCount === 0) return; // No prelim round for perfect power-of-2
 
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
       const winnersBracket = allMatchesData.filter(m => !m.is_third_place_match).sort(sortFn);
@@ -529,8 +536,8 @@ export const DoubleEliminationBracket = ({
     try {
       const totalTeams = teamsCount ?? (tournament ?? tournamentRef.current)?.teams_for_elimination ?? 8;
       const bracketSz = getBracketSize(totalTeams);
-      const byeCount = bracketSz - totalTeams;
-      const winnersRoundsCount = Math.log2(bracketSz);
+      const playInCount = getPlayInCount(totalTeams);
+      const winnersRoundsCount = Math.log2(bracketSz) + (playInCount > 0 ? 1 : 0);
 
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
 
@@ -555,15 +562,15 @@ export const DoubleEliminationBracket = ({
           .sort(sortFn);
 
       // ---------------------------------------------------------------
-      // PLAY-IN brackets (byeCount > 0):
+      // PLAY-IN brackets (playInCount > 0):
       //   W-R1 losers are ELIMINATED — skip L-R1 from W-R1
       //   W-R2 losers → L-R1 (minor, pair them up)
       //   W-R(k≥3) losers → L-R((k-2)*2) major round
-      // STANDARD brackets (byeCount = 0):
+      // STANDARD brackets (playInCount = 0):
       //   W-R1 losers → L-R1 (minor, pair them up)
       //   W-R(k≥2) losers → L-R((k-1)*2) major round
       // ---------------------------------------------------------------
-      const loserFirstWRound = byeCount > 0 ? 2 : 1; // First W round whose losers enter L bracket
+      const loserFirstWRound = playInCount > 0 ? 2 : 1; // First W round whose losers enter L bracket
 
       // L-R1 minor: losers from W-R(loserFirstWRound) paired consecutively
       const allR1W = winnersBracket.filter(m => m.round_number === loserFirstWRound);
@@ -585,7 +592,7 @@ export const DoubleEliminationBracket = ({
       }
 
       // For each subsequent W-round → repair L major round, then next L minor
-      const losersRoundsCount = getLosersRoundsCount(bracketSz, byeCount);
+      const losersRoundsCount = getLosersRoundsCount(bracketSz, playInCount);
       for (let wRound = loserFirstWRound + 1; wRound <= winnersRoundsCount; wRound++) {
         const completedWRound = winnersBracket
           .filter((m: any) => m.round_number === wRound && m.winner_id)
@@ -656,110 +663,105 @@ export const DoubleEliminationBracket = ({
   };
 
   // ══════════════════════════════════════════════════════════════════════════════
-  // GENERIC HYBRID BRACKET GENERATOR  (any byeCount > 0: 6, 10, 12, 14, 20, 24…)
+  // HYBRID BRACKET GENERATOR (any playInCount > 0: 6, 10, 12, 14, 20, 24…)
   // ══════════════════════════════════════════════════════════════════════════════
   //
-  // Algorithm (works for ANY team count with BYEs):
+  // New "prevPow2" architecture:
   //
-  //   bracketSize = next power of 2 ≥ teamsCount
-  //   Use getStandardSeedingPairs(bracketSize) → gives bracketSize/2 pair slots.
-  //   Group pair slots by "QF group" (2 pair slots → 1 QF slot):
-  //     Each QF group (= 1 R2 slot) contains exactly one BYE sub-pair and one real sub-pair,
-  //     OR two real sub-pairs (when bracketSize/2 → teamsCount ratio is different).
+  //   bracketSize = prevPow2(teamsCount) — e.g. 16 for 20 teams
+  //   playInCount = teamsCount - bracketSize — e.g. 4 for 20 teams
+  //   playInSlotsCount = playInCount / 2 — number of bracket slots contested by play-ins (e.g. 2)
+  //   playInThreshold = bracketSize - playInSlotsCount — seeds > threshold are contested (e.g. 14 for 20 teams)
   //
-  //   For each QF group of 2 pair slots:
-  //     - If exactly one sub-pair has a phantom seed (>teamsCount) → BYE slot:
-  //         • R2 sentinel: team1=byeSeed (LOCKED), team2=byeSeed (SENTINEL=TBD)
-  //         • R1 prelim:   real sub-pair seeds
-  //     - If both sub-pairs are real:
-  //         • Two R1 prelim matches with separate field_numbers
-  //         • R2 sentinel: two winners (unknown) → will be created dynamically on completion
-  //     - If both are BYE (impossible for odd-factor sizes, possible for extreme cases):
-  //         • R2 real match directly (both teams known)
+  //   Use getStandardSeedingPairs(bracketSize) → gives bracketSize/2 pair slots (e.g. 8 pairs for 16).
   //
-  //   field_number invariant: R1 prelim with field_number=K → R2 slot with field_number=K
-  //   This guarantees the ABSOLUTE routing rule: Prelim winner → R2.team2 (BOTTOM slot only)
+  //   For each pair [s1, s2]:
+  //     - If s1 > playInThreshold OR s2 > playInThreshold → PLAY-IN slot:
+  //         The contested seed is the one > playInThreshold (e.g. seed 15 or 16).
+  //         The direct seed is the opponent (e.g. seed 1 or 2).
+  //         Create:
+  //           • R1 play-in: extra seeds paired as (extras[i] vs extras[playInCount-1-i])
+  //           • R2 sentinel: directSeed vs directSeed (TBD, play-in winner fills team2 slot)
+  //     - Otherwise → direct R2 match (both seeds known, no play-in needed)
+  //
+  //   field_number invariant: R1 play-in field_number=K → R2 sentinel field_number=K
+  //   ABSOLUTE ROUTING: play-in winner → R2.team2 (BOTTOM slot only, team1=direct seed is LOCKED)
   //
   // ══════════════════════════════════════════════════════════════════════════════
   const generateBracketHybrid = async (standings: any[], teamsCount: number) => {
-    const bracketSz = getBracketSize(teamsCount);
-    const fullPairs = getStandardSeedingPairs(bracketSz);
-    const r2SlotCount = bracketSz / 4; // = bracketSz / 2 / 2
+    const bracketSz = getBracketSize(teamsCount);     // e.g. 16 for 20 teams
+    const playInCount = teamsCount - bracketSz;        // e.g. 4 for 20 teams
+    const playInSlotsCount = playInCount / 2;          // e.g. 2: how many bracket slots are contested
+    const playInThreshold = bracketSz - playInSlotsCount; // e.g. 14: seeds > this are contested
 
-    const teamBySeed = (seed: number): string | null =>
-      seed >= 1 && seed <= teamsCount ? standings[seed - 1].team_id : null;
+    const fullPairs = getStandardSeedingPairs(bracketSz);
+
+    // Extra seeds (seeds bracketSz+1..teamsCount) that play in the play-in matches
+    // Paired as: extras[0] vs extras[playInCount-1], extras[1] vs extras[playInCount-2], ...
+    // e.g. for 20 teams: [seed17 vs seed20, seed18 vs seed19]
+    const extraStandings = standings.slice(bracketSz); // standings[16..19] for 20 teams
 
     const r1Matches: any[] = [];
     const r2Matches: any[] = [];
 
-    for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
-      const pA = fullPairs[r2Slot * 2];
-      const pB = fullPairs[r2Slot * 2 + 1];
-      const [sA1, sA2] = pA;
-      const [sB1, sB2] = pB;
-      const tA1 = teamBySeed(sA1), tA2 = teamBySeed(sA2);
-      const tB1 = teamBySeed(sB1), tB2 = teamBySeed(sB2);
+    // Map contested seed (bracketSz-playInSlotsCount+1..bracketSz) to play-in pair index
+    // contestedSeed=bracketSz → pairIdx=0 (weakest contested → weakest extra pair)
+    // contestedSeed=bracketSz-1 → pairIdx=1, etc.
+    const contestedSeedToPairIdx = (seed: number): number => bracketSz - seed;
 
-      const slotAisBye = (tA1 !== null && tA2 === null) || (tA1 === null && tA2 !== null);
-      const slotBisBye = (tB1 !== null && tB2 === null) || (tB1 === null && tB2 !== null);
+    for (let pairIdx = 0; pairIdx < fullPairs.length; pairIdx++) {
+      const [s1, s2] = fullPairs[pairIdx];
+      const fieldNum = pairIdx + 1;
 
-      const r2FieldNum = r2Slot + 1;
+      const isPlayInSlot = s1 > playInThreshold || s2 > playInThreshold;
 
-      if (slotAisBye && slotBisBye) {
-        // Both BYEs → direct R2 real match (both seeds known, no prelim needed)
-        const byeTeamA = (tA1 ?? tA2)!;
-        const byeTeamB = (tB1 ?? tB2)!;
-        r2Matches.push({
-          tournament_id: tournamentId, phase: "double_elimination" as const,
-          round_number: 2, team1_id: byeTeamA, team2_id: byeTeamB,
-          field_number: r2FieldNum, is_third_place_match: false,
-        });
-      } else if (slotAisBye) {
-        // A is BYE seed → R2 sentinel (A seed locked in team1), R1 = B's real matchup
-        const byeTeam = (tA1 ?? tA2)!;
+      if (isPlayInSlot) {
+        // Contested seed: the one > playInThreshold; direct seed: the other
+        const contestedSeed = s1 > playInThreshold ? s1 : s2;
+        const directSeed = s1 > playInThreshold ? s2 : s1;
+
+        const pIdx = contestedSeedToPairIdx(contestedSeed); // 0-indexed within contested range
+        // Extra pair: extraStandings[pIdx] vs extraStandings[playInCount-1-pIdx]
+        const extraA = extraStandings[pIdx];
+        const extraB = extraStandings[playInCount - 1 - pIdx];
+
+        if (!extraA || !extraB) {
+          console.warn(`[generateBracketHybrid] Missing extra standings for pIdx=${pIdx}`);
+          continue;
+        }
+
+        const directTeam = standings[directSeed - 1];
+        if (!directTeam) continue;
+
+        // R1 play-in: extra seeds play each other for this slot
         r1Matches.push({
           tournament_id: tournamentId, phase: "double_elimination" as const,
-          round_number: 1, team1_id: tB1!, team2_id: tB2!,
-          field_number: r2FieldNum, is_third_place_match: false,
+          round_number: 1, team1_id: extraA.team_id, team2_id: extraB.team_id,
+          field_number: fieldNum, is_third_place_match: false,
         });
+
+        // R2 sentinel: directSeed is LOCKED in team1, team2 = directSeed (TBD = sentinel)
         r2Matches.push({
           tournament_id: tournamentId, phase: "double_elimination" as const,
-          round_number: 2, team1_id: byeTeam, team2_id: byeTeam, // SENTINEL
-          field_number: r2FieldNum, is_third_place_match: false,
+          round_number: 2, team1_id: directTeam.team_id, team2_id: directTeam.team_id,
+          field_number: fieldNum, is_third_place_match: false,
         });
-      } else if (slotBisBye) {
-        // B is BYE seed → R2 sentinel (B seed locked in team1), R1 = A's real matchup
-        const byeTeam = (tB1 ?? tB2)!;
-        r1Matches.push({
-          tournament_id: tournamentId, phase: "double_elimination" as const,
-          round_number: 1, team1_id: tA1!, team2_id: tA2!,
-          field_number: r2FieldNum, is_third_place_match: false,
-        });
-        r2Matches.push({
-          tournament_id: tournamentId, phase: "double_elimination" as const,
-          round_number: 2, team1_id: byeTeam, team2_id: byeTeam, // SENTINEL
-          field_number: r2FieldNum, is_third_place_match: false,
-        });
+
       } else {
-        // Both sub-pairs are real → two R1 prelim matches with distinct field_numbers
-        // These feed a R2 match that will be CREATED dynamically (not pre-allocated here)
-        // because we can't determine the top seed (no BYE involved).
-        const fn1 = r2FieldNum * 2 - 1;
-        const fn2 = r2FieldNum * 2;
-        r1Matches.push({
+        // Direct R2 match: both seeds are within bracketSz, no play-in needed
+        const team1 = standings[s1 - 1];
+        const team2 = standings[s2 - 1];
+        if (!team1 || !team2) continue;
+
+        r2Matches.push({
           tournament_id: tournamentId, phase: "double_elimination" as const,
-          round_number: 1, team1_id: tA1!, team2_id: tA2!,
-          field_number: fn1, is_third_place_match: false,
-        });
-        r1Matches.push({
-          tournament_id: tournamentId, phase: "double_elimination" as const,
-          round_number: 1, team1_id: tB1!, team2_id: tB2!,
-          field_number: fn2, is_third_place_match: false,
+          round_number: 2, team1_id: team1.team_id, team2_id: team2.team_id,
+          field_number: fieldNum, is_third_place_match: false,
         });
       }
     }
 
-    console.log(`[generateBracketHybrid] ${teamsCount} teams → bracketSz=${bracketSz}, R1=${r1Matches.length} matches, R2=${r2Matches.length} sentinels`);
+    console.log(`[generateBracketHybrid] ${teamsCount} teams → bracketSz=${bracketSz}, playIn=${playInCount}, R1=${r1Matches.length} play-in matches, R2=${r2Matches.length} matches`);
 
     if (r1Matches.length > 0) {
       const { error: r1Err } = await supabase.from("matches").insert(r1Matches);
@@ -775,7 +777,7 @@ export const DoubleEliminationBracket = ({
     setGenerating(true);
     try {
       const bracketSz = getBracketSize(teamsCount);
-      const byeCount = bracketSz - teamsCount;
+      const playInCount = getPlayInCount(teamsCount);
 
       const { data: standings, error: standingsError } = await supabase
         .from("team_stats")
@@ -793,7 +795,7 @@ export const DoubleEliminationBracket = ({
         return;
       }
 
-      if (byeCount === 0) {
+      if (playInCount === 0) {
         // ── Perfect power-of-2: standard bracket generation ──
         const pairs = getStandardSeedingPairs(teamsCount);
         const allMatches = pairs.map((pair, i) => ({
@@ -808,11 +810,11 @@ export const DoubleEliminationBracket = ({
         const { error: insertError } = await supabase.from("matches").insert(allMatches);
         if (insertError) throw insertError;
       } else {
-        // ── Hybrid / play-in bracket (any byeCount > 0: 6,10,12,14,20,24…) ──
+        // ── Hybrid / play-in bracket (any playInCount > 0: 6,10,12,14,20,24…) ──
         await generateBracketHybrid(standings, teamsCount);
       }
 
-      toast.success(`Double elimination bracket generated! (${teamsCount} teams${byeCount > 0 ? `, ${byeCount} BYE${byeCount > 1 ? 's' : ''}` : ''})`);
+      toast.success(`Double elimination bracket generated! (${teamsCount} teams${playInCount > 0 ? `, ${playInCount} play-in teams` : ''})`);
       await fetchTournamentAndMatches();
     } catch (error: any) {
       toast.error("Error generating bracket");
@@ -920,7 +922,8 @@ export const DoubleEliminationBracket = ({
         ?? 8;
 
       const bracketSz = getBracketSize(totalTeams);
-      const winnersRounds = Math.log2(bracketSz);
+      const playInCount = getPlayInCount(totalTeams);
+      const winnersRounds = Math.log2(bracketSz) + (playInCount > 0 ? 1 : 0);
 
       const [matchesResult] = await Promise.all([
         supabase
@@ -941,8 +944,7 @@ export const DoubleEliminationBracket = ({
       const losersBracket = (allMatches?.filter(m => m.is_third_place_match) || []).sort(sortFn);
 
       const grandFinalRound1 = winnersRounds + 1;
-      const byeCount = bracketSz - totalTeams;
-      const losersRoundsCount = getLosersRoundsCount(bracketSz, byeCount);
+      const losersRoundsCount = getLosersRoundsCount(bracketSz, playInCount);
 
       // ---- GRAND FINAL / RESET ----
       if (!isLosersBracket && roundNumber >= grandFinalRound1) {
@@ -970,9 +972,9 @@ export const DoubleEliminationBracket = ({
 
       if (!isLosersBracket) {
         // ========== WINNERS BRACKET ==========
-        const byeCount = bracketSz - totalTeams;
+        const playInCountW = getPlayInCount(totalTeams);
 
-        if (roundNumber === 1 && byeCount > 0) {
+        if (roundNumber === 1 && playInCountW > 0) {
           // ══════════════════════════════════════════════════════════════════
           // ROUTING MAP — Preliminary Round progression (BYE/hybrid brackets)
           // ══════════════════════════════════════════════════════════════════
@@ -1018,7 +1020,7 @@ export const DoubleEliminationBracket = ({
           // Return early — no Losers bracket creation for prelim round
           return;
 
-        } else if (roundNumber === 1 && byeCount === 0) {
+        } else if (roundNumber === 1 && playInCountW === 0) {
           // ── Standard power-of-2: W-R1 → winner advances to R2, loser enters L-R1 ──
           const allR1Sorted = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
           const myPosInR = allR1Sorted.findIndex(m => m.id === completedMatch.id);
@@ -1043,7 +1045,7 @@ export const DoubleEliminationBracket = ({
             }
           }
 
-        } else if (roundNumber === 2 && byeCount > 0) {
+        } else if (roundNumber === 2 && playInCountW > 0) {
           // ── BYE/hybrid W-QF: loser enters L-R1 (minor round) ──
           // These 4 QF losers are the first teams to enter the Losers Bracket
           // CRITICAL: use winnersBracketAll (includes sentinels) so positions are 0,1,2,3
@@ -1073,7 +1075,7 @@ export const DoubleEliminationBracket = ({
 
         } else {
           // ── W-R(k≥3) play-in / W-R(k≥2) standard: loser drops into L major round ──
-          const targetLosersRound = byeCount > 0
+          const targetLosersRound = playInCountW > 0
             ? (roundNumber - 2) * 2  // Play-in: W-R3→L-R2, W-R4→L-R4
             : (roundNumber - 1) * 2; // Standard: W-R2→L-R2, W-R3→L-R4
           const prevMinorRound = targetLosersRound - 1;
@@ -1131,9 +1133,9 @@ export const DoubleEliminationBracket = ({
             // Standard formula: L-R2←W-R2, L-R4←W-R3, L-R6←W-R4 → wFeederRound = nextMajorRound/2 + 1
             // Play-in formula: L-R2←W-R3, L-R4←W-R4 → wFeederRound = nextMajorRound/2 + 2
             const nextMajorRound = nextRound;
-            const wFeederRound = byeCount > 0
-              ? nextMajorRound / 2 + 2  // Play-in: L-R2←W-R3, L-R4←W-R4
-              : nextMajorRound / 2 + 1; // Standard: L-R2←W-R2, L-R4←W-R3, L-R6←W-R4
+            const wFeederRound = playInCount > 0
+              ? nextMajorRound / 2 + 2
+              : nextMajorRound / 2 + 1;
 
             // Get all minor round matches sorted by field_number, map winner (or null if not done)
             const allMinorMatches = currentLosersRound.sort(sortFn);
@@ -1280,8 +1282,8 @@ export const DoubleEliminationBracket = ({
 
   const totalTeams = tournament?.teams_for_elimination || 8;
   const bracketSize = getBracketSize(totalTeams);
-  const byeCount = bracketSize - totalTeams;
-  const winnersRoundsCount = Math.log2(bracketSize);
+  const playInCount = getPlayInCount(totalTeams);
+  const winnersRoundsCount = Math.log2(bracketSize) + (playInCount > 0 ? 1 : 0);
 
   const grandFinalMatches = matches
     .filter(m => !m.is_third_place_match && m.round_number > winnersRoundsCount)
@@ -1295,7 +1297,7 @@ export const DoubleEliminationBracket = ({
   // Only show the champion banner when ALL grand final matches are done AND
   // if a reset was triggered (GF#1 won by Losers champ), GF#2 must exist before declaring winner.
   const gf1 = grandFinalMatches[0] ?? null;
-  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize, byeCount) && m.winner_id)?.winner_id === gf1.winner_id;
+  const gf1WinnerIsLosersChamp = gf1?.winner_id && losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize, playInCount) && m.winner_id)?.winner_id === gf1.winner_id;
   const resetExpected = gf1?.winner_id && gf1WinnerIsLosersChamp && !hasReset;
   const allGrandFinalsCompleted = grandFinalMatches.length > 0 && grandFinalMatches.every(m => m.winner_id) && !resetExpected;
   const decidingFinal = allGrandFinalsCompleted ? grandFinalMatches[grandFinalMatches.length - 1] : null;
@@ -1383,25 +1385,22 @@ export const DoubleEliminationBracket = ({
 
   // Generate expected number of matches per round for a full bracket structure
   // For BYE brackets (e.g. 12 teams in 16-slot bracket):
-  //   - R1: only real matches shown (bracketSize/2 - byeCount)
+  //   - R1: only play-in matches shown (playInCount/2)
   //   - R2+: full bracketSize-based slots
   const getExpectedMatchCounts = (isLosers: boolean): { round: number; count: number }[] => {
     const rounds: { round: number; count: number }[] = [];
-    const byeCount = bracketSize - totalTeams;
     if (!isLosers) {
       for (let r = 1; r <= winnersRoundsCount; r++) {
         let count = Math.pow(2, winnersRoundsCount - r);
-        if (r === 1 && byeCount > 0) {
-          // Only real R1 matches: bracketSize/2 slots minus BYE slots
-          count = bracketSize / 2 - byeCount;
+        if (r === 1 && playInCount > 0) {
+          // Only real R1 matches: the play-in matches (playInCount/2)
+          count = playInCount / 2;
         }
         if (count > 0) rounds.push({ round: r, count });
       }
     } else {
-      // Losers bracket sizes based on bracketSize (for play-in: use byeCount-aware count)
-      const lrCount = getLosersRoundsCount(bracketSize, byeCount);
-      // For play-in brackets, effective winners rounds = log2(bracketSize/2)
-      const effectiveWRounds = byeCount > 0 ? winnersRoundsCount - 1 : winnersRoundsCount;
+      const lrCount = getLosersRoundsCount(bracketSize, playInCount);
+      const effectiveWRounds = playInCount > 0 ? winnersRoundsCount - 1 : winnersRoundsCount;
       for (let r = 1; r <= lrCount; r++) {
         const pairIdx = Math.ceil(r / 2);
         const count = Math.max(1, Math.pow(2, effectiveWRounds - 1 - pairIdx));
@@ -1448,71 +1447,49 @@ export const DoubleEliminationBracket = ({
         return pending;
       }
 
-      if (round === 2 && byeCount > 0) {
-        // R2 with BYEs: show pending slots for each bracketSize/4 R2 slot.
-        // BYE teams = top byeCount seeds from standings (they skip R1 entirely).
-        // standingsTeams[0] = seed #1 ... standingsTeams[byeCount-1] = seed #byeCount
+      if (round === 2 && playInCount > 0) {
+        // R2 with play-ins: show pending slots for each bracketSize/2 R2 slot.
+        // Direct teams (seeds 1..bracketSize-playInSlotsCount) are known; play-in slots show "TBD".
+        const playInSlotsCount = playInCount / 2;
+        const playInThreshold = bracketSize - playInSlotsCount;
         const r1Matches = allW.filter(m => m.round_number === 1).sort(sortFnField);
-
-        // Use standard seeding to determine which R2 slot each BYE team belongs to
         const fullPairs = getStandardSeedingPairs(bracketSize);
-        const r2SlotCount = bracketSize / 4;
 
-        // Map each full-bracket pair slot to its "contributor type": bye or real
-        // BYE slot: exactly one of the two seeds > totalTeams
-        const slotIsBye = fullPairs.map(([s1, s2]) =>
-          (s1 <= totalTeams && s2 > totalTeams) || (s2 <= totalTeams && s1 > totalTeams)
+        // Identify which pair slots are play-in slots (contested seed > playInThreshold)
+        const slotIsPlayIn = fullPairs.map(([s1, s2]) =>
+          s1 > playInThreshold || s2 > playInThreshold
         );
 
-        // Assign BYE teams to BYE slots using the actual seed from the pair.
-        // For a BYE slot (s1 ≤ totalTeams, s2 > totalTeams) the real seed is s1.
-        // standingsTeams is ordered by seed: [0]=seed1, [1]=seed2, ...
-        const byeSlotToTeam = new Map<number, { name: string; teamId: string }>();
+        // For play-in slots: the direct seed (the one ≤ playInThreshold) is known
+        const playInSlotToDirectTeam = new Map<number, { name: string; teamId: string }>();
         fullPairs.forEach(([s1, s2], pairIdx) => {
-          if (!slotIsBye[pairIdx]) return;
-          // The real team seed is whichever is ≤ totalTeams
-          const realSeed = s1 <= totalTeams ? s1 : s2;
-          const team = standingsTeams[realSeed - 1]; // seed is 1-indexed
-          if (team) byeSlotToTeam.set(pairIdx, team);
+          if (!slotIsPlayIn[pairIdx]) return;
+          const directSeed = s1 <= playInThreshold ? s1 : s2;
+          const team = standingsTeams[directSeed - 1];
+          if (team) playInSlotToDirectTeam.set(pairIdx, team);
         });
 
-        // Map R1 matches to their full-bracket pair slot by seed
-        // R1 real matches: slots where both seeds ≤ totalTeams — in creation order = sorted by field_number
-        const realR1Slots: number[] = [];
+        // Map R1 play-in matches to their pair slots (sorted by field_number)
+        const playInSlotIndices: number[] = [];
         fullPairs.forEach(([s1, s2], pairIdx) => {
-          if (s1 <= totalTeams && s2 <= totalTeams) realR1Slots.push(pairIdx);
+          if (slotIsPlayIn[pairIdx]) playInSlotIndices.push(pairIdx);
         });
-        // r1Matches[k] corresponds to realR1Slots[k] (both sorted by field_number / creation order)
         const pairSlotToR1Match = new Map<number, Match>();
-        realR1Slots.forEach((pairSlotIdx, k) => {
+        playInSlotIndices.forEach((pairSlotIdx, k) => {
           if (r1Matches[k]) pairSlotToR1Match.set(pairSlotIdx, r1Matches[k]);
         });
 
-        for (let r2Slot = 0; r2Slot < r2SlotCount; r2Slot++) {
-          if (currentRoundMatches[r2Slot]) continue; // real match exists, skip
+        for (let pairIdx = 0; pairIdx < fullPairs.length; pairIdx++) {
+          if (currentRoundMatches.find(m => m.field_number === pairIdx + 1)) continue;
 
-          const srcAIdx = r2Slot * 2;
-          const srcBIdx = r2Slot * 2 + 1;
+          const directTeam = playInSlotToDirectTeam.get(pairIdx);
+          const r1M = pairSlotToR1Match.get(pairIdx);
+          const playInWinner = r1M ? teamFromMatch(r1M, 'winner') : null;
 
-          const resolveContrib = (pairSlotIdx: number): { name: string; teamId: string; isBye?: boolean } | null => {
-            if (slotIsBye[pairSlotIdx]) {
-              const byeTeam = byeSlotToTeam.get(pairSlotIdx);
-              return byeTeam ? { ...byeTeam, isBye: true } : null;
-            } else {
-              // Real R1 match — show winner if known
-              const r1M = pairSlotToR1Match.get(pairSlotIdx);
-              return r1M ? teamFromMatch(r1M, 'winner') : null;
-            }
-          };
-
-          const contribA = resolveContrib(srcAIdx);
-          const contribB = resolveContrib(srcBIdx);
-
-          // Show this R2 slot as pending if at least one BYE is involved (or a winner is known)
-          const srcAIsBye = slotIsBye[srcAIdx];
-          const srcBIsBye = slotIsBye[srcBIdx];
-          if (contribA || contribB || srcAIsBye || srcBIsBye) {
-            pending.set(r2Slot, { team1: contribA, team2: contribB });
+          if (slotIsPlayIn[pairIdx]) {
+            const t1 = directTeam ? { ...directTeam, isBye: true } : null;
+            const t2 = playInWinner;
+            if (t1 || t2) pending.set(pairIdx, { team1: t1, team2: t2 });
           }
         }
         return pending;
@@ -1621,8 +1598,8 @@ export const DoubleEliminationBracket = ({
               .sort((a, b) => (a.field_number || 0) - (b.field_number || 0));
 
             const roundName = isLosers
-              ? getLosersRoundName(round, bracketSize, byeCount)
-              : getWinnersRoundName(round, bracketSize, byeCount);
+              ? getLosersRoundName(round, bracketSize, playInCount)
+              : getWinnersRoundName(round, bracketSize, playInCount);
             const isThisLastRound = colIdx === expectedRounds.length - 1;
 
             // Compute spacingLevel based purely on match count
@@ -1921,7 +1898,7 @@ export const DoubleEliminationBracket = ({
             {grandFinalMatches.length === 0 ? (() => {
               // Show pending Grand Final with known teams
               const winnersChampion = winnersMatches.find(m => m.round_number === winnersRoundsCount && m.winner_id);
-              const losersChampion = losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize, byeCount) && m.winner_id);
+              const losersChampion = losersMatches.find(m => m.round_number === getLosersRoundsCount(bracketSize, playInCount) && m.winner_id);
               const wTeam = winnersChampion ? (winnersChampion.winner_id === winnersChampion.team1_id ? winnersChampion.team1 : winnersChampion.team2) : null;
               const lTeam = losersChampion ? (losersChampion.winner_id === losersChampion.team1_id ? losersChampion.team1 : losersChampion.team2) : null;
 
