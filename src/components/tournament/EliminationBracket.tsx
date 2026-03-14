@@ -1775,7 +1775,7 @@ export const EliminationBracket = ({
                 const matchHeight = 100;
                 const baseGap = 16;
                 const unit = matchHeight + baseGap;
-                const matchCenterY = matchHeight / 2;
+                const matchCenterY = 60; // header ~20px + card center ~40px
 
                 
                 // When there's a preliminary round, both prelim and R1 share the same spacing level
