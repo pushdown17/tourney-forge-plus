@@ -922,7 +922,8 @@ export const DoubleEliminationBracket = ({
         ?? 8;
 
       const bracketSz = getBracketSize(totalTeams);
-      const winnersRounds = Math.log2(bracketSz);
+      const playInCount = getPlayInCount(totalTeams);
+      const winnersRounds = Math.log2(bracketSz) + (playInCount > 0 ? 1 : 0);
 
       const [matchesResult] = await Promise.all([
         supabase
