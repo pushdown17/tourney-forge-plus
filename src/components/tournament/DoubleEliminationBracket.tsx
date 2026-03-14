@@ -1563,11 +1563,12 @@ export const DoubleEliminationBracket = ({
   };
 
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
-    // Measured from DOM: header row = 36px, card = 64px → total slot = 100px
-    const matchHeight = 100;
-    const baseGap = 16;
+    // BracketMatch slot: header (badges row) ≈ 24px + card (2 team rows) ≈ 62px = ~86px total
+    // matchCenterY = center of the Card rectangle = header + card/2 ≈ 24 + 31 = 55px
+    const matchHeight = 88;
+    const baseGap = 12;
     const unit = matchHeight + baseGap;
-    const matchCenterY = 36 + 32; // header 36px + half card 32px = 68px from slot top
+    const matchCenterY = 55; // visually at the border between the two team rows
     const COL_W = 200;
     const CONNECTOR_W = 32;
 
@@ -1689,10 +1690,10 @@ export const DoubleEliminationBracket = ({
                             const yMid = (y1 + y2) / 2;
                             return (
                               <g key={matchIndex}>
-                                <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.6" />
-                                <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.6" />
-                                <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.6" />
-                                <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.6" />
+                                <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
+                                <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
                               </g>
                             );
                           } else {
