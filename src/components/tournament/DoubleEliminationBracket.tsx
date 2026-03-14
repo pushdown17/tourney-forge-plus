@@ -1685,8 +1685,8 @@ export const DoubleEliminationBracket = ({
   };
 
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
-    // Use exact same layout system as Single Elimination
-    const matchHeight = 148; // same as EliminationBracket
+    // Use exact same layout system as Single Elimination — compact (no Enter score button)
+    const matchHeight = 108;
     const baseGap = 4;
     const unit = matchHeight + baseGap;
     const matchCenterY = 60; // visual center of match card (header ~20px + card center ~40px)

@@ -1770,8 +1770,8 @@ export const EliminationBracket = ({
                 const hasPreliminaryRound = bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0;
                 const isPreliminaryRound = roundNumber === 0;
                 
-                // Dimensions - include space for the "Enter score" button area
-                const matchHeight = 148;
+                // Dimensions - compact layout (no Enter score button)
+                const matchHeight = 108;
                 const baseGap = 4;
                 const unit = matchHeight + baseGap;
                 // Visual center of the match card within the fixed-height slot
