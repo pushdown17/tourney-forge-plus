@@ -39,6 +39,19 @@ export const MatchTimer = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedEndSound = useRef(false);
 
+  // Keep a ref of elapsedWhenPaused that is always up-to-date,
+  // so pauseTimer() never reads a stale React prop closure.
+  const elapsedWhenPausedRef = useRef(elapsedWhenPaused);
+  useEffect(() => {
+    elapsedWhenPausedRef.current = elapsedWhenPaused;
+  }, [elapsedWhenPaused]);
+
+  // Keep refs for startedAt / pausedAt for the same reason
+  const startedAtRef = useRef(startedAt);
+  const pausedAtRef = useRef(pausedAt);
+  useEffect(() => { startedAtRef.current = startedAt; }, [startedAt]);
+  useEffect(() => { pausedAtRef.current = pausedAt; }, [pausedAt]);
+
   // Calculate remaining time in milliseconds based on timer state
   const calculateRemainingMs = useCallback(() => {
     if (!durationSeconds) return (durationSeconds || 0) * 1000;
