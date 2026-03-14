@@ -777,7 +777,7 @@ export const DoubleEliminationBracket = ({
     setGenerating(true);
     try {
       const bracketSz = getBracketSize(teamsCount);
-      const byeCount = bracketSz - teamsCount;
+      const playInCount = getPlayInCount(teamsCount);
 
       const { data: standings, error: standingsError } = await supabase
         .from("team_stats")
