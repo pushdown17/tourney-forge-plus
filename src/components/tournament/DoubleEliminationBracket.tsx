@@ -1385,25 +1385,22 @@ export const DoubleEliminationBracket = ({
 
   // Generate expected number of matches per round for a full bracket structure
   // For BYE brackets (e.g. 12 teams in 16-slot bracket):
-  //   - R1: only real matches shown (bracketSize/2 - byeCount)
+  //   - R1: only play-in matches shown (playInCount/2)
   //   - R2+: full bracketSize-based slots
   const getExpectedMatchCounts = (isLosers: boolean): { round: number; count: number }[] => {
     const rounds: { round: number; count: number }[] = [];
-    const byeCount = bracketSize - totalTeams;
     if (!isLosers) {
       for (let r = 1; r <= winnersRoundsCount; r++) {
         let count = Math.pow(2, winnersRoundsCount - r);
-        if (r === 1 && byeCount > 0) {
-          // Only real R1 matches: bracketSize/2 slots minus BYE slots
-          count = bracketSize / 2 - byeCount;
+        if (r === 1 && playInCount > 0) {
+          // Only real R1 matches: the play-in matches (playInCount/2)
+          count = playInCount / 2;
         }
         if (count > 0) rounds.push({ round: r, count });
       }
     } else {
-      // Losers bracket sizes based on bracketSize (for play-in: use byeCount-aware count)
-      const lrCount = getLosersRoundsCount(bracketSize, byeCount);
-      // For play-in brackets, effective winners rounds = log2(bracketSize/2)
-      const effectiveWRounds = byeCount > 0 ? winnersRoundsCount - 1 : winnersRoundsCount;
+      const lrCount = getLosersRoundsCount(bracketSize, playInCount);
+      const effectiveWRounds = playInCount > 0 ? winnersRoundsCount - 1 : winnersRoundsCount;
       for (let r = 1; r <= lrCount; r++) {
         const pairIdx = Math.ceil(r / 2);
         const count = Math.max(1, Math.pow(2, effectiveWRounds - 1 - pairIdx));
