@@ -1563,10 +1563,10 @@ export const DoubleEliminationBracket = ({
   };
 
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
-    const matchHeight = 88;
-    const baseGap = 12;
+    const matchHeight = 108;
+    const baseGap = 16;
     const unit = matchHeight + baseGap;
-    const matchCenterY = 61;
+    const matchCenterY = 75; // header ~24px + card_center ~51px
     const COL_W = 200;
     const CONNECTOR_W = 32;
 
@@ -1603,27 +1603,21 @@ export const DoubleEliminationBracket = ({
 
             // ── Spacing logic ──
             // Play-in column (R1 with fewer matches than R2): absolute positioning by field_number.
-            // R2 column right after play-in: also absolute positioning (slotIdx * unit) so slots
-            //   align 1:1 with play-in connectors. No topOffset/gap used.
+            //   Height = maxFieldNumber * unit so matches at slot fn-1 are spaced like R2 flex slots.
             // All other columns: standard spacingLevel formula (maxCount from the whole bracket).
             const nextCount = expectedRounds[colIdx + 1]?.count ?? 0;
-            const prevCount = colIdx > 0 ? expectedRounds[colIdx - 1]?.count ?? 0 : 0;
             const isPlayInColumn = !isLosers && playInCount > 0 && round === 1 && nextCount > count;
-            // The column immediately after play-in (R2) must also use absolute layout
-            const isPostPlayInColumn = !isLosers && playInCount > 0 && colIdx === 1 && prevCount < count;
 
             const maxCount = Math.max(...expectedRounds.map(e => e.count));
             const spacingLevel = count > 0 ? Math.max(0, Math.log2(maxCount / count)) : 0;
             const verticalGap = unit * Math.pow(2, spacingLevel) - matchHeight;
             const topOffset = unit * (Math.pow(2, spacingLevel) - 1) / 2;
 
-            // Height for absolute-layout columns:
-            // - Play-in: must reach the highest field_number slot (not just count of matches)
-            // - R2 post-play-in: count slots * unit
+            // Height for play-in absolute column = highest target slot * unit
             const maxPlayInFieldNumber = isPlayInColumn
               ? Math.max(...realRoundMatches.map(m => m.field_number ?? 1))
               : count;
-            const absColHeight = (isPlayInColumn ? maxPlayInFieldNumber : count) * unit - baseGap;
+            const absColHeight = maxPlayInFieldNumber * unit - baseGap;
 
             return (
               <div key={`${isLosers ? 'L' : 'W'}-R${round}`} className="flex flex-col" style={{ minWidth: `${COL_W + CONNECTOR_W}px` }}>
@@ -1761,46 +1755,6 @@ export const DoubleEliminationBracket = ({
                             </div>
                           );
                         })}
-                      </div>
-                    );
-                  }
-
-                  if (isPostPlayInColumn) {
-                    // ── R2 after play-in: absolute layout (slotIdx * unit), no gap/topOffset ──
-                    const isPairMerge = nextCount < count;
-                    return (
-                      <div className="relative" style={{ width: `${COL_W + CONNECTOR_W}px`, height: `${absColHeight}px` }}>
-                        {!isThisLastRound && (
-                          <svg className="absolute top-0 pointer-events-none"
-                            style={{ left: COL_W, width: `${CONNECTOR_W}px`, height: "100%", overflow: "visible" }}>
-                            {Array.from({ length: count }).map((_, matchIndex) => {
-                              const baseY = matchIndex * unit;
-                              const y = baseY + matchCenterY;
-                              if (isPairMerge) {
-                                if (matchIndex % 2 !== 0) return null;
-                                if (matchIndex + 1 >= count) return null;
-                                const y1 = baseY + matchCenterY;
-                                const y2 = (matchIndex + 1) * unit + matchCenterY;
-                                const yMid = (y1 + y2) / 2;
-                                return (
-                                  <g key={matchIndex}>
-                                    <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                    <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                    <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                    <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                  </g>
-                                );
-                              } else {
-                                return (
-                                  <g key={matchIndex}>
-                                    <line x1="0" y1={y} x2="32" y2={y} stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.4" strokeDasharray="4 2" />
-                                  </g>
-                                );
-                              }
-                            })}
-                          </svg>
-                        )}
-                        {renderSlots(true)}
                       </div>
                     );
                   }

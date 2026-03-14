@@ -1770,12 +1770,12 @@ export const EliminationBracket = ({
                 const hasPreliminaryRound = bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0;
                 const isPreliminaryRound = roundNumber === 0;
                 
-                // matchHeight = total slot height as rendered (header row ~20px + card ~80px).
-                // Connectors point to matchHeight/2 so they are consistent across all columns.
-                const matchHeight = 88;
-                const baseGap = 12;
+                // matchHeight = total slot height as rendered (header row ~24px + card ~84px).
+                // Connectors point to matchCenterY which is header + half card height.
+                const matchHeight = 108;
+                const baseGap = 16;
                 const unit = matchHeight + baseGap;
-                const matchCenterY = 61;
+                const matchCenterY = 75;
 
                 
                 // When there's a preliminary round, both prelim and R1 share the same spacing level
