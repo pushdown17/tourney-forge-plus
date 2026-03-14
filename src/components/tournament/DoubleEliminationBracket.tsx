@@ -536,8 +536,8 @@ export const DoubleEliminationBracket = ({
     try {
       const totalTeams = teamsCount ?? (tournament ?? tournamentRef.current)?.teams_for_elimination ?? 8;
       const bracketSz = getBracketSize(totalTeams);
-      const byeCount = bracketSz - totalTeams;
-      const winnersRoundsCount = Math.log2(bracketSz);
+      const playInCount = getPlayInCount(totalTeams);
+      const winnersRoundsCount = Math.log2(bracketSz) + (playInCount > 0 ? 1 : 0);
 
       const sortFn = (a: any, b: any) => (a.field_number || 0) - (b.field_number || 0) || a.created_at.localeCompare(b.created_at);
 
