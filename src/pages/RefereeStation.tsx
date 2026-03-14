@@ -1343,6 +1343,68 @@ const RefereeStation = () => {
       (activeStations || []).map(s => s.current_match_id).filter(Boolean)
     );
 
+    // ── Compute byeCount for this tournament (needed for DE sequencing) ──
+    let deByeCount = 0;
+    if (currentPhase === 'double_elimination') {
+      const { data: tiInfo } = await supabase
+        .from("tournaments")
+        .select("teams_for_elimination")
+        .eq("id", station.tournament_id)
+        .single();
+      const totalTeamsDE = tiInfo?.teams_for_elimination || 8;
+      const bracketSizeDE = nextPow2Station(totalTeamsDE);
+      deByeCount = bracketSizeDE - totalTeamsDE;
+    }
+
+    // ── Sequence function for Double Elimination ──
+    // Uses SEPARATE tables for play-in (byeCount>0) vs standard (byeCount=0)
+    // to ensure correct interleaving when rounds are shifted by the preliminary round.
+    //
+    // Standard (8-team example):
+    //   W-R1→1, L-R1→2, W-R2→3, L-R2→4, L-R3→5, W-R3→6, L-R4→7, W-R4→8, GF→9
+    //
+    // Play-in/12-team (bracketSize=8, byeCount=4):
+    //   W-R1→1(Prelim), W-R2→2(QF), L-R1→3, W-R3→4(SF), L-R2→5, W-R4→6(WF), L-R3→7, L-R4→8(LF), GF→9
+    //
+    const getDeSeq = (m: any): number => {
+      const r = m.round_number;
+      const isL = !!m.is_third_place_match;
+
+      if (deByeCount > 0) {
+        // Play-in sequence map (12-team / hybrid):
+        // W-Rk → k   (Winners rounds stay at their natural position)
+        // L-R1→3, L-R2→5, L-R3→7, L-R4→8(final), GF→9
+        if (!isL) {
+          // Winners: W-R1=1, W-R2=2, W-R3=4, W-R4=6, GF=9
+          // Formula: W-R1→1, W-R2→2, W-Rk (k≥3) → (k-1)*2
+          if (r === 1) return 1;
+          if (r === 2) return 2;
+          // Grand Final rounds (beyond winnersRounds)
+          if (r >= 10) return 50 + r; // GF M1, reset M2
+          return (r - 1) * 2; // R3→4, R4→6, R5→8...
+        } else {
+          // Losers play-in: L-R1→3, L-R2→5, L-R3→7, L-R4→9...
+          return r * 2 + 1; // L-R1→3, L-R2→5, L-R3→7, L-R4→9
+        }
+      } else {
+        // Standard sequence map (power-of-2):
+        // W-R1→1, L-R1→2, W-R2→3, L-R2→4, L-R3→5, W-R3→6, L-R4→7, W-R4→8...
+        // W-Rk seq: k=1→1, k≥2→3*(k-1)
+        // L-Rr (minor, r odd): W-seq(ceil(r/2)+1) - 1
+        // L-Rr (major, r even): W-seq(r/2+1) + 1
+        const wSeq = (k: number): number => k === 1 ? 1 : 3 * (k - 1);
+        if (!isL) {
+          if (r >= 10) return 50 + r; // GF
+          return wSeq(r);
+        } else {
+          const isMinor = r % 2 === 1;
+          const k = Math.ceil(r / 2);
+          if (isMinor) return wSeq(k + 1) - 1;
+          else return wSeq(r / 2 + 1) + 1;
+        }
+      }
+    };
+
     // Double-safety: also filter client-side to exclude any match with scores already set
     const availableMatches = (allMatches || []).filter(
       m => m.team1_id && m.team2_id && m.team1_id !== m.team2_id 
@@ -1353,53 +1415,28 @@ const RefereeStation = () => {
       if (a.round_number === 99 && b.round_number === 99) {
         return (b.field_number || 0) - (a.field_number || 0);
       }
-      // For double elimination: explicit sequence ensuring correct play order.
-      //
-      // Correct sequence (16 teams, W=4 rounds, L=6 rounds):
-      //   W-R1  → 1   (Round of 16: all 8 matches first)
-      //   L-R1  → 2   (minor: needs W-R1 losers, plays after W-R1)
-      //   W-R2  → 3   (QF: needs W-R1 winners)
-      //   L-R2  → 4   (major: needs L-R1 winners + W-R2 losers)
-      //   L-R3  → 5   (minor: needs L-R2 winners only → plays BEFORE W-R3)
-      //   W-R3  → 6   (SF)
-      //   L-R4  → 7   (major: needs L-R3 winners + W-R3 losers)
-      //   W-R4  → 8   (F)
-      //   L-R5  → 9   (minor: needs L-R4 winners)
-      //   L-R6  → 10  (Losers Final: needs L-R5 winners + W-R4 loser)
-      //   GF    → 11+
-      //
-      // Key: L-R3 (seq 5) comes BEFORE W-R3 (seq 6) as requested.
-      //      L-R1 (seq 2) correctly comes AFTER W-R1 (seq 1).
       if (currentPhase === 'double_elimination') {
-        // Dynamic interleaving for any N=4,8,16,32 teams.
-        // W-Rk seq: k=1→1, k>=2→3*(k-1)   e.g. R1=1, R2=3, R3=6, R4=9, R5=12
-        // L-Rr (minor, r odd): seq = W-seq(ceil(r/2)+1) - 1  e.g. L-R1=2, L-R3=5, L-R5=8
-        // L-Rr (major, r even): seq = W-seq(r/2+1) + 1       e.g. L-R2=4, L-R4=7, L-R6=10
-        const wSeq = (k: number): number => k === 1 ? 1 : 3 * (k - 1);
-        const getSeq = (m: any): number => {
-          if (!m.is_third_place_match) {
-            return wSeq(m.round_number);
-          } else {
-            const r = m.round_number;
-            const isMinor = r % 2 === 1;
-            const k = Math.ceil(r / 2); // pair index
-            if (isMinor) {
-              return wSeq(k + 1) - 1; // comes just before W-R(k+1)
-            } else {
-              return wSeq(r / 2 + 1) + 1; // comes just after W-R(r/2+1)
-            }
-          }
-        };
-        const aSeq = getSeq(a);
-        const bSeq = getSeq(b);
+        const aSeq = getDeSeq(a);
+        const bSeq = getDeSeq(b);
         if (aSeq !== bSeq) return aSeq - bSeq;
-        // Within the same sequence slot, sort by field_number
         return (a.field_number || 0) - (b.field_number || 0);
       }
       return 0; // preserve DB order for other phases
     });
 
-    const nextMatch = availableMatches[0] || null;
+    // ── FRONTIER BLOCKING ──
+    // Only propose matches from the current "frontier" (lowest sequence number).
+    // This prevents a future-round match from being proposed when the current round
+    // is not yet fully completed.
+    let nextMatch = null;
+    if (currentPhase === 'double_elimination' && availableMatches.length > 0) {
+      const minSeq = getDeSeq(availableMatches[0]); // already sorted, first = lowest seq
+      const frontierMatches = availableMatches.filter(m => getDeSeq(m) === minSeq);
+      nextMatch = frontierMatches[0] || null;
+      console.log("[Auto-advance] DE frontier seq:", minSeq, "matches in frontier:", frontierMatches.length);
+    } else {
+      nextMatch = availableMatches[0] || null;
+    }
     console.log("[Auto-advance] Next match selected:", nextMatch?.id || "none");
 
     // Use the original configured duration (not the adjusted one from the current match)
