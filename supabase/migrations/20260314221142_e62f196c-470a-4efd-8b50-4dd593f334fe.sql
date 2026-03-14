@@ -1,0 +1,1 @@
+DELETE FROM matches WHERE id = 'acc38ae1-aba7-4c49-8633-54dae059476a';
