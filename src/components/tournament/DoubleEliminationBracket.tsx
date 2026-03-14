@@ -1602,20 +1602,23 @@ export const DoubleEliminationBracket = ({
             const isThisLastRound = colIdx === expectedRounds.length - 1;
 
             // ── Spacing logic ──
-            // For "play-in → main bracket" columns (nextCount > count, e.g. 2 play-ins before 8 QF):
-            //   Each play-in match must align with its R2 counterpart by field_number.
-            //   We use absolute positioning within a fixed-height container matching R2's total height.
-            // For all other columns: standard spacingLevel formula (maxCount from the whole bracket).
+            // Play-in column (R1 with fewer matches than R2): absolute positioning by field_number.
+            // R2 column right after play-in: also absolute positioning (slotIdx * unit) so slots
+            //   align 1:1 with play-in connectors. No topOffset/gap used.
+            // All other columns: standard spacingLevel formula (maxCount from the whole bracket).
             const nextCount = expectedRounds[colIdx + 1]?.count ?? 0;
+            const prevCount = colIdx > 0 ? expectedRounds[colIdx - 1]?.count ?? 0 : 0;
             const isPlayInColumn = !isLosers && playInCount > 0 && round === 1 && nextCount > count;
+            // The column immediately after play-in (R2) must also use absolute layout
+            const isPostPlayInColumn = !isLosers && playInCount > 0 && colIdx === 1 && prevCount < count;
 
             const maxCount = Math.max(...expectedRounds.map(e => e.count));
             const spacingLevel = count > 0 ? Math.max(0, Math.log2(maxCount / count)) : 0;
             const verticalGap = unit * Math.pow(2, spacingLevel) - matchHeight;
             const topOffset = unit * (Math.pow(2, spacingLevel) - 1) / 2;
 
-            // Play-in column height = same as the R2 column so connectors align perfectly
-            const playInColHeight = maxCount * unit - baseGap;
+            // Height for absolute-layout columns = total slots * unit - last gap
+            const absColHeight = count * unit - baseGap;
 
             return (
               <div key={`${isLosers ? 'L' : 'W'}-R${round}`} className="flex flex-col" style={{ minWidth: `${COL_W + CONNECTOR_W}px` }}>
