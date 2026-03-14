@@ -20,6 +20,7 @@ interface TeamsManagerProps {
 
 export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false, numberOfGroups = 1, showPlayers = false }: TeamsManagerProps) => {
   const [teams, setTeams] = useState<any[]>([]);
+  const [teamPlayers, setTeamPlayers] = useState<Record<string, string[]>>({});
   const [teamName, setTeamName] = useState("");
   const [loading, setLoading] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -53,6 +54,23 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
     }));
 
     setTeams(transformedTeams);
+
+    if (showPlayers && transformedTeams.length > 0) {
+      const ttIds = (data || []).map((tt: any) => tt.id);
+      const { data: ttpData } = await supabase
+        .from("tournament_team_players")
+        .select("tournament_team_id, player:player_id (name)")
+        .in("tournament_team_id", ttIds);
+
+      const map: Record<string, string[]> = {};
+      (data || []).forEach((tt: any) => {
+        map[tt.id] = (ttpData || [])
+          .filter((p: any) => p.tournament_team_id === tt.id)
+          .map((p: any) => p.player?.name)
+          .filter(Boolean);
+      });
+      setTeamPlayers(map);
+    }
   };
 
   const handleAddTeam = async (e: React.FormEvent) => {
