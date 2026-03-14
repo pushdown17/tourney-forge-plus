@@ -944,8 +944,8 @@ export const DoubleEliminationBracket = ({
       const losersBracket = (allMatches?.filter(m => m.is_third_place_match) || []).sort(sortFn);
 
       const grandFinalRound1 = winnersRounds + 1;
-      const byeCount = bracketSz - totalTeams;
-      const losersRoundsCount = getLosersRoundsCount(bracketSz, byeCount);
+      const playInCount = getPlayInCount(totalTeams);
+      const losersRoundsCount = getLosersRoundsCount(bracketSz, playInCount);
 
       // ---- GRAND FINAL / RESET ----
       if (!isLosersBracket && roundNumber >= grandFinalRound1) {
