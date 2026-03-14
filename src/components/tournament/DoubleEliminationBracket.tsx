@@ -562,15 +562,15 @@ export const DoubleEliminationBracket = ({
           .sort(sortFn);
 
       // ---------------------------------------------------------------
-      // PLAY-IN brackets (byeCount > 0):
+      // PLAY-IN brackets (playInCount > 0):
       //   W-R1 losers are ELIMINATED — skip L-R1 from W-R1
       //   W-R2 losers → L-R1 (minor, pair them up)
       //   W-R(k≥3) losers → L-R((k-2)*2) major round
-      // STANDARD brackets (byeCount = 0):
+      // STANDARD brackets (playInCount = 0):
       //   W-R1 losers → L-R1 (minor, pair them up)
       //   W-R(k≥2) losers → L-R((k-1)*2) major round
       // ---------------------------------------------------------------
-      const loserFirstWRound = byeCount > 0 ? 2 : 1; // First W round whose losers enter L bracket
+      const loserFirstWRound = playInCount > 0 ? 2 : 1; // First W round whose losers enter L bracket
 
       // L-R1 minor: losers from W-R(loserFirstWRound) paired consecutively
       const allR1W = winnersBracket.filter(m => m.round_number === loserFirstWRound);
@@ -592,7 +592,7 @@ export const DoubleEliminationBracket = ({
       }
 
       // For each subsequent W-round → repair L major round, then next L minor
-      const losersRoundsCount = getLosersRoundsCount(bracketSz, byeCount);
+      const losersRoundsCount = getLosersRoundsCount(bracketSz, playInCount);
       for (let wRound = loserFirstWRound + 1; wRound <= winnersRoundsCount; wRound++) {
         const completedWRound = winnersBracket
           .filter((m: any) => m.round_number === wRound && m.winner_id)
