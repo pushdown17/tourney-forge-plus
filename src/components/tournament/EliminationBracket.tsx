@@ -1772,10 +1772,10 @@ export const EliminationBracket = ({
                 
                 // matchHeight = total slot height as rendered (header row ~20px + card ~80px).
                 // Connectors point to matchHeight/2 so they are consistent across all columns.
-                const matchHeight = 100;
-                const baseGap = 16;
+                const matchHeight = 88;
+                const baseGap = 12;
                 const unit = matchHeight + baseGap;
-                const matchCenterY = 68; // header 36px + half card 32px
+                const matchCenterY = 55;
 
                 
                 // When there's a preliminary round, both prelim and R1 share the same spacing level
