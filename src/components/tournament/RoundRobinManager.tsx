@@ -1299,8 +1299,10 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               )}
               <Button
                 onClick={handleValidateScore}
+                size="sm"
                 disabled={isLocked || isClosed}
               >
+                Validate
               </Button>
             </div>
           </div>
