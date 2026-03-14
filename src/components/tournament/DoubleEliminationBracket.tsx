@@ -1617,8 +1617,13 @@ export const DoubleEliminationBracket = ({
             const verticalGap = unit * Math.pow(2, spacingLevel) - matchHeight;
             const topOffset = unit * (Math.pow(2, spacingLevel) - 1) / 2;
 
-            // Height for absolute-layout columns = total slots * unit - last gap
-            const absColHeight = count * unit - baseGap;
+            // Height for absolute-layout columns:
+            // - Play-in: must reach the highest field_number slot (not just count of matches)
+            // - R2 post-play-in: count slots * unit
+            const maxPlayInFieldNumber = isPlayInColumn
+              ? Math.max(...realRoundMatches.map(m => m.field_number ?? 1))
+              : count;
+            const absColHeight = (isPlayInColumn ? maxPlayInFieldNumber : count) * unit - baseGap;
 
             return (
               <div key={`${isLosers ? 'L' : 'W'}-R${round}`} className="flex flex-col" style={{ minWidth: `${COL_W + CONNECTOR_W}px` }}>
