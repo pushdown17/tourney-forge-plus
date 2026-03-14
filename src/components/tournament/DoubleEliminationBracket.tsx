@@ -1792,6 +1792,7 @@ export const DoubleEliminationBracket = ({
                     );
                   })}
                 </div>
+                )} {/* end isPlayInColumn ternary */}
               </div>
             );
           })}
