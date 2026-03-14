@@ -1602,10 +1602,11 @@ export const DoubleEliminationBracket = ({
               : getWinnersRoundName(round, bracketSize, playInCount);
             const isThisLastRound = colIdx === expectedRounds.length - 1;
 
-            // Compute spacingLevel based purely on match count
-            // spacingLevel = log2(maxCount / count), same formula as Single Elim
-            const maxCount = expectedRounds[0].count;
-            const spacingLevel = count > 0 ? Math.log2(maxCount / count) : 0;
+            // Compute spacingLevel based on the MAXIMUM match count across all rounds.
+            // CRITICAL for play-in brackets: R1 may have fewer matches (e.g. 2) than R2 (e.g. 8),
+            // so maxCount must be the global max, not just expectedRounds[0].count.
+            const maxCount = Math.max(...expectedRounds.map(e => e.count));
+            const spacingLevel = count > 0 ? Math.max(0, Math.log2(maxCount / count)) : 0;
 
             const verticalGap = unit * Math.pow(2, spacingLevel) - matchHeight;
             const topOffset = unit * (Math.pow(2, spacingLevel) - 1) / 2;
