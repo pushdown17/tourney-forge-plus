@@ -1603,27 +1603,21 @@ export const DoubleEliminationBracket = ({
 
             // ── Spacing logic ──
             // Play-in column (R1 with fewer matches than R2): absolute positioning by field_number.
-            // R2 column right after play-in: also absolute positioning (slotIdx * unit) so slots
-            //   align 1:1 with play-in connectors. No topOffset/gap used.
+            //   Height = maxFieldNumber * unit so matches at slot fn-1 are spaced like R2 flex slots.
             // All other columns: standard spacingLevel formula (maxCount from the whole bracket).
             const nextCount = expectedRounds[colIdx + 1]?.count ?? 0;
-            const prevCount = colIdx > 0 ? expectedRounds[colIdx - 1]?.count ?? 0 : 0;
             const isPlayInColumn = !isLosers && playInCount > 0 && round === 1 && nextCount > count;
-            // The column immediately after play-in (R2) must also use absolute layout
-            const isPostPlayInColumn = !isLosers && playInCount > 0 && colIdx === 1 && prevCount < count;
 
             const maxCount = Math.max(...expectedRounds.map(e => e.count));
             const spacingLevel = count > 0 ? Math.max(0, Math.log2(maxCount / count)) : 0;
             const verticalGap = unit * Math.pow(2, spacingLevel) - matchHeight;
             const topOffset = unit * (Math.pow(2, spacingLevel) - 1) / 2;
 
-            // Height for absolute-layout columns:
-            // - Play-in: must reach the highest field_number slot (not just count of matches)
-            // - R2 post-play-in: count slots * unit
+            // Height for play-in absolute column = highest target slot * unit
             const maxPlayInFieldNumber = isPlayInColumn
               ? Math.max(...realRoundMatches.map(m => m.field_number ?? 1))
               : count;
-            const absColHeight = (isPlayInColumn ? maxPlayInFieldNumber : count) * unit - baseGap;
+            const absColHeight = maxPlayInFieldNumber * unit - baseGap;
 
             return (
               <div key={`${isLosers ? 'L' : 'W'}-R${round}`} className="flex flex-col" style={{ minWidth: `${COL_W + CONNECTOR_W}px` }}>
