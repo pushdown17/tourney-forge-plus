@@ -1563,13 +1563,11 @@ export const DoubleEliminationBracket = ({
   };
 
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
-    // Layout constants — card height + header height define the full slot
-    const HEADER_H = 24;   // height of the M1/badges row above the card (~text-[10px] + mb-1 + paddings)
-    const cardHeight = 88; // actual Card height (two team rows ~34px each + border overhead)
-    const matchHeight = HEADER_H + cardHeight; // total slot height = 112px
-    const baseGap = 4;
+    // Measured from DOM: header row = 36px, card = 64px → total slot = 100px
+    const matchHeight = 100;
+    const baseGap = 16;
     const unit = matchHeight + baseGap;
-    const matchCenterY = HEADER_H + cardHeight / 2; // center of the card within the slot
+    const matchCenterY = 36 + 32; // header 36px + half card 32px = 68px from slot top
     const COL_W = 200;
     const CONNECTOR_W = 32;
 
@@ -1645,7 +1643,7 @@ export const DoubleEliminationBracket = ({
                         const y = fn * unit + matchCenterY;
                         return (
                           <line key={m.id} x1="0" y1={y} x2={CONNECTOR_W} y2={y}
-                            stroke="hsl(var(--border))" strokeWidth="1.5" opacity="0.4" strokeDasharray="4 2" />
+                            stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" strokeDasharray="4 3" />
                         );
                       })}
                     </svg>
