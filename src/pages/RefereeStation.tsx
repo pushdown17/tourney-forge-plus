@@ -1354,7 +1354,7 @@ const RefereeStation = () => {
         .eq("id", station.tournament_id)
         .single();
       const totalTeamsDE = tiInfo?.teams_for_elimination || 8;
-      const bracketSizeDE = nextPow2Station(totalTeamsDE);
+      const bracketSizeDE = prevPow2Station(totalTeamsDE);
       deByeCount = bracketSizeDE - totalTeamsDE;
     }
 
