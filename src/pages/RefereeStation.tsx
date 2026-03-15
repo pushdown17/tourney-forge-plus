@@ -842,7 +842,7 @@ const RefereeStation = () => {
         // Prelim losers are eliminated — no Losers Bracket entry
         return;
 
-      } else if (roundNumber === 1 && byeCount === 0) {
+      } else if (roundNumber === 1 && playInCount === 0) {
         // ── STANDARD: W-R1 → loser enters L-R1 ──
         const allR1Sorted = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
         const myPosInR = allR1Sorted.findIndex(m => m.id === completedMatch.id);
