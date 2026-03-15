@@ -426,8 +426,8 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       for (const [, groupTeamIds] of teamsByGroup) {
         if (groupTeamIds.length < 2) continue;
         
-        // Schedule with minimum 1-match rest between appearances
-        const scheduled = scheduleWithRest(groupTeamIds, 1);
+        // Schedule using circle method (Berger tables)
+        const scheduled = circleMethodSchedule(groupTeamIds);
         
         scheduled.forEach((m, i) => {
           allMatches.push({
