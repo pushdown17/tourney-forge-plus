@@ -123,9 +123,9 @@ export const BracketMatch = ({
   const isDimmed = !!highlightedTeamId && !matchInvolvesHighlight;
   
   return (
-    <div className={cn("animate-fade-in flex flex-col transition-opacity duration-200", isDimmed && "opacity-25")}>
-      {/* Match header */}
-      <div className="flex items-center justify-center gap-2 mb-1">
+    <div className={cn("animate-fade-in flex flex-col h-full w-full transition-opacity duration-200", isDimmed && "opacity-25")}>
+      {/* Match header — compact, fixed 20px row */}
+      <div className="flex items-center justify-center gap-2 mb-0.5 h-5 shrink-0">
         <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
           M{matchNumber}
         </span>
