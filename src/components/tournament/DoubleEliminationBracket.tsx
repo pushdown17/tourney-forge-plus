@@ -1531,10 +1531,16 @@ export const DoubleEliminationBracket = ({
       }
 
       // R3+: pair-based advancement from previous round
+      // Use field_number-based lookup to correctly detect which slots are missing
       const prevRoundMatches = allW.filter(m => m.round_number === round - 1).sort(sortFnField);
       const expectedCount = Math.pow(2, winnersRoundsCount - round);
+      const useFieldNumbers = currentRoundMatches.some(m => m.field_number != null);
       for (let slot = 0; slot < expectedCount; slot++) {
-        if (currentRoundMatches[slot]) continue;
+        // Check by field_number if available, else by index
+        const realMatchForSlot = useFieldNumbers
+          ? currentRoundMatches.find(m => m.field_number === slot + 1)
+          : currentRoundMatches[slot];
+        if (realMatchForSlot) continue;
         const srcA = prevRoundMatches[slot * 2];
         const srcB = prevRoundMatches[slot * 2 + 1];
         const t1 = srcA ? teamFromMatch(srcA, 'winner') : null;
@@ -1549,7 +1555,9 @@ export const DoubleEliminationBracket = ({
       if (round === 1) {
         // L-R1 minor: losers from W-R(loserFirstWRound)
         // For play-in brackets: W-R1 losers are eliminated → use W-R2 losers instead
-        const loserFeederWRound = byeCount > 0 ? 2 : 1;
+        // For play-in brackets (playInCount > 0): W-R1 losers are eliminated → use W-R2 losers instead
+        // byeCount can be negative for play-in formats (e.g. 12 teams: 8-12=-4), so use playInCount
+        const loserFeederWRound = playInCount > 0 ? 2 : 1;
         const wR1 = allW.filter(m => m.round_number === loserFeederWRound).sort(sortFnField);
         const expectedCount = Math.floor(wR1.length / 2);
         for (let k = 0; k < expectedCount; k++) {
@@ -1580,7 +1588,8 @@ export const DoubleEliminationBracket = ({
         const k = round / 2;
         // For play-in: wFeederRound = k + 2 (L-R2←W-R3, L-R4←W-R4)
         // Standard:    wFeederRound = k + 1 (L-R2←W-R2, L-R4←W-R3)
-        const wFeederRound = byeCount > 0 ? k + 2 : k + 1;
+        // Use playInCount (not byeCount) — byeCount is negative for play-in formats (e.g. 12 teams: 8-12=-4)
+        const wFeederRound = playInCount > 0 ? k + 2 : k + 1;
         const prevMinorRound = round - 1;
         const wFeederMatches = allW.filter(m => m.round_number === wFeederRound).sort(sortFnField);
         const prevMinorMatches = allL.filter(m => m.round_number === prevMinorRound).sort(sortFnField);
@@ -1675,7 +1684,12 @@ export const DoubleEliminationBracket = ({
                 {(() => {
                   const renderSlots = (useAbsoluteLayout: boolean) =>
                     Array.from({ length: count }).map((_, slotIdx) => {
-                      const realMatch = realRoundMatches[slotIdx];
+                      // Use field_number-based lookup when available, to correctly handle
+                      // cases where a later match exists (field_number=2) but an earlier slot (field_number=1) is still pending.
+                      const useFieldNums = realRoundMatches.some(m => m.field_number != null);
+                      const realMatch = useFieldNums
+                        ? realRoundMatches.find(m => m.field_number === slotIdx + 1)
+                        : realRoundMatches[slotIdx];
                       const isSentinelMatch = realMatch && realMatch.team1_id === realMatch.team2_id && !realMatch.winner_id;
 
                       let slotContent: React.ReactNode;
