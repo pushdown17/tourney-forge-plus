@@ -780,6 +780,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
           open={!!editingMatch}
           onOpenChange={(open) => !open && setEditingMatch(null)}
           onScoreUpdate={fetchMatches}
+          isCreator={isCreator}
         />
       )}
 
