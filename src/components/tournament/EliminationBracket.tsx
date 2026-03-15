@@ -137,6 +137,9 @@ export const EliminationBracket = ({
   } | null>(null);
   const thirdPlaceDecisionMadeRef = useRef(false);
   const prevResetTrigger = useRef(resetTrigger);
+  // Frozen seed map: set once at bracket generation, never recomputed from live stats
+  const frozenSeedMapRef = useRef<Map<string, number>>(new Map());
+  const frozenSeedToTeamRef = useRef<Map<number, Team>>(new Map());
 
   useEffect(() => {
     fetchTournamentAndMatches(true);
@@ -534,27 +537,42 @@ export const EliminationBracket = ({
       if (matchesResult.error) throw matchesResult.error;
       
       // Build seed map from standings - sort same as StandingsTable: points DESC, goal diff DESC, goals_for DESC
-      const seedMap = new Map<string, number>();
-      const reverseSeedMap = new Map<number, Team>();
-      if (standingsResult.data) {
-        const sortedStandings = [...standingsResult.data].sort((a: any, b: any) => {
-          if (b.points !== a.points) return b.points - a.points;
-          const diffA = a.goals_for - a.goals_against;
-          const diffB = b.goals_for - b.goals_against;
-          if (diffB !== diffA) return diffB - diffA;
-          return b.goals_for - a.goals_for;
-        });
-        sortedStandings.forEach((stat: any, index: number) => {
-          seedMap.set(stat.team_id, index + 1);
-          if (stat.team) {
-            reverseSeedMap.set(index + 1, { id: stat.team.id, name: stat.team.name, seed: index + 1 });
-          }
-        });
+      // Seeds are FROZEN once the bracket is generated — they must not change when elim match results are saved.
+      const bracketAlreadyExists = matchesResult.data && matchesResult.data.length > 0;
+      const seedsAlreadyFrozen = frozenSeedMapRef.current.size > 0;
+
+      let seedMap: Map<string, number>;
+      let reverseSeedMap: Map<number, Team>;
+
+      if (!seedsAlreadyFrozen) {
+        // First time: compute and freeze
+        seedMap = new Map<string, number>();
+        reverseSeedMap = new Map<number, Team>();
+        if (standingsResult.data) {
+          const sortedStandings = [...standingsResult.data].sort((a: any, b: any) => {
+            if (b.points !== a.points) return b.points - a.points;
+            const diffA = a.goals_for - a.goals_against;
+            const diffB = b.goals_for - b.goals_against;
+            if (diffB !== diffA) return diffB - diffA;
+            return b.goals_for - a.goals_for;
+          });
+          sortedStandings.forEach((stat: any, index: number) => {
+            seedMap.set(stat.team_id, index + 1);
+            if (stat.team) {
+              reverseSeedMap.set(index + 1, { id: stat.team.id, name: stat.team.name, seed: index + 1 });
+            }
+          });
+        }
+        frozenSeedMapRef.current = seedMap;
+        frozenSeedToTeamRef.current = reverseSeedMap;
+      } else {
+        // Bracket already exists: reuse frozen seeds
+        seedMap = frozenSeedMapRef.current;
+        reverseSeedMap = frozenSeedToTeamRef.current;
       }
       setSeedToTeam(reverseSeedMap);
 
       // No BYE logic: if teams_for_elimination isn't a power of 2, we rely on a preliminary round.
-
 
       // Attach seed to teams
       const matchesWithSeeds = (matchesResult.data || []).map(match => ({
@@ -628,6 +646,9 @@ export const EliminationBracket = ({
 
   const handleResetBracket = async () => {
     setGenerating(true);
+    // Reset frozen seeds so they are recomputed from fresh standings on next generation
+    frozenSeedMapRef.current = new Map();
+    frozenSeedToTeamRef.current = new Map();
     try {
       const { error } = await supabase
         .from("matches")
@@ -1316,8 +1337,9 @@ export const EliminationBracket = ({
           }
         } else {
           // For other rounds: create next round match for this pair
-          const existingCount = existingNextRoundMatches?.filter(m => !m.is_third_place_match).length || 0;
-          const fieldNumber = existingCount + matchesToCreate.length + 1;
+          // field_number encodes the bracket position: pair index i/2 + 1
+          // This ensures the visual bracket order is stable regardless of creation order
+          const fieldNumber = i / 2 + 1;
           
           matchesToCreate.push({
             tournament_id: tournamentId,
