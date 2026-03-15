@@ -1337,8 +1337,9 @@ export const EliminationBracket = ({
           }
         } else {
           // For other rounds: create next round match for this pair
-          const existingCount = existingNextRoundMatches?.filter(m => !m.is_third_place_match).length || 0;
-          const fieldNumber = existingCount + matchesToCreate.length + 1;
+          // field_number encodes the bracket position: pair index i/2 + 1
+          // This ensures the visual bracket order is stable regardless of creation order
+          const fieldNumber = i / 2 + 1;
           
           matchesToCreate.push({
             tournament_id: tournamentId,
