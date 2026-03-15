@@ -1770,12 +1770,12 @@ export const EliminationBracket = ({
                 const hasPreliminaryRound = bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0;
                 const isPreliminaryRound = roundNumber === 0;
                 
-                // matchHeight = total slot height as rendered (header row ~24px + card ~84px).
-                // Connectors point to matchCenterY which is header + half card height.
-                const matchHeight = 108;
-                const baseGap = 16;
+                // ── Standard Matchbox dimensions (strict grid) ──
+                // matchCenterY = matchHeight / 2 → geometric center for connector anchors.
+                const matchHeight = 110;
+                const baseGap = 20;
                 const unit = matchHeight + baseGap;
-                const matchCenterY = 75;
+                const matchCenterY = matchHeight / 2; // = 55px
 
                 
                 // When there's a preliminary round, both prelim and R1 share the same spacing level
