@@ -956,7 +956,7 @@ const RefereeStation = () => {
         // Drop loser into Losers major round
         // Play-in: W-R3→L-R2, W-R4→L-R4   formula: (rN - 2) * 2
         // Standard: W-R2→L-R2, W-R3→L-R4  formula: (rN - 1) * 2
-        const targetLosersRound = byeCount > 0
+        const targetLosersRound = playInCount > 0
           ? (roundNumber - 2) * 2
           : (roundNumber - 1) * 2;
         const prevMinorRound = targetLosersRound - 1;
