@@ -1588,7 +1588,8 @@ export const DoubleEliminationBracket = ({
         const k = round / 2;
         // For play-in: wFeederRound = k + 2 (L-R2←W-R3, L-R4←W-R4)
         // Standard:    wFeederRound = k + 1 (L-R2←W-R2, L-R4←W-R3)
-        const wFeederRound = byeCount > 0 ? k + 2 : k + 1;
+        // Use playInCount (not byeCount) — byeCount is negative for play-in formats (e.g. 12 teams: 8-12=-4)
+        const wFeederRound = playInCount > 0 ? k + 2 : k + 1;
         const prevMinorRound = round - 1;
         const wFeederMatches = allW.filter(m => m.round_number === wFeederRound).sort(sortFnField);
         const prevMinorMatches = allL.filter(m => m.round_number === prevMinorRound).sort(sortFnField);
