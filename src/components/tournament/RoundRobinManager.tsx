@@ -823,6 +823,63 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
     setTeam2Score(match.team2_score ?? 0);
   }, [isEditing, match.team1_score, match.team2_score]);
 
+  // Load referee data on mount
+  useEffect(() => {
+    const fetchReferee = async () => {
+      const { data } = await supabase
+        .from("match_referees")
+        .select("id, referee_team_id, team:teams(id, name)")
+        .eq("match_id", match.id)
+        .maybeSingle();
+      if (data) {
+        setRefereeDbId(data.id);
+        setRefereeTeamId(data.referee_team_id);
+        setRefereeTeamName((data.team as any)?.name || null);
+      }
+    };
+    fetchReferee();
+  }, [match.id]);
+
+  // Load all tournament teams for the referee dropdown (creator only)
+  useEffect(() => {
+    if (!isCreator) return;
+    const fetchTeams = async () => {
+      const { data } = await supabase
+        .from("tournament_teams")
+        .select("team_id, team:teams(id, name)")
+        .eq("tournament_id", tournamentId);
+      if (data) {
+        setAllTournamentTeams(
+          (data as any[])
+            .filter(tt => tt.team?.id !== match.team1_id && tt.team?.id !== match.team2_id)
+            .map(tt => ({ id: tt.team_id, name: tt.team?.name || "?" }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
+      }
+    };
+    fetchTeams();
+  }, [isCreator, tournamentId, match.team1_id, match.team2_id]);
+
+  const handleRefereeOverride = async (newTeamId: string) => {
+    const newTeam = allTournamentTeams.find(t => t.id === newTeamId);
+    try {
+      if (refereeDbId) {
+        await supabase.from("match_referees").update({ referee_team_id: newTeamId, status: "pending" }).eq("id", refereeDbId);
+      } else {
+        const { data } = await supabase.from("match_referees")
+          .insert({ tournament_id: tournamentId, match_id: match.id, referee_team_id: newTeamId, status: "pending" })
+          .select("id").single();
+        if (data) setRefereeDbId(data.id);
+      }
+      setRefereeTeamId(newTeamId);
+      setRefereeTeamName(newTeam?.name || null);
+      setEditingReferee(false);
+      toast.success(`Arbitre : ${newTeam?.name}`);
+    } catch {
+      toast.error("Erreur lors de la modification");
+    }
+  };
+
   // Load players on mount to calculate scores
   useEffect(() => {
     fetchPlayers();
