@@ -1749,15 +1749,6 @@ export const EliminationBracket = ({
     );
   }
 
-  if (generating) {
-    return (
-      <Card className="glass-card p-8 text-center">
-        <Trophy className="h-12 w-12 text-primary mx-auto mb-4 animate-bounce" />
-        <p className="text-muted-foreground animate-pulse">Generating bracket...</p>
-      </Card>
-    );
-  }
-
   // Group matches by round
   const matchesByRound = matches.reduce((acc, match) => {
     if (!acc[match.round_number]) {
@@ -1797,6 +1788,12 @@ export const EliminationBracket = ({
           <h2 className="text-xl font-bold">
             {eliminationType === "single" ? "Single" : "Double"} Elimination Phase
           </h2>
+          {generating && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground animate-pulse">
+              <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              Mise à jour…
+            </span>
+          )}
         </div>
         <p className="text-sm text-muted-foreground ml-9">
           {tournament?.teams_for_elimination} qualified teams

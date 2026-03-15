@@ -198,7 +198,7 @@ export const DoubleEliminationBracket = ({
 
   useEffect(() => {
     if (currentPhase !== "double_elimination") return;
-    fetchTournamentAndMatches();
+    fetchTournamentAndMatches(true);
     fetchActiveTimers();
   }, [tournamentId, currentPhase]);
 
@@ -367,8 +367,8 @@ export const DoubleEliminationBracket = ({
   };
 
 
-  const fetchTournamentAndMatches = async () => {
-    setLoading(true);
+  const fetchTournamentAndMatches = async (isInitialLoad = false) => {
+    if (isInitialLoad) setLoading(true);
     try {
       const { data: tournamentData, error: tournamentError } = await supabase
         .from("tournaments")
@@ -1845,14 +1845,7 @@ export const DoubleEliminationBracket = ({
     return <Card className="glass-card p-8 text-center"><p className="text-muted-foreground animate-pulse">Loading bracket...</p></Card>;
   }
 
-  if (generating) {
-    return (
-      <Card className="glass-card p-8 text-center">
-        <Trophy className="h-12 w-12 text-primary mx-auto mb-4 animate-bounce" />
-        <p className="text-muted-foreground animate-pulse">Generating bracket...</p>
-      </Card>
-    );
-  }
+
 
   const pendingWinnersMatches = winnersMatches.filter(m => !m.winner_id).length;
   const pendingLosersMatches = losersMatches.filter(m => !m.winner_id).length;
@@ -1866,7 +1859,7 @@ export const DoubleEliminationBracket = ({
     <Card className="glass-card p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-2">
             <Trophy className="h-6 w-6 text-primary" />
             <h2 className="text-xl font-bold">Double Elimination</h2>
             {hasReset && (
@@ -1875,13 +1868,19 @@ export const DoubleEliminationBracket = ({
                 Bracket Reset!
               </Badge>
             )}
+            {generating && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground animate-pulse">
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                Mise à jour…
+              </span>
+            )}
           </div>
           <p className="text-sm text-muted-foreground ml-9">
             {totalTeams} teams — Lose twice to be eliminated
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchTournamentAndMatches} className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => fetchTournamentAndMatches(true)} className="gap-2">
             <RefreshCw className="h-4 w-4" />
             Refresh
           </Button>
