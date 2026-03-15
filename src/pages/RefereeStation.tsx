@@ -1318,6 +1318,21 @@ const RefereeStation = () => {
     // so newly created matches (including 3rd place) are picked up
     // We filter for matches that have NOT been played yet (team1_score IS NULL)
     // This prevents draws (no winner_id but with scores) from being re-selected
+
+    // ── Determine the group of the just-validated match ──
+    // For round-robin/swiss with multiple groups (Morning/Afternoon), we must
+    // stay within the same group until it is fully played, then move to the next group.
+    let currentMatchGroup: string | null = null;
+    if (currentPhase === 'round_robin' || currentPhase === 'swiss') {
+      const { data: ttRows } = await supabase
+        .from("tournament_teams")
+        .select("group_name")
+        .eq("tournament_id", station.tournament_id)
+        .in("team_id", [match.team1_id, match.team2_id])
+        .limit(1);
+      currentMatchGroup = ttRows?.[0]?.group_name ?? null;
+    }
+
     const { data: allMatches } = await supabase
       .from("matches")
       .select("id, team1_id, team2_id, winner_id, team1_score, team2_score, round_number, field_number, is_third_place_match")
@@ -1329,8 +1344,49 @@ const RefereeStation = () => {
       .order("field_number")
       .order("created_at");
 
-    console.log("[Auto-advance] Validated match:", match.id, "phase:", currentPhase);
+    console.log("[Auto-advance] Validated match:", match.id, "phase:", currentPhase, "group:", currentMatchGroup);
     console.log("[Auto-advance] Unplayed matches from DB:", allMatches?.length, allMatches?.map(m => m.id));
+
+    // ── For multi-group preliminary phases, filter by group ──
+    // We resolve the group of each candidate match and stay in the current group
+    // until it is entirely finished, then fall through to the next group.
+    let groupFilteredMatches = allMatches;
+    if (currentMatchGroup && (currentPhase === 'round_robin' || currentPhase === 'swiss') && allMatches && allMatches.length > 0) {
+      // Build a map: team_id → group_name for this tournament
+      const allTeamIds = [...new Set(allMatches.flatMap(m => [m.team1_id, m.team2_id]))];
+      const { data: allTT } = await supabase
+        .from("tournament_teams")
+        .select("team_id, group_name")
+        .eq("tournament_id", station.tournament_id)
+        .in("team_id", allTeamIds);
+      const teamGroupMap: Record<string, string | null> = {};
+      (allTT || []).forEach(tt => { teamGroupMap[tt.team_id] = tt.group_name; });
+
+      // Matches belong to the same group if both teams share it
+      const matchesInCurrentGroup = allMatches.filter(m =>
+        teamGroupMap[m.team1_id] === currentMatchGroup && teamGroupMap[m.team2_id] === currentMatchGroup
+      );
+
+      if (matchesInCurrentGroup.length > 0) {
+        // Still matches left in the current group — stay in it
+        groupFilteredMatches = matchesInCurrentGroup;
+      } else {
+        // Current group is finished — check remaining groups in alphabetical order
+        // (e.g. "Afternoon" comes before "Morning" alphabetically, adjust if needed)
+        const otherGroupMatches = allMatches.filter(m =>
+          teamGroupMap[m.team1_id] !== null && teamGroupMap[m.team1_id] === teamGroupMap[m.team2_id]
+        );
+
+        if (otherGroupMatches.length > 0) {
+          // Pick the next group alphabetically
+          const nextGroup = [...new Set(otherGroupMatches.map(m => teamGroupMap[m.team1_id] as string))].sort()[0];
+          groupFilteredMatches = otherGroupMatches.filter(m => teamGroupMap[m.team1_id] === nextGroup);
+        } else {
+          // All group matches done — Ultimate Round or next phase
+          groupFilteredMatches = allMatches;
+        }
+      }
+    }
 
     // Get all active station match assignments (except current station)
     const { data: activeStations } = await supabase
@@ -1412,7 +1468,7 @@ const RefereeStation = () => {
     };
 
     // Double-safety: also filter client-side to exclude any match with scores already set
-    const availableMatches = (allMatches || []).filter(
+    const availableMatches = (groupFilteredMatches || []).filter(
       m => m.team1_id && m.team2_id && m.team1_id !== m.team2_id 
         && !activeMatchIds.has(m.id)
         && m.team1_score === null && m.team2_score === null
