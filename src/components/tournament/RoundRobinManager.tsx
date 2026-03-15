@@ -805,7 +805,13 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   const [quickStatType, setQuickStatType] = useState<"assists" | "fouls" | "penalty_30s" | "penalty_1m" | "penalty_2m">("assists");
   const [quickStatTeam, setQuickStatTeam] = useState<{ id: string; name: string } | null>(null);
   const [sendToStationOpen, setSendToStationOpen] = useState(false);
-  
+  // Referee state
+  const [refereeTeamName, setRefereeTeamName] = useState<string | null>(null);
+  const [refereeTeamId, setRefereeTeamId] = useState<string | null>(null);
+  const [refereeDbId, setRefereeDbId] = useState<string | null>(null);
+  const [editingReferee, setEditingReferee] = useState(false);
+  const [allTournamentTeams, setAllTournamentTeams] = useState<{id: string; name: string}[]>([]);
+
   const isLocked = editingMatchId !== null && editingMatchId !== match.id;
   const isEditing = editingMatchId === match.id;
 
