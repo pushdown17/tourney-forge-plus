@@ -367,8 +367,8 @@ export const DoubleEliminationBracket = ({
   };
 
 
-  const fetchTournamentAndMatches = async () => {
-    setLoading(true);
+  const fetchTournamentAndMatches = async (isInitialLoad = false) => {
+    if (isInitialLoad) setLoading(true);
     try {
       const { data: tournamentData, error: tournamentError } = await supabase
         .from("tournaments")
