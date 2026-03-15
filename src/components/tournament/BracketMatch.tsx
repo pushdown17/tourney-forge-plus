@@ -182,8 +182,7 @@ export const BracketMatch = ({
               "overflow-hidden transition-all duration-300 flex-1 flex flex-col justify-center",
               "bg-card/80 backdrop-blur-sm border-border/50",
               !isPlaceholder && "hover:shadow-md hover:border-primary/30 cursor-pointer",
-              isMatchLocked && !isCompleted && "opacity-60 cursor-not-allowed",
-              hasWinner && "ring-1 ring-primary/30",
+              isMatchLocked && !isCompleted && "cursor-not-allowed",
               isFinal && "ring-2 ring-yellow-500/50",
               isRecentlyCompleted && "animate-pulse ring-2 ring-primary shadow-lg shadow-primary/30",
               matchInvolvesHighlight && "ring-2 ring-primary shadow-lg shadow-primary/40"
