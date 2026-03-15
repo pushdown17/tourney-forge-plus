@@ -1138,7 +1138,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           : ""
       }`}>
         <div className="flex items-center justify-center gap-2 mb-1">
-          {isLive && timerState && (
+          {(isOnRefereeStation || isLive) && timerState && timerState.startedAt && (
             <TimerDisplay
               durationSeconds={timerState.durationSeconds}
               startedAt={timerState.startedAt}
@@ -1147,13 +1147,13 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               compact
             />
           )}
-          {isLive && !timerState && (
+          {isLive && !(timerState && timerState.startedAt) && (
             <Badge variant="destructive" className="text-xs animate-pulse gap-1">
               <Radio className="h-3 w-3" />
               LIVE
             </Badge>
           )}
-          {isOnRefereeStation && !isLive && !timerState && (
+          {isOnRefereeStation && !isLive && !(timerState && timerState.startedAt) && (
             <Badge className="text-xs animate-pulse bg-primary">
               <Monitor className="h-3 w-3" />
             </Badge>
