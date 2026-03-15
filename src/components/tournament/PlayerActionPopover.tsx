@@ -39,7 +39,6 @@ export const PlayerActionPopover = ({
   const penalties = [
     { key: "penalty_30s", label: "30s", value: stats.penalty_30s, color: "bg-yellow-500/20 text-yellow-600" },
     { key: "penalty_1m", label: "1min", value: stats.penalty_1m, color: "bg-orange-500/20 text-orange-600" },
-    { key: "penalty_2m", label: "2min", value: stats.penalty_2m, color: "bg-red-500/20 text-red-600" },
   ];
 
   return (
