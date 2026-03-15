@@ -301,7 +301,6 @@ export const RefereesTab = ({
   });
 
   const groupNames = Object.keys(groupedMatches).sort();
-  const [activeGroup, setActiveGroup] = useState<string>("");
 
   // Default to first group once loaded
   const effectiveTab = activeGroup || groupNames[0] || "";
