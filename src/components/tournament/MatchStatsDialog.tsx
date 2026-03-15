@@ -269,15 +269,16 @@ export const MatchStatsDialog = ({
               </div>
             ) : (
               <div
-                className="flex items-center gap-3 px-6 py-2 bg-background rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                className={`flex items-center gap-3 px-6 py-2 bg-background rounded-lg transition-colors ${isCreator ? "cursor-pointer hover:bg-muted/50" : "cursor-default"}`}
                 onClick={() => {
+                  if (!isCreator) return;
                   setLocalScores({
                     team1: displayTeam1Score,
                     team2: displayTeam2Score,
                   });
                   setManualScoreMode(true);
                 }}
-                title="Cliquer pour modifier le score"
+                title={isCreator ? "Cliquer pour modifier le score" : undefined}
               >
                 <span className="text-3xl font-bold text-primary">{displayTeam1Score}</span>
                 <span className="text-2xl text-muted-foreground">-</span>
