@@ -1531,10 +1531,16 @@ export const DoubleEliminationBracket = ({
       }
 
       // R3+: pair-based advancement from previous round
+      // Use field_number-based lookup to correctly detect which slots are missing
       const prevRoundMatches = allW.filter(m => m.round_number === round - 1).sort(sortFnField);
       const expectedCount = Math.pow(2, winnersRoundsCount - round);
+      const useFieldNumbers = currentRoundMatches.some(m => m.field_number != null);
       for (let slot = 0; slot < expectedCount; slot++) {
-        if (currentRoundMatches[slot]) continue;
+        // Check by field_number if available, else by index
+        const realMatchForSlot = useFieldNumbers
+          ? currentRoundMatches.find(m => m.field_number === slot + 1)
+          : currentRoundMatches[slot];
+        if (realMatchForSlot) continue;
         const srcA = prevRoundMatches[slot * 2];
         const srcB = prevRoundMatches[slot * 2 + 1];
         const t1 = srcA ? teamFromMatch(srcA, 'winner') : null;
