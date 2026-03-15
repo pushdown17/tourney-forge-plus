@@ -858,6 +858,9 @@ export const DoubleEliminationBracket = ({
 
   const handleResetBracket = async () => {
     setResetting(true);
+    // Clear frozen seeds so they are recomputed fresh on next generation
+    frozenSeedMapRef.current = new Map();
+    try { localStorage.removeItem(DE_SEED_STORAGE_KEY); } catch { /* ignore */ }
     try {
       const { error } = await supabase
         .from("matches")
