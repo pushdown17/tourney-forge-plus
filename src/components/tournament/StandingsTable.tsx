@@ -230,14 +230,14 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase 
       return finalRanking;
     }
 
-    // Phase 1: Provisional interleaved ranking
-    const interleaved: any[] = [];
-    const maxLen = Math.max(morningStandings.length, afternoonStandings.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (i < morningStandings.length) interleaved.push(morningStandings[i]);
-      if (i < afternoonStandings.length) interleaved.push(afternoonStandings[i]);
-    }
-    return interleaved;
+    // Phase 1: Provisional ranking — all teams sorted by stats (pts, GD, GF)
+    return [...standings].sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      const diffA = a.goals_for - a.goals_against;
+      const diffB = b.goals_for - b.goals_against;
+      if (diffB !== diffA) return diffB - diffA;
+      return b.goals_for - a.goals_for;
+    });
   }, [standings, hasGroups, teamGroupMap, ultimateMatches]);
 
   const filteredStandings = useMemo(() => {
