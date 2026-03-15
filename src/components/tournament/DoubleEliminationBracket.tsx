@@ -155,6 +155,22 @@ export const DoubleEliminationBracket = ({
   // Ordered standings: index 0 = seed #1, used to resolve BYE team names
   const [standingsTeams, setStandingsTeams] = useState<{ teamId: string; name: string }[]>([]);
 
+  // Frozen seed map persisted in localStorage to survive page reloads
+  const DE_SEED_STORAGE_KEY = `frozen_seeds_de_${tournamentId}`;
+  const loadFrozenSeedsFromStorage = (): Map<string, number> | null => {
+    try {
+      const stored = localStorage.getItem(DE_SEED_STORAGE_KEY);
+      if (!stored) return null;
+      return new Map<string, number>(JSON.parse(stored));
+    } catch { return null; }
+  };
+  const saveFrozenSeedsToStorage = (seedMap: Map<string, number>) => {
+    try {
+      localStorage.setItem(DE_SEED_STORAGE_KEY, JSON.stringify(Array.from(seedMap.entries())));
+    } catch { /* ignore */ }
+  };
+  const frozenSeedMapRef = useRef<Map<string, number>>(loadFrozenSeedsFromStorage() ?? new Map());
+
   // Trigger reset from parent (Tournament settings popover)
   const prevResetTrigger = useRef(resetTrigger);
   useEffect(() => {
@@ -379,25 +395,36 @@ export const DoubleEliminationBracket = ({
 
       if (matchesResult.error) throw matchesResult.error;
 
-      const seedMap = new Map<string, number>();
+      // Use frozen seeds if already computed, else compute and freeze
+      const bracketAlreadyExists = matchesResult.data && matchesResult.data.length > 0;
+      const seedsAlreadyFrozen = frozenSeedMapRef.current.size > 0;
+
+      let seedMap: Map<string, number>;
       const orderedTeams: { teamId: string; name: string }[] = [];
-      if (standingsResult.data) {
-        // Sort identically to EliminationBracket: points DESC, goal diff DESC, goals_for DESC
-        const sortedStandings = [...standingsResult.data].sort((a: any, b: any) => {
-          if (b.points !== a.points) return b.points - a.points;
-          const diffA = a.goals_for - a.goals_against;
-          const diffB = b.goals_for - b.goals_against;
-          if (diffB !== diffA) return diffB - diffA;
-          return b.goals_for - a.goals_for;
-        });
-        sortedStandings.forEach((stat: any, index) => {
-          seedMap.set(stat.team_id, index + 1);
-          if (stat.team?.name) {
-            orderedTeams.push({ teamId: stat.team_id, name: stat.team.name });
-          }
-        });
+      if (!seedsAlreadyFrozen) {
+        seedMap = new Map<string, number>();
+        if (standingsResult.data) {
+          // Sort identically to EliminationBracket: points DESC, goal diff DESC, goals_for DESC
+          const sortedStandings = [...standingsResult.data].sort((a: any, b: any) => {
+            if (b.points !== a.points) return b.points - a.points;
+            const diffA = a.goals_for - a.goals_against;
+            const diffB = b.goals_for - b.goals_against;
+            if (diffB !== diffA) return diffB - diffA;
+            return b.goals_for - a.goals_for;
+          });
+          sortedStandings.forEach((stat: any, index) => {
+            seedMap.set(stat.team_id, index + 1);
+            if (stat.team?.name) {
+              orderedTeams.push({ teamId: stat.team_id, name: stat.team.name });
+            }
+          });
+        }
+        frozenSeedMapRef.current = seedMap;
+        saveFrozenSeedsToStorage(seedMap);
+      } else {
+        seedMap = frozenSeedMapRef.current;
       }
-      setStandingsTeams(orderedTeams);
+      setStandingsTeams(orderedTeams.length > 0 ? orderedTeams : standingsTeams);
 
       const matchesWithSeeds = (matchesResult.data || []).map(match => ({
         ...match,
@@ -831,6 +858,9 @@ export const DoubleEliminationBracket = ({
 
   const handleResetBracket = async () => {
     setResetting(true);
+    // Clear frozen seeds so they are recomputed fresh on next generation
+    frozenSeedMapRef.current = new Map();
+    try { localStorage.removeItem(DE_SEED_STORAGE_KEY); } catch { /* ignore */ }
     try {
       const { error } = await supabase
         .from("matches")
