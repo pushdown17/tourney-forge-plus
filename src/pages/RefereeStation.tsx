@@ -876,7 +876,7 @@ const RefereeStation = () => {
           }
         }
 
-      } else if (roundNumber === 2 && byeCount > 0) {
+      } else if (roundNumber === 2 && playInCount > 0) {
         // ── HYBRID: W-QF (R2) loser enters L-R1 ──
         // CRITICAL: use winnersBracketAll (includes sentinels) for position counting
         // so that fn=1..4 positions are 0,1,2,3 even when sentinels are present.
