@@ -1264,6 +1264,43 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           </div>
         )}
 
+        {/* Referee display */}
+        {(refereeTeamName || isCreator) && (
+          <div className="flex items-center justify-between gap-2 mt-1 pt-2 border-t border-border/40">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="font-medium">Arbitre :</span>
+              {editingReferee && isCreator ? (
+                <select
+                  autoFocus
+                  className="text-xs bg-background border border-border rounded px-1.5 py-0.5 text-foreground max-w-[140px]"
+                  defaultValue={refereeTeamId || ""}
+                  onChange={(e) => handleRefereeOverride(e.target.value)}
+                  onBlur={() => setEditingReferee(false)}
+                >
+                  <option value="" disabled>— Choisir —</option>
+                  {allTournamentTeams.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className={refereeTeamName ? "text-foreground font-medium" : "italic"}>
+                  {refereeTeamName || "Non assigné"}
+                </span>
+              )}
+            </div>
+            {isCreator && !isClosed && !editingReferee && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground"
+                onClick={() => setEditingReferee(true)}
+              >
+                Modifier
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Onglets stats rapides */}
         {isCreator && (
           <div className="flex flex-wrap gap-2 justify-center">
