@@ -130,12 +130,13 @@ export const RefereesTab = ({
         if (tt.team) teamNameMap[tt.team_id] = tt.team.name;
       });
 
-      // 2. Fetch round-robin matches (phase = round_robin), ordered by round then created_at
+      // 2. Fetch round-robin matches (phase = round_robin, exclude Ultimate Round 99)
       const { data: matchData, error: matchError } = await supabase
         .from("matches")
         .select("id, round_number, team1_id, team2_id, team1_score, team2_score, tournament_team1_id, tournament_team2_id")
         .eq("tournament_id", tournamentId)
         .eq("phase", "round_robin")
+        .neq("round_number", 99)
         .order("round_number", { ascending: true })
         .order("created_at", { ascending: true });
 
