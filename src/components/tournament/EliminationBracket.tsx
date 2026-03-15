@@ -1750,12 +1750,8 @@ export const EliminationBracket = ({
   }
 
   if (generating) {
-    return (
-      <Card className="glass-card p-8 text-center">
-        <Trophy className="h-12 w-12 text-primary mx-auto mb-4 animate-bounce" />
-        <p className="text-muted-foreground animate-pulse">Generating bracket...</p>
-      </Card>
-    );
+    // Don't replace the full bracket — show a subtle overlay instead (see below)
+    // return early removed intentionally: bracket remains visible while generating next round
   }
 
   // Group matches by round
