@@ -138,8 +138,30 @@ export const EliminationBracket = ({
   const thirdPlaceDecisionMadeRef = useRef(false);
   const prevResetTrigger = useRef(resetTrigger);
   // Frozen seed map: set once at bracket generation, never recomputed from live stats
-  const frozenSeedMapRef = useRef<Map<string, number>>(new Map());
-  const frozenSeedToTeamRef = useRef<Map<number, Team>>(new Map());
+  // Persisted in localStorage to survive page reloads
+  const SEED_STORAGE_KEY = `frozen_seeds_${tournamentId}`;
+  const loadFrozenSeedsFromStorage = (): { seedMap: Map<string, number>; reverseSeedMap: Map<number, Team> } | null => {
+    try {
+      const stored = localStorage.getItem(SEED_STORAGE_KEY);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      return {
+        seedMap: new Map<string, number>(parsed.seedMap),
+        reverseSeedMap: new Map<number, Team>(parsed.reverseSeedMap),
+      };
+    } catch { return null; }
+  };
+  const saveFrozenSeedsToStorage = (seedMap: Map<string, number>, reverseSeedMap: Map<number, Team>) => {
+    try {
+      localStorage.setItem(SEED_STORAGE_KEY, JSON.stringify({
+        seedMap: Array.from(seedMap.entries()),
+        reverseSeedMap: Array.from(reverseSeedMap.entries()),
+      }));
+    } catch { /* ignore */ }
+  };
+  const initialStored = loadFrozenSeedsFromStorage();
+  const frozenSeedMapRef = useRef<Map<string, number>>(initialStored?.seedMap ?? new Map());
+  const frozenSeedToTeamRef = useRef<Map<number, Team>>(initialStored?.reverseSeedMap ?? new Map());
 
   useEffect(() => {
     fetchTournamentAndMatches(true);
