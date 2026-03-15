@@ -259,7 +259,7 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase 
                   <span>{index + 1}</span>
                   {hasChange && change > 0 && <TrendingUp className="h-4 w-4 text-green-500 animate-in slide-in-from-bottom-2" />}
                   {hasChange && change < 0 && <TrendingDown className="h-4 w-4 text-red-500 animate-in slide-in-from-top-2" />}
-                  {showGroupColumn && ultimateResult === "win" && <Crown className="h-4 w-4 text-primary" />}
+                  
                 </div>
               </TableCell>
               <TableCell className="font-bold">
