@@ -1845,9 +1845,6 @@ export const DoubleEliminationBracket = ({
     return <Card className="glass-card p-8 text-center"><p className="text-muted-foreground animate-pulse">Loading bracket...</p></Card>;
   }
 
-  if (generating) {
-    // Don't replace the full bracket — show a subtle overlay instead (see below)
-  }
 
 
   const pendingWinnersMatches = winnersMatches.filter(m => !m.winner_id).length;
