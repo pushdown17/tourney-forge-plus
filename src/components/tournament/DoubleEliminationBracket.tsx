@@ -155,6 +155,22 @@ export const DoubleEliminationBracket = ({
   // Ordered standings: index 0 = seed #1, used to resolve BYE team names
   const [standingsTeams, setStandingsTeams] = useState<{ teamId: string; name: string }[]>([]);
 
+  // Frozen seed map persisted in localStorage to survive page reloads
+  const DE_SEED_STORAGE_KEY = `frozen_seeds_de_${tournamentId}`;
+  const loadFrozenSeedsFromStorage = (): Map<string, number> | null => {
+    try {
+      const stored = localStorage.getItem(DE_SEED_STORAGE_KEY);
+      if (!stored) return null;
+      return new Map<string, number>(JSON.parse(stored));
+    } catch { return null; }
+  };
+  const saveFrozenSeedsToStorage = (seedMap: Map<string, number>) => {
+    try {
+      localStorage.setItem(DE_SEED_STORAGE_KEY, JSON.stringify(Array.from(seedMap.entries())));
+    } catch { /* ignore */ }
+  };
+  const frozenSeedMapRef = useRef<Map<string, number>>(loadFrozenSeedsFromStorage() ?? new Map());
+
   // Trigger reset from parent (Tournament settings popover)
   const prevResetTrigger = useRef(resetTrigger);
   useEffect(() => {
