@@ -734,11 +734,12 @@ const RefereeStation = () => {
       .single();
     const totalTeams = tournamentInfo?.teams_for_elimination || 8;
 
-    // Use bracketSize (next power of 2) — critical for hybrid formats like 12 teams
+    // Use bracketSize (prev power of 2) — critical for hybrid formats like 12 teams
+    // For 12 teams: bracketSize=8, playInCount=4 (NOT byeCount=-4 which is wrong for play-in)
     const bracketSize = prevPow2Station(totalTeams);
-    const byeCount = bracketSize - totalTeams;
+    const playInCount = totalTeams - bracketSize; // positive for hybrid (e.g. 4 for 12 teams), 0 for standard
     const winnersRounds = Math.log2(bracketSize);
-    const losersRoundsCount = getLosersRoundsCountDE(bracketSize, byeCount);
+    const losersRoundsCount = getLosersRoundsCountDE(bracketSize, 0);
     const grandFinalRound = winnersRounds + 1;
     const resetRound = grandFinalRound + 1;
     const isLosersBracket = !!(completedMatch as any).is_third_place_match;
@@ -797,7 +798,7 @@ const RefereeStation = () => {
       // WINNERS BRACKET
       // ══════════════════════════════════════════════════════════════════
 
-      if (roundNumber === 1 && byeCount > 0) {
+      if (roundNumber === 1 && playInCount > 0) {
         // ── HYBRID: Preliminary Round (R1) ──
         // ABSOLUTE RULE: R1[field_number=K] → R2[field_number=K], team2 slot ONLY.
         // team1 (BYE seed) is PERMANENTLY LOCKED. NO new match creation. Only UPDATE.
@@ -841,7 +842,7 @@ const RefereeStation = () => {
         // Prelim losers are eliminated — no Losers Bracket entry
         return;
 
-      } else if (roundNumber === 1 && byeCount === 0) {
+      } else if (roundNumber === 1 && playInCount === 0) {
         // ── STANDARD: W-R1 → loser enters L-R1 ──
         const allR1Sorted = winnersBracket.filter(m => m.round_number === 1).sort(sortFn);
         const myPosInR = allR1Sorted.findIndex(m => m.id === completedMatch.id);
@@ -875,7 +876,7 @@ const RefereeStation = () => {
           }
         }
 
-      } else if (roundNumber === 2 && byeCount > 0) {
+      } else if (roundNumber === 2 && playInCount > 0) {
         // ── HYBRID: W-QF (R2) loser enters L-R1 ──
         // CRITICAL: use winnersBracketAll (includes sentinels) for position counting
         // so that fn=1..4 positions are 0,1,2,3 even when sentinels are present.
@@ -955,7 +956,7 @@ const RefereeStation = () => {
         // Drop loser into Losers major round
         // Play-in: W-R3→L-R2, W-R4→L-R4   formula: (rN - 2) * 2
         // Standard: W-R2→L-R2, W-R3→L-R4  formula: (rN - 1) * 2
-        const targetLosersRound = byeCount > 0
+        const targetLosersRound = playInCount > 0
           ? (roundNumber - 2) * 2
           : (roundNumber - 1) * 2;
         const prevMinorRound = targetLosersRound - 1;
@@ -997,7 +998,7 @@ const RefereeStation = () => {
         if (isMinorRound) {
           // Minor round: winner goes to next major round vs W-dropin
           const nextMajorRound = nextRound;
-          const wFeederRound = byeCount > 0
+          const wFeederRound = playInCount > 0
             ? nextMajorRound / 2 + 2  // Play-in: L-R2←W-R3, L-R4←W-R4
             : nextMajorRound / 2 + 1; // Standard: L-R2←W-R2, L-R4←W-R3
 
@@ -1401,8 +1402,8 @@ const RefereeStation = () => {
       (activeStations || []).map(s => s.current_match_id).filter(Boolean)
     );
 
-    // ── Compute byeCount for this tournament (needed for DE sequencing) ──
-    let deByeCount = 0;
+    // ── Compute playInCount for this tournament (needed for DE sequencing) ──
+    let dePlayInCount = 0;
     if (currentPhase === 'double_elimination') {
       const { data: tiInfo } = await supabase
         .from("tournaments")
@@ -1411,7 +1412,7 @@ const RefereeStation = () => {
         .single();
       const totalTeamsDE = tiInfo?.teams_for_elimination || 8;
       const bracketSizeDE = prevPow2Station(totalTeamsDE);
-      deByeCount = bracketSizeDE - totalTeamsDE;
+      dePlayInCount = totalTeamsDE - bracketSizeDE; // positive for hybrid (e.g. 4 for 12 teams)
     }
 
     // ── Sequence function for Double Elimination ──
@@ -1437,7 +1438,7 @@ const RefereeStation = () => {
       // GF rounds use high sentinel values regardless of bracket type
       if (r >= 10 && !isL) return 50 + r;
 
-      if (deByeCount > 0) {
+      if (dePlayInCount > 0) {
         // ── Hybrid (play-in) formula — works for ALL sizes (6,10,12,14,20,24…) ──
         const wSeqH = (k: number): number =>
           k === 1 ? 1 : k === 2 ? 2 : 3 * k - 5;
