@@ -537,27 +537,42 @@ export const EliminationBracket = ({
       if (matchesResult.error) throw matchesResult.error;
       
       // Build seed map from standings - sort same as StandingsTable: points DESC, goal diff DESC, goals_for DESC
-      const seedMap = new Map<string, number>();
-      const reverseSeedMap = new Map<number, Team>();
-      if (standingsResult.data) {
-        const sortedStandings = [...standingsResult.data].sort((a: any, b: any) => {
-          if (b.points !== a.points) return b.points - a.points;
-          const diffA = a.goals_for - a.goals_against;
-          const diffB = b.goals_for - b.goals_against;
-          if (diffB !== diffA) return diffB - diffA;
-          return b.goals_for - a.goals_for;
-        });
-        sortedStandings.forEach((stat: any, index: number) => {
-          seedMap.set(stat.team_id, index + 1);
-          if (stat.team) {
-            reverseSeedMap.set(index + 1, { id: stat.team.id, name: stat.team.name, seed: index + 1 });
-          }
-        });
+      // Seeds are FROZEN once the bracket is generated — they must not change when elim match results are saved.
+      const bracketAlreadyExists = matchesResult.data && matchesResult.data.length > 0;
+      const seedsAlreadyFrozen = frozenSeedMapRef.current.size > 0;
+
+      let seedMap: Map<string, number>;
+      let reverseSeedMap: Map<number, Team>;
+
+      if (!seedsAlreadyFrozen) {
+        // First time: compute and freeze
+        seedMap = new Map<string, number>();
+        reverseSeedMap = new Map<number, Team>();
+        if (standingsResult.data) {
+          const sortedStandings = [...standingsResult.data].sort((a: any, b: any) => {
+            if (b.points !== a.points) return b.points - a.points;
+            const diffA = a.goals_for - a.goals_against;
+            const diffB = b.goals_for - b.goals_against;
+            if (diffB !== diffA) return diffB - diffA;
+            return b.goals_for - a.goals_for;
+          });
+          sortedStandings.forEach((stat: any, index: number) => {
+            seedMap.set(stat.team_id, index + 1);
+            if (stat.team) {
+              reverseSeedMap.set(index + 1, { id: stat.team.id, name: stat.team.name, seed: index + 1 });
+            }
+          });
+        }
+        frozenSeedMapRef.current = seedMap;
+        frozenSeedToTeamRef.current = reverseSeedMap;
+      } else {
+        // Bracket already exists: reuse frozen seeds
+        seedMap = frozenSeedMapRef.current;
+        reverseSeedMap = frozenSeedToTeamRef.current;
       }
       setSeedToTeam(reverseSeedMap);
 
       // No BYE logic: if teams_for_elimination isn't a power of 2, we rely on a preliminary round.
-
 
       // Attach seed to teams
       const matchesWithSeeds = (matchesResult.data || []).map(match => ({
