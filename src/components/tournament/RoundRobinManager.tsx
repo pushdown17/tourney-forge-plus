@@ -1405,19 +1405,6 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             >
               1 min
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setQuickStatType("penalty_2m");
-                setQuickStatTeam(null);
-                setQuickStatDialogOpen(true);
-              }}
-              disabled={isLocked || isClosed}
-              className="text-xs"
-            >
-              2 min
-            </Button>
           </div>
         )}
 
