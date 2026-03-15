@@ -300,7 +300,11 @@ export const RefereesTab = ({
     groupedMatches[g].push(m);
   });
 
-  const groupNames = Object.keys(groupedMatches).sort();
+  const groupNames = Object.keys(groupedMatches).sort((a, b) => {
+    // Morning always before Afternoon, otherwise alphabetical
+    const order = (s: string) => s.toLowerCase().startsWith("morning") ? 0 : s.toLowerCase().startsWith("afternoon") ? 1 : 2;
+    return order(a) - order(b);
+  });
 
   // Default to first group once loaded
   const effectiveTab = activeGroup || groupNames[0] || "";
