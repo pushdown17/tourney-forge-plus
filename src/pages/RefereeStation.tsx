@@ -734,11 +734,12 @@ const RefereeStation = () => {
       .single();
     const totalTeams = tournamentInfo?.teams_for_elimination || 8;
 
-    // Use bracketSize (next power of 2) — critical for hybrid formats like 12 teams
+    // Use bracketSize (prev power of 2) — critical for hybrid formats like 12 teams
+    // For 12 teams: bracketSize=8, playInCount=4 (NOT byeCount=-4 which is wrong for play-in)
     const bracketSize = prevPow2Station(totalTeams);
-    const byeCount = bracketSize - totalTeams;
+    const playInCount = totalTeams - bracketSize; // positive for hybrid (e.g. 4 for 12 teams), 0 for standard
     const winnersRounds = Math.log2(bracketSize);
-    const losersRoundsCount = getLosersRoundsCountDE(bracketSize, byeCount);
+    const losersRoundsCount = getLosersRoundsCountDE(bracketSize, 0);
     const grandFinalRound = winnersRounds + 1;
     const resetRound = grandFinalRound + 1;
     const isLosersBracket = !!(completedMatch as any).is_third_place_match;
