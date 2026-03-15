@@ -2185,6 +2185,7 @@ export const DoubleEliminationBracket = ({
           tournamentId={tournamentId}
           open={statsDialogOpen}
           onOpenChange={setStatsDialogOpen}
+          isCreator={isCreator}
           onScoreUpdate={async () => {
             // Fetch the updated match from DB to get the fresh winner_id after score correction
             const { data: updatedMatch } = await supabase
