@@ -14,6 +14,7 @@ interface MatchStatsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onScoreUpdate: () => void;
+  isCreator?: boolean;
 }
 
 export const MatchStatsDialog = ({ 
