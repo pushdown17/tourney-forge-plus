@@ -1081,8 +1081,7 @@ export const DoubleEliminationBracket = ({
           }
 
         } else if (roundNumber === 2 && playInCountW > 0) {
-          // ── BYE/hybrid W-QF: loser enters L-R1 (minor round) ──
-          // These 4 QF losers are the first teams to enter the Losers Bracket
+          // ── BYE/hybrid W-QF: winner advances to R3 (Semi), loser enters L-R1 ──
           // CRITICAL: use winnersBracketAll (includes sentinels) so positions are 0,1,2,3
           // across all 4 QF slots, not just 0,1 for the non-sentinel ones.
           const allQFSorted = winnersBracketAll.filter(m => m.round_number === 2).sort(sortFn);
@@ -1091,11 +1090,26 @@ export const DoubleEliminationBracket = ({
           const partnerMatch = allQFSorted[partnerPos];
 
           if (partnerMatch?.winner_id) {
+            const fieldNum = Math.floor(Math.min(myPosInR, partnerPos) / 2) + 1;
+
+            // ── Winners advancement: create R3 (Semi) match ──
+            const w1 = myPosInR % 2 === 0 ? winnerId : partnerMatch.winner_id;
+            const w2 = myPosInR % 2 === 0 ? partnerMatch.winner_id : winnerId;
+            const winnerR3 = Math.log2(getBracketSize(completedMatch.round_number)) + 1; // always R3 for hybrid
+            const nextWRound = 3;
+            if (!matchExists(winnersBracket, nextWRound, w1, w2)) {
+              matchesToCreate.push({
+                tournament_id: tournamentId, phase: "double_elimination",
+                round_number: nextWRound, team1_id: w1, team2_id: w2,
+                is_third_place_match: false, field_number: fieldNum,
+              });
+            }
+
+            // ── Losers: pair the two QF losers → L-R1 ──
             const l1 = loserId;
             const l2 = partnerMatch.winner_id === partnerMatch.team1_id
               ? partnerMatch.team2_id
               : partnerMatch.team1_id;
-            const fieldNum = Math.floor(Math.min(myPosInR, partnerPos) / 2) + 1;
             if (l1 && l2 && l1 !== l2
               && !teamInRound(losersBracket, 1, l1) && !teamInRound(losersBracket, 1, l2)
               && !teamInRound(matchesToCreate.filter((m: any) => m.is_third_place_match && m.round_number === 1), 1, l1)
@@ -1109,7 +1123,31 @@ export const DoubleEliminationBracket = ({
           }
 
         } else {
-          // ── W-R(k≥3) play-in / W-R(k≥2) standard: loser drops into L major round ──
+          // ── W-R(k≥3) play-in / W-R(k≥2) standard: winner advances, loser drops into L major round ──
+          const currentRoundMatchesW = winnersBracket.filter(m => m.round_number === roundNumber).sort(sortFn);
+          const myIndex = currentRoundMatchesW.findIndex(m => m.id === completedMatch.id);
+          const partnerIndex = myIndex % 2 === 0 ? myIndex + 1 : myIndex - 1;
+          const partnerMatchW = currentRoundMatchesW[partnerIndex];
+
+          // Winners advancement to next round
+          const totalTeamsW = (tournament ?? tournamentRef.current)?.teams_for_elimination ?? 8;
+          const bracketSzW = getBracketSize(totalTeamsW);
+          const winnersRoundsW = Math.log2(bracketSzW) + (playInCountW > 0 ? 1 : 0);
+          if (partnerMatchW?.winner_id) {
+            const nextWRound = roundNumber + 1;
+            const w1 = myIndex % 2 === 0 ? winnerId : partnerMatchW.winner_id;
+            const w2 = myIndex % 2 === 0 ? partnerMatchW.winner_id : winnerId;
+            const nextFieldNumber = Math.floor(Math.min(myIndex, partnerIndex) / 2) + 1;
+            if (nextWRound <= winnersRoundsW && !matchExists(winnersBracket, nextWRound, w1, w2)) {
+              matchesToCreate.push({
+                tournament_id: tournamentId, phase: "double_elimination",
+                round_number: nextWRound, team1_id: w1, team2_id: w2,
+                is_third_place_match: false, field_number: nextFieldNumber,
+              });
+            }
+          }
+
+          // Loser drops into L major round
           const targetLosersRound = playInCountW > 0
             ? (roundNumber - 2) * 2  // Play-in: W-R3→L-R2, W-R4→L-R4
             : (roundNumber - 1) * 2; // Standard: W-R2→L-R2, W-R3→L-R4
