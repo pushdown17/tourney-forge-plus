@@ -1295,8 +1295,10 @@ export const DoubleEliminationBracket = ({
   const createGrandFinal = async (winnersChampion: string, losersChampion: string, _winnersMatches?: any[]) => {
     const totalTeams = (tournament ?? tournamentRef.current)?.teams_for_elimination || 8;
     const bracketSz = getBracketSize(totalTeams);
-    const winnersRounds = Math.log2(bracketSz);
-    const grandFinalRound = winnersRounds + 1;
+    const playInCnt = getPlayInCount(totalTeams);
+    // Grand Final round = winners rounds count + 1 (accounting for play-in)
+    const wRoundsCount = Math.log2(bracketSz) + (playInCnt > 0 ? 1 : 0);
+    const grandFinalRound = wRoundsCount + 1;
 
     // Always query DB directly to avoid race conditions with stale in-memory state
     const { data: existingGF } = await supabase
@@ -1322,8 +1324,9 @@ export const DoubleEliminationBracket = ({
   const createGrandFinalReset = async (winnersChampion: string, losersChampion: string) => {
     const totalTeams = tournament?.teams_for_elimination || 8;
     const bracketSz = getBracketSize(totalTeams);
-    const winnersRounds = Math.log2(bracketSz);
-    const resetRound = winnersRounds + 2;
+    const playInCnt = getPlayInCount(totalTeams);
+    const wRoundsCount = Math.log2(bracketSz) + (playInCnt > 0 ? 1 : 0);
+    const resetRound = wRoundsCount + 2;
 
     // Query DB directly to avoid stale in-memory snapshot of winnersMatches
     const { data: existingReset } = await supabase
