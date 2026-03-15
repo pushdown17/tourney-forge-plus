@@ -798,7 +798,7 @@ const RefereeStation = () => {
       // WINNERS BRACKET
       // ══════════════════════════════════════════════════════════════════
 
-      if (roundNumber === 1 && byeCount > 0) {
+      if (roundNumber === 1 && playInCount > 0) {
         // ── HYBRID: Preliminary Round (R1) ──
         // ABSOLUTE RULE: R1[field_number=K] → R2[field_number=K], team2 slot ONLY.
         // team1 (BYE seed) is PERMANENTLY LOCKED. NO new match creation. Only UPDATE.
