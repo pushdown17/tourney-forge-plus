@@ -1809,7 +1809,7 @@ export const EliminationBracket = ({
                     <div className={cn(
                       "text-center mb-4 py-2 px-4 rounded-lg",
                       isLastRound ? "bg-primary/20 border border-primary/30" : "bg-muted/50"
-                    )}>
+                    )} style={{ width: "250px" }}>
                       <span className={cn(
                         "text-sm font-bold",
                         isLastRound ? "text-primary" : "text-foreground"
