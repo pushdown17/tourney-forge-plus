@@ -1564,11 +1564,15 @@ export const DoubleEliminationBracket = ({
 
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
     // ── Standard Matchbox dimensions (strict grid) ──
-    const matchHeight = 110;   // fixed height for ALL matchboxes
-    const baseGap = 20;        // constant vertical gap between matchboxes in same column
+    const matchHeight = 110;      // fixed total height for ALL match containers
+    const baseGap = 20;           // constant vertical gap between matchboxes in same column
     const unit = matchHeight + baseGap;
-    const matchCenterY = matchHeight / 2; // geometric center = 55px — anchor for all connectors
-    const COL_W = 250;         // fixed column width for ALL rounds
+    // BracketMatch renders a ~22px header (h-5 = 20px + mb-0.5 = 2px) above the Card.
+    // The SVG connector must point to the visual center of the Card, not the container.
+    const MATCH_HEADER_H = 22;    // height of the M# label row above the card
+    const cardHeight = matchHeight - MATCH_HEADER_H; // 88px — the actual colored card height
+    const matchCenterY = MATCH_HEADER_H + cardHeight / 2; // 22 + 44 = 66px
+    const COL_W = 250;            // fixed column width for ALL rounds
     const CONNECTOR_W = 32;
 
     const expectedRounds = getExpectedMatchCounts(isLosers);
