@@ -1684,7 +1684,12 @@ export const DoubleEliminationBracket = ({
                 {(() => {
                   const renderSlots = (useAbsoluteLayout: boolean) =>
                     Array.from({ length: count }).map((_, slotIdx) => {
-                      const realMatch = realRoundMatches[slotIdx];
+                      // Use field_number-based lookup when available, to correctly handle
+                      // cases where a later match exists (field_number=2) but an earlier slot (field_number=1) is still pending.
+                      const useFieldNums = realRoundMatches.some(m => m.field_number != null);
+                      const realMatch = useFieldNums
+                        ? realRoundMatches.find(m => m.field_number === slotIdx + 1)
+                        : realRoundMatches[slotIdx];
                       const isSentinelMatch = realMatch && realMatch.team1_id === realMatch.team2_id && !realMatch.winner_id;
 
                       let slotContent: React.ReactNode;
