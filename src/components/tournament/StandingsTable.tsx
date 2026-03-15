@@ -182,52 +182,30 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase 
     );
 
     if (completedUltimate.length > 0) {
-      // Phase 2: Final ranking based on Ultimate Round results
-      // Build a map of team positions from ultimate matches
-      const finalRanking: any[] = [];
-      const placedTeamIds = new Set<string>();
-
-      // Sort ultimate matches by field_number (pair rank)
-      const sortedUltimate = [...ultimateMatches].sort((a, b) => a.field_number - b.field_number);
-
-      sortedUltimate.forEach((match) => {
+      // Phase 2: Sort all teams by stats (pts, GD, GF), preserving Ultimate Round result badge
+      const ultimateResultMap = new Map<string, "win" | "loss" | "pending">();
+      ultimateMatches.forEach((match) => {
         const isCompleted = match.team1_score !== null && match.team2_score !== null;
-        
         if (isCompleted) {
-          // Winner gets odd position, loser gets even
           const winnerId = match.winner_id;
           const loserId = match.team1_id === winnerId ? match.team2_id : match.team1_id;
-          
-          const winnerStat = standings.find(s => s.team_id === winnerId);
-          const loserStat = standings.find(s => s.team_id === loserId);
-          
-          if (winnerStat) { finalRanking.push({ ...winnerStat, _ultimateResult: "win" }); placedTeamIds.add(winnerId); }
-          if (loserStat) { finalRanking.push({ ...loserStat, _ultimateResult: "loss" }); placedTeamIds.add(loserId); }
+          ultimateResultMap.set(winnerId, "win");
+          ultimateResultMap.set(loserId, "loss");
         } else {
-          // Not yet played: use provisional interleave for this pair
-          const team1Stat = standings.find(s => s.team_id === match.team1_id);
-          const team2Stat = standings.find(s => s.team_id === match.team2_id);
-          
-          // Morning team first (provisional)
-          const t1Group = teamGroupMap.get(match.team1_id);
-          if (t1Group === "Morning") {
-            if (team1Stat) { finalRanking.push({ ...team1Stat, _ultimateResult: "pending" }); placedTeamIds.add(match.team1_id); }
-            if (team2Stat) { finalRanking.push({ ...team2Stat, _ultimateResult: "pending" }); placedTeamIds.add(match.team2_id); }
-          } else {
-            if (team2Stat) { finalRanking.push({ ...team2Stat, _ultimateResult: "pending" }); placedTeamIds.add(match.team2_id); }
-            if (team1Stat) { finalRanking.push({ ...team1Stat, _ultimateResult: "pending" }); placedTeamIds.add(match.team1_id); }
-          }
+          ultimateResultMap.set(match.team1_id, "pending");
+          ultimateResultMap.set(match.team2_id, "pending");
         }
       });
 
-      // Add remaining teams not in Ultimate Round
-      standings.forEach(s => {
-        if (!placedTeamIds.has(s.team_id)) {
-          finalRanking.push(s);
-        }
-      });
-
-      return finalRanking;
+      return [...standings]
+        .sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          const diffA = a.goals_for - a.goals_against;
+          const diffB = b.goals_for - b.goals_against;
+          if (diffB !== diffA) return diffB - diffA;
+          return b.goals_for - a.goals_for;
+        })
+        .map(s => ({ ...s, _ultimateResult: ultimateResultMap.get(s.team_id) }));
     }
 
     // Phase 1: Provisional ranking — all teams sorted by stats (pts, GD, GF)
