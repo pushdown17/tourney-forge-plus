@@ -217,6 +217,7 @@ export const RefereesTab = ({
         .select("id, team1_id, team2_id, tournament_team1_id, tournament_team2_id")
         .eq("tournament_id", tournamentId)
         .eq("phase", "round_robin")
+        .neq("round_number", 99)
         .order("round_number", { ascending: true })
         .order("created_at", { ascending: true });
 
