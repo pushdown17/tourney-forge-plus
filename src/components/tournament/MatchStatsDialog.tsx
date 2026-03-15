@@ -22,7 +22,8 @@ export const MatchStatsDialog = ({
   tournamentId, 
   open, 
   onOpenChange,
-  onScoreUpdate 
+  onScoreUpdate,
+  isCreator = false
 }: MatchStatsDialogProps) => {
   const [team1Players, setTeam1Players] = useState<any[]>([]);
   const [team2Players, setTeam2Players] = useState<any[]>([]);
