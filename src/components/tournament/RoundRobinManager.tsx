@@ -601,14 +601,33 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
               </Button>
             )}
             {isCreator && matches.length > 0 && (
-              <Button 
-                onClick={regenerateMatches} 
-                variant="outline"
-                disabled={loading || isClosed || hasAnyScore || (currentPhase && currentPhase !== "round_robin")}
-                title={hasAnyScore ? "Cannot regenerate: scores have been entered" : "Regenerate all matches"}
-              >
-                Regenerate
-              </Button>
+              <>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      disabled={loading || isClosed || hasAnyScore || (currentPhase && currentPhase !== "round_robin")}
+                      title={hasAnyScore ? "Cannot regenerate: scores have been entered" : "Regenerate all matches"}
+                    >
+                      Regenerate
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Régénérer les matchs ?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Cette action va supprimer tous les matchs existants et en recréer de nouveaux. Tous les scores non validés seront perdus. Cette action est irréversible.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction onClick={regenerateMatches} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Oui, régénérer
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
             )}
           </div>
         </div>
