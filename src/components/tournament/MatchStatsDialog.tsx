@@ -14,6 +14,7 @@ interface MatchStatsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onScoreUpdate: () => void;
+  isCreator?: boolean;
 }
 
 export const MatchStatsDialog = ({ 
@@ -21,7 +22,8 @@ export const MatchStatsDialog = ({
   tournamentId, 
   open, 
   onOpenChange,
-  onScoreUpdate 
+  onScoreUpdate,
+  isCreator = false
 }: MatchStatsDialogProps) => {
   const [team1Players, setTeam1Players] = useState<any[]>([]);
   const [team2Players, setTeam2Players] = useState<any[]>([]);
@@ -267,15 +269,16 @@ export const MatchStatsDialog = ({
               </div>
             ) : (
               <div
-                className="flex items-center gap-3 px-6 py-2 bg-background rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                className={`flex items-center gap-3 px-6 py-2 bg-background rounded-lg transition-colors ${isCreator ? "cursor-pointer hover:bg-muted/50" : "cursor-default"}`}
                 onClick={() => {
+                  if (!isCreator) return;
                   setLocalScores({
                     team1: displayTeam1Score,
                     team2: displayTeam2Score,
                   });
                   setManualScoreMode(true);
                 }}
-                title="Cliquer pour modifier le score"
+                title={isCreator ? "Cliquer pour modifier le score" : undefined}
               >
                 <span className="text-3xl font-bold text-primary">{displayTeam1Score}</span>
                 <span className="text-2xl text-muted-foreground">-</span>
@@ -291,7 +294,9 @@ export const MatchStatsDialog = ({
               ? "Modifiez le score puis cliquez Valider"
               : hasPlayers
                 ? "Le score se met à jour automatiquement via les buts des joueurs"
-                : "Cliquez sur le score pour le modifier directement"}
+                : isCreator
+                  ? "Cliquez sur le score pour le modifier directement"
+                  : null}
           </p>
         </Card>
 

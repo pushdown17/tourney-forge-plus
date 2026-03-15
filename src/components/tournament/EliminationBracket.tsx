@@ -2152,6 +2152,7 @@ export const EliminationBracket = ({
           tournamentId={tournamentId}
           open={statsDialogOpen}
           onOpenChange={setStatsDialogOpen}
+          isCreator={isCreator}
           onScoreUpdate={async () => {
             if (selectedMatch) {
               // Re-fetch match to get current winner after dialog edits

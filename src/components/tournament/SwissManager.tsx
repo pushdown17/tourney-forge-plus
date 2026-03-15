@@ -859,6 +859,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
             fetchMatches();
             fetchMaxRound();
           }}
+          isCreator={isCreator}
         />
       )}
 
