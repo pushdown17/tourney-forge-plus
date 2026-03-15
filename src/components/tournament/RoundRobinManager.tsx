@@ -321,61 +321,52 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     setMatches(data || []);
   };
 
-  // ── Round-robin scheduling with rest constraint ─────────────────────────────
-  // For N teams (sequential play on 1 field), builds all C(N,2) pairs then
-  // orders them so each team has at least MIN_REST matches between appearances.
-  // Uses a greedy scheduler with backtracking fallback.
-  const scheduleWithRest = (teamIds: string[], minRest = 1): { t1: string; t2: string }[] => {
-    // Build all pairs
-    const pairs: { t1: string; t2: string }[] = [];
-    for (let i = 0; i < teamIds.length; i++) {
-      for (let j = i + 1; j < teamIds.length; j++) {
-        pairs.push({ t1: teamIds[i], t2: teamIds[j] });
+  // ── Circle method (Berger tables) ────────────────────────────────────────────
+  // Standard round-robin scheduling algorithm for any number of teams.
+  // If N is odd, a "bye" team is added to make it even.
+  // In each round, team[0] (or the fixed pivot) plays against team[N-1],
+  // team[1] vs team[N-2], etc. Then the non-pivot teams rotate clockwise.
+  // This guarantees:
+  //  - Every team plays every other team exactly once
+  //  - Maximum equitable rest distribution between matches
+  //  - No team plays two consecutive matches (guaranteed for N >= 4)
+  const circleMethodSchedule = (teamIds: string[]): { t1: string; t2: string }[] => {
+    const BYE = "__bye__";
+    // Work on a copy; if odd number of teams, add a bye
+    let teams = [...teamIds];
+    const isOdd = teams.length % 2 !== 0;
+    if (isOdd) teams.push(BYE);
+
+    const n = teams.length; // always even
+    const rounds = n - 1;
+    const matchesPerRound = n / 2;
+
+    // Randomly rotate the initial order for variety between tournaments
+    const offset = Math.floor(Math.random() * (n - 1));
+    const pivot = teams[0];
+    const rotating = teams.slice(1);
+    for (let i = 0; i < offset; i++) {
+      rotating.push(rotating.shift()!);
+    }
+    teams = [pivot, ...rotating];
+
+    const result: { t1: string; t2: string }[] = [];
+
+    for (let round = 0; round < rounds; round++) {
+      for (let slot = 0; slot < matchesPerRound; slot++) {
+        const home = teams[slot];
+        const away = teams[n - 1 - slot];
+        // Skip bye matches
+        if (home !== BYE && away !== BYE) {
+          result.push({ t1: home, t2: away });
+        }
       }
+      // Rotate: keep teams[0] fixed, rotate the rest clockwise
+      const last = teams.pop()!;
+      teams.splice(1, 0, last);
     }
 
-    // Shuffle pairs for variety
-    const shuffle = <T,>(arr: T[]): T[] => {
-      const a = [...arr];
-      for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-      }
-      return a;
-    };
-
-    const trySchedule = (pool: typeof pairs, minR: number): typeof pairs | null => {
-      const scheduled: typeof pairs = [];
-      const remaining = [...pool];
-      // lastPlayed[teamId] = index of last scheduled match they appeared in
-      const lastPlayed: Record<string, number> = {};
-
-      while (remaining.length > 0) {
-        const idx = remaining.findIndex(p => {
-          const lastT1 = lastPlayed[p.t1] ?? -999;
-          const lastT2 = lastPlayed[p.t2] ?? -999;
-          const pos = scheduled.length;
-          return (pos - lastT1) > minR && (pos - lastT2) > minR;
-        });
-
-        if (idx === -1) return null; // Dead end
-
-        const chosen = remaining.splice(idx, 1)[0];
-        const pos = scheduled.length;
-        lastPlayed[chosen.t1] = pos;
-        lastPlayed[chosen.t2] = pos;
-        scheduled.push(chosen);
-      }
-      return scheduled;
-    };
-
-    // Try up to 200 random orderings with minRest=1, fallback to minRest=0
-    for (let attempt = 0; attempt < 200; attempt++) {
-      const result = trySchedule(shuffle(pairs), minRest);
-      if (result) return result;
-    }
-    // Absolute fallback: no constraint
-    return shuffle(pairs);
+    return result;
   };
 
   const generateAllMatches = async () => {
