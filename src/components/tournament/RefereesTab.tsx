@@ -114,6 +114,7 @@ export const RefereesTab = ({
   const [matches, setMatches] = useState<MatchWithReferee[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<string>("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
