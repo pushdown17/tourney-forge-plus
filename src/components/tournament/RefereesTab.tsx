@@ -6,13 +6,26 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Wand2, CheckCircle, Clock } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RefreshCw, Wand2, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 
 interface RefereesTabProps {
   tournamentId: string;
   isCreator?: boolean;
   isClosed?: boolean;
   numberOfGroups?: number;
+}
+
+interface TeamInfo {
+  id: string;
+  name: string;
+  group: string;
 }
 
 interface MatchWithReferee {
@@ -29,17 +42,19 @@ interface MatchWithReferee {
   referee_db_id: string | null;
   referee_team_name: string | null;
   referee_status: "pending" | "present" | null;
-  match_index: number; // global order index within group
+  match_index: number;
 }
 
 // ── Algorithm ──────────────────────────────────────────────────────────────────
-/**
- * Assigns referees in consecutive BLOCKS so each team does all its duties at once.
- * - Cross-group: referee must be from the opposite group
- * - Block assignment: each team gets 2 or 3 consecutive matches to referee
- * - Fair rotation: distribute as evenly as possible (diff ≤ 1)
- * - Shuffle candidate teams so blocks are randomly ordered each generation
- */
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function assignReferees(
   matches: { id: string; team1_id: string; team2_id: string; group_name: string | null }[],
   groupedTeams: Record<string, string[]>
@@ -50,34 +65,15 @@ function assignReferees(
   const [groupA, groupB] = groupNames;
   const matchesA = matches.filter(m => m.group_name === groupA);
   const matchesB = matches.filter(m => m.group_name === groupB);
-
   const result: Record<string, string> = {};
 
-  // Fisher-Yates shuffle for fair randomization each generation
-  function shuffle<T>(arr: T[]): T[] {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-
-  function assignGroupBlocked(
-    targetMatches: typeof matches,
-    candidateTeams: string[]
-  ) {
+  function assignGroupBlocked(targetMatches: typeof matches, candidateTeams: string[]) {
     const n = targetMatches.length;
     const k = candidateTeams.length;
     if (k === 0 || n === 0) return;
-
-    // Shuffle so blocks rotate randomly across generations
     const teams = shuffle(candidateTeams);
-
-    // Distribute n matches into k blocks (some blocks baseSize, some baseSize+1)
     const baseSize = Math.floor(n / k);
-    const extras = n % k; // first 'extras' teams get one extra match
-
+    const extras = n % k;
     let matchIdx = 0;
     for (let ti = 0; ti < k; ti++) {
       const blockSize = ti < extras ? baseSize + 1 : baseSize;
@@ -91,8 +87,19 @@ function assignReferees(
 
   assignGroupBlocked(matchesA, groupedTeams[groupB]);
   assignGroupBlocked(matchesB, groupedTeams[groupA]);
-
   return result;
+}
+
+// Detect if referee plays adjacent match within same group
+function hasConflict(
+  matchIndex: number,
+  refereeTeamId: string,
+  groupMatches: MatchWithReferee[]
+): boolean {
+  const prev = matchIndex > 0 ? groupMatches[matchIndex - 1] : null;
+  const next = matchIndex < groupMatches.length - 1 ? groupMatches[matchIndex + 1] : null;
+  const adjacent = [prev, next].filter(Boolean) as MatchWithReferee[];
+  return adjacent.some(m => m.team1_id === refereeTeamId || m.team2_id === refereeTeamId);
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -101,36 +108,41 @@ export const RefereesTab = ({
   tournamentId,
   isCreator = false,
   isClosed = false,
-  numberOfGroups = 1,
 }: RefereesTabProps) => {
   const [matches, setMatches] = useState<MatchWithReferee[]>([]);
+  const [allTeams, setAllTeams] = useState<TeamInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [activeGroup, setActiveGroup] = useState<string>("");
+  const [savingMatchId, setSavingMatchId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Fetch tournament teams with group info
       const { data: ttData, error: ttError } = await supabase
         .from("tournament_teams")
         .select("id, team_id, group_name, team:teams(id, name)")
         .eq("tournament_id", tournamentId);
-
       if (ttError) throw ttError;
 
-      // Build groupName -> teamIds map
       const groupedTeams: Record<string, string[]> = {};
       const teamNameMap: Record<string, string> = {};
+      const teamsList: TeamInfo[] = [];
 
       (ttData || []).forEach((tt: any) => {
         const gName = tt.group_name || "Default";
         if (!groupedTeams[gName]) groupedTeams[gName] = [];
         groupedTeams[gName].push(tt.team_id);
-        if (tt.team) teamNameMap[tt.team_id] = tt.team.name;
+        if (tt.team) {
+          teamNameMap[tt.team_id] = tt.team.name;
+          teamsList.push({ id: tt.team_id, name: tt.team.name, group: gName });
+        }
       });
 
-      // 2. Fetch round-robin matches (phase = round_robin, exclude Ultimate Round 99)
+      // Sort teams by group then name
+      teamsList.sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
+      setAllTeams(teamsList);
+
       const { data: matchData, error: matchError } = await supabase
         .from("matches")
         .select("id, round_number, team1_id, team2_id, team1_score, team2_score, tournament_team1_id, tournament_team2_id")
@@ -139,15 +151,12 @@ export const RefereesTab = ({
         .neq("round_number", 99)
         .order("round_number", { ascending: true })
         .order("created_at", { ascending: true });
-
       if (matchError) throw matchError;
 
-      // 3. Fetch existing referee assignments
       const { data: refData, error: refError } = await supabase
         .from("match_referees")
         .select("id, match_id, referee_team_id, status, team:teams(id, name)")
         .eq("tournament_id", tournamentId);
-
       if (refError) throw refError;
 
       const refMap: Record<string, { id: string; teamId: string; teamName: string; status: "pending" | "present" }> = {};
@@ -160,13 +169,9 @@ export const RefereesTab = ({
         };
       });
 
-      // 4. Determine group per match via tournament_team lookup
       const ttGroupMap: Record<string, string> = {};
-      (ttData || []).forEach((tt: any) => {
-        ttGroupMap[tt.team_id] = tt.group_name || "Default";
-      });
+      (ttData || []).forEach((tt: any) => { ttGroupMap[tt.team_id] = tt.group_name || "Default"; });
 
-      // 5. Build enriched matches, grouped by group_name
       const groupIndexCounters: Record<string, number> = {};
       const enriched: MatchWithReferee[] = (matchData || []).map((m: any) => {
         const groupName = ttGroupMap[m.team1_id] || "Default";
@@ -199,14 +204,11 @@ export const RefereesTab = ({
     }
   }, [tournamentId]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      // Re-fetch fresh match + team data for the algorithm
       const { data: ttData } = await supabase
         .from("tournament_teams")
         .select("team_id, group_name")
@@ -238,8 +240,6 @@ export const RefereesTab = ({
       }));
 
       const assignments = assignReferees(matchesWithGroup, groupedTeams);
-
-      // Upsert all assignments
       const upsertRows = Object.entries(assignments).map(([matchId, refTeamId]) => ({
         tournament_id: tournamentId,
         match_id: matchId,
@@ -247,12 +247,7 @@ export const RefereesTab = ({
         status: "pending" as const,
       }));
 
-      // Delete existing then insert fresh
-      await supabase
-        .from("match_referees")
-        .delete()
-        .eq("tournament_id", tournamentId);
-
+      await supabase.from("match_referees").delete().eq("tournament_id", tournamentId);
       if (upsertRows.length > 0) {
         const { error } = await supabase.from("match_referees").insert(upsertRows);
         if (error) throw error;
@@ -267,26 +262,57 @@ export const RefereesTab = ({
     }
   };
 
-  const toggleStatus = async (referee: MatchWithReferee) => {
-    if (!isCreator || isClosed || !referee.referee_db_id) return;
-    const newStatus = referee.referee_status === "present" ? "pending" : "present";
-    const { error } = await supabase
-      .from("match_referees")
-      .update({ status: newStatus })
-      .eq("id", referee.referee_db_id);
+  // Manual override: change a single match's referee
+  const handleRefereeChange = async (match: MatchWithReferee, newTeamId: string) => {
+    setSavingMatchId(match.id);
+    try {
+      const newTeam = allTeams.find(t => t.id === newTeamId);
+      if (match.referee_db_id) {
+        // Update existing
+        const { error } = await supabase
+          .from("match_referees")
+          .update({ referee_team_id: newTeamId, status: "pending" })
+          .eq("id", match.referee_db_id);
+        if (error) throw error;
+      } else {
+        // Insert new
+        const { error } = await supabase
+          .from("match_referees")
+          .insert({ tournament_id: tournamentId, match_id: match.id, referee_team_id: newTeamId, status: "pending" });
+        if (error) throw error;
+      }
 
-    if (error) {
-      toast.error("Erreur lors de la mise à jour");
-    } else {
-      setMatches(prev =>
-        prev.map(m =>
-          m.id === referee.id ? { ...m, referee_status: newStatus } : m
-        )
-      );
+      // Optimistic update
+      setMatches(prev => prev.map(m =>
+        m.id === match.id
+          ? { ...m, referee_id: newTeamId, referee_team_name: newTeam?.name || null, referee_status: "pending" }
+          : m
+      ));
+      toast.success(`Arbitre mis à jour : ${newTeam?.name}`);
+      // Refresh to get DB id if newly inserted
+      if (!match.referee_db_id) await fetchData();
+    } catch (err: any) {
+      toast.error("Erreur lors de la modification de l'arbitre");
+    } finally {
+      setSavingMatchId(null);
     }
   };
 
-  // Group matches by group_name
+  const toggleStatus = async (match: MatchWithReferee) => {
+    if (!isCreator || isClosed || !match.referee_db_id) return;
+    const newStatus = match.referee_status === "present" ? "pending" : "present";
+    const { error } = await supabase
+      .from("match_referees")
+      .update({ status: newStatus })
+      .eq("id", match.referee_db_id);
+    if (error) {
+      toast.error("Erreur lors de la mise à jour");
+    } else {
+      setMatches(prev => prev.map(m => m.id === match.id ? { ...m, referee_status: newStatus } : m));
+    }
+  };
+
+  // Group matches
   const groupedMatches: Record<string, MatchWithReferee[]> = {};
   matches.forEach(m => {
     const g = m.group_name || "Default";
@@ -295,13 +321,20 @@ export const RefereesTab = ({
   });
 
   const groupNames = Object.keys(groupedMatches).sort((a, b) => {
-    // Morning always before Afternoon, otherwise alphabetical
     const order = (s: string) => s.toLowerCase().startsWith("morning") ? 0 : s.toLowerCase().startsWith("afternoon") ? 1 : 2;
     return order(a) - order(b);
   });
 
-  // Default to first group once loaded
   const effectiveTab = activeGroup || groupNames[0] || "";
+  const hasAssignments = matches.some(m => m.referee_id !== null);
+
+  // Per-team summary (updates in real-time from state)
+  const refCountByTeam: Record<string, number> = {};
+  matches.forEach(m => {
+    if (m.referee_id) {
+      refCountByTeam[m.referee_id] = (refCountByTeam[m.referee_id] || 0) + 1;
+    }
+  });
 
   if (loading) {
     return (
@@ -311,107 +344,155 @@ export const RefereesTab = ({
     );
   }
 
-  const hasAssignments = matches.some(m => m.referee_id !== null);
-
   const renderGroupList = (groupName: string) => {
     const groupMatches = groupedMatches[groupName] || [];
     const oppositeGroup = groupNames.find(g => g !== groupName) || "";
+    const oppositeTeams = allTeams.filter(t => t.group === oppositeGroup);
+    const sameGroupTeams = allTeams.filter(t => t.group === groupName);
+
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         {/* Sub-header */}
         <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
           {oppositeGroup && (
             <span>Arbitré par : <span className="font-medium text-foreground">{oppositeGroup}</span></span>
           )}
-          <span>
-            {groupMatches.filter(m => m.referee_status === "present").length}/{groupMatches.length} présents
-          </span>
+          <span>{groupMatches.filter(m => m.referee_status === "present").length}/{groupMatches.length} présents</span>
         </div>
 
         <Card className="overflow-hidden">
           <div className="divide-y divide-border/50">
             {groupMatches.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                Aucun match pour ce groupe.
-              </div>
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun match pour ce groupe.</div>
             )}
-            {groupMatches.map((match, idx) => (
-              <div
-                key={match.id}
-                className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors"
-              >
-                {/* Match info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-muted-foreground shrink-0">
-                      M{idx + 1}
-                    </span>
-                    <span className="text-sm font-medium truncate">
-                      {match.team1_name}
-                      <span className="text-muted-foreground mx-1.5">vs</span>
-                      {match.team2_name}
-                    </span>
+            {groupMatches.map((match, idx) => {
+              const conflict = match.referee_id ? hasConflict(idx, match.referee_id, groupMatches) : false;
+              const isSaving = savingMatchId === match.id;
+
+              return (
+                <div key={match.id} className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
+                  {/* Match info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground shrink-0">M{idx + 1}</span>
+                      <span className="text-sm font-medium truncate">
+                        {match.team1_name}
+                        <span className="text-muted-foreground mx-1.5">vs</span>
+                        {match.team2_name}
+                      </span>
+                    </div>
+                    {match.team1_score !== null && match.team2_score !== null && (
+                      <span className="text-xs text-muted-foreground ml-6">{match.team1_score} – {match.team2_score}</span>
+                    )}
                   </div>
-                  {(match.team1_score !== null && match.team2_score !== null) && (
-                    <span className="text-xs text-muted-foreground ml-6">
-                      {match.team1_score} – {match.team2_score}
-                    </span>
-                  )}
-                </div>
 
-                <Separator orientation="vertical" className="hidden sm:block h-8" />
+                  <Separator orientation="vertical" className="hidden sm:block h-8" />
 
-                {/* Referee info */}
-                <div className="flex items-center gap-3 sm:w-64">
-                  {match.referee_team_name ? (
-                    <>
-                      <span className="text-sm truncate flex-1">{match.referee_team_name}</span>
-                      {isCreator && !isClosed ? (
-                        <button
-                          onClick={() => toggleStatus(match)}
-                          className="shrink-0"
-                          title="Changer le statut"
+                  {/* Referee: editable select for creator, read-only badge for visitors */}
+                  <div className="flex items-center gap-2 sm:w-72">
+                    {isCreator && !isClosed ? (
+                      <>
+                        <Select
+                          value={match.referee_id || ""}
+                          onValueChange={(val) => handleRefereeChange(match, val)}
+                          disabled={isSaving}
                         >
+                          <SelectTrigger className="h-8 text-sm flex-1">
+                            <SelectValue placeholder="— Choisir —" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {/* Opposite group (recommended) */}
+                            {oppositeTeams.length > 0 && (
+                              <>
+                                <div className="px-2 py-1 text-xs text-muted-foreground font-medium">{oppositeGroup}</div>
+                                {oppositeTeams.map(t => (
+                                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                ))}
+                              </>
+                            )}
+                            {/* Same group (override, will trigger conflict warning if adjacent) */}
+                            {sameGroupTeams.length > 0 && (
+                              <>
+                                <div className="px-2 py-1 text-xs text-muted-foreground font-medium mt-1 border-t">{groupName} (override)</div>
+                                {sameGroupTeams
+                                  .filter(t => t.id !== match.team1_id && t.id !== match.team2_id)
+                                  .map(t => (
+                                    <SelectItem key={t.id} value={t.id}>{t.name} ⚠</SelectItem>
+                                  ))}
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+
+                        {/* Conflict warning */}
+                        {conflict && (
+                          <span title="Cette équipe joue un match adjacent — conflit potentiel">
+                            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                          </span>
+                        )}
+
+                        {/* Status toggle */}
+                        {match.referee_id && (
+                          <button onClick={() => toggleStatus(match)} title="Changer le statut" className="shrink-0">
+                            <Badge
+                              variant={match.referee_status === "present" ? "default" : "secondary"}
+                              className={`cursor-pointer select-none transition-colors text-xs ${
+                                match.referee_status === "present"
+                                  ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border-green-500/30"
+                                  : "hover:bg-muted"
+                              }`}
+                            >
+                              {match.referee_status === "present"
+                                ? <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
+                                : <><Clock className="h-3 w-3 mr-1" />En attente</>}
+                            </Badge>
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      /* Visitor: read-only */
+                      match.referee_team_name ? (
+                        <>
+                          <span className="text-sm truncate flex-1">{match.referee_team_name}</span>
+                          {conflict && <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />}
                           <Badge
                             variant={match.referee_status === "present" ? "default" : "secondary"}
-                            className={`cursor-pointer select-none transition-colors ${
-                              match.referee_status === "present"
-                                ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border-green-500/30"
-                                : "hover:bg-muted"
-                            }`}
+                            className={match.referee_status === "present" ? "bg-green-500/20 text-green-400 border-green-500/30 text-xs" : "text-xs"}
                           >
-                            {match.referee_status === "present" ? (
-                              <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
-                            ) : (
-                              <><Clock className="h-3 w-3 mr-1" />En attente</>
-                            )}
+                            {match.referee_status === "present"
+                              ? <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
+                              : <><Clock className="h-3 w-3 mr-1" />En attente</>}
                           </Badge>
-                        </button>
+                        </>
                       ) : (
-                        <Badge
-                          variant={match.referee_status === "present" ? "default" : "secondary"}
-                          className={
-                            match.referee_status === "present"
-                              ? "bg-green-500/20 text-green-400 border-green-500/30"
-                              : ""
-                          }
-                        >
-                          {match.referee_status === "present" ? (
-                            <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
-                          ) : (
-                            <><Clock className="h-3 w-3 mr-1" />En attente</>
-                          )}
-                        </Badge>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">Non assigné</span>
-                  )}
+                        <span className="text-xs text-muted-foreground italic">Non assigné</span>
+                      )
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
+
+        {/* Per-team summary for this group's referee teams (opposite group) */}
+        {hasAssignments && oppositeTeams.length > 0 && (
+          <div>
+            <p className="text-xs text-muted-foreground mb-2 px-1">Charge d'arbitrage — {oppositeGroup}</p>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              {oppositeTeams.map(t => {
+                const count = refCountByTeam[t.id] || 0;
+                return (
+                  <Card key={t.id} className="p-2 text-center">
+                    <p className="text-xs font-medium truncate">{t.name}</p>
+                    <p className="text-lg font-bold leading-none mt-1">{count}</p>
+                    <p className="text-[10px] text-muted-foreground">match{count > 1 ? "s" : ""}</p>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -422,9 +503,7 @@ export const RefereesTab = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold">Arbitrage croisé</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Chaque groupe arbitre les matchs du groupe adverse
-          </p>
+          <p className="text-sm text-muted-foreground mt-0.5">Chaque groupe arbitre les matchs du groupe adverse</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchData}>
@@ -432,12 +511,7 @@ export const RefereesTab = ({
             Rafraîchir
           </Button>
           {isCreator && !isClosed && (
-            <Button
-              size="sm"
-              onClick={handleGenerate}
-              disabled={generating}
-              className="bg-primary text-primary-foreground"
-            >
+            <Button size="sm" onClick={handleGenerate} disabled={generating}>
               <Wand2 className="h-4 w-4 mr-1.5" />
               {generating ? "Génération…" : hasAssignments ? "Régénérer" : "Générer"}
             </Button>
@@ -448,9 +522,7 @@ export const RefereesTab = ({
       {!hasAssignments && (
         <Card className="p-6 text-center border-dashed">
           <p className="text-muted-foreground text-sm">
-            {isCreator
-              ? "Aucun arbitre assigné. Cliquez sur « Générer » pour lancer l'assignation automatique."
-              : "Aucune assignation d'arbitre pour l'instant."}
+            {isCreator ? "Aucun arbitre assigné. Cliquez sur « Générer » pour lancer l'assignation automatique." : "Aucune assignation d'arbitre pour l'instant."}
           </p>
         </Card>
       )}
@@ -459,16 +531,11 @@ export const RefereesTab = ({
         <Tabs value={effectiveTab} onValueChange={setActiveGroup}>
           <TabsList className={`grid w-full grid-cols-${groupNames.length} bg-muted/50`}>
             {groupNames.map(g => (
-              <TabsTrigger
-                key={g}
-                value={g}
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
+              <TabsTrigger key={g} value={g} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 {g}
               </TabsTrigger>
             ))}
           </TabsList>
-
           {groupNames.map(g => (
             <TabsContent key={g} value={g} className="mt-4">
               {renderGroupList(g)}

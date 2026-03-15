@@ -805,7 +805,13 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
   const [quickStatType, setQuickStatType] = useState<"assists" | "fouls" | "penalty_30s" | "penalty_1m" | "penalty_2m">("assists");
   const [quickStatTeam, setQuickStatTeam] = useState<{ id: string; name: string } | null>(null);
   const [sendToStationOpen, setSendToStationOpen] = useState(false);
-  
+  // Referee state
+  const [refereeTeamName, setRefereeTeamName] = useState<string | null>(null);
+  const [refereeTeamId, setRefereeTeamId] = useState<string | null>(null);
+  const [refereeDbId, setRefereeDbId] = useState<string | null>(null);
+  const [editingReferee, setEditingReferee] = useState(false);
+  const [allTournamentTeams, setAllTournamentTeams] = useState<{id: string; name: string}[]>([]);
+
   const isLocked = editingMatchId !== null && editingMatchId !== match.id;
   const isEditing = editingMatchId === match.id;
 
@@ -816,6 +822,63 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
     setTeam1Score(match.team1_score ?? 0);
     setTeam2Score(match.team2_score ?? 0);
   }, [isEditing, match.team1_score, match.team2_score]);
+
+  // Load referee data on mount
+  useEffect(() => {
+    const fetchReferee = async () => {
+      const { data } = await supabase
+        .from("match_referees")
+        .select("id, referee_team_id, team:teams(id, name)")
+        .eq("match_id", match.id)
+        .maybeSingle();
+      if (data) {
+        setRefereeDbId(data.id);
+        setRefereeTeamId(data.referee_team_id);
+        setRefereeTeamName((data.team as any)?.name || null);
+      }
+    };
+    fetchReferee();
+  }, [match.id]);
+
+  // Load all tournament teams for the referee dropdown (creator only)
+  useEffect(() => {
+    if (!isCreator) return;
+    const fetchTeams = async () => {
+      const { data } = await supabase
+        .from("tournament_teams")
+        .select("team_id, team:teams(id, name)")
+        .eq("tournament_id", tournamentId);
+      if (data) {
+        setAllTournamentTeams(
+          (data as any[])
+            .filter(tt => tt.team?.id !== match.team1_id && tt.team?.id !== match.team2_id)
+            .map(tt => ({ id: tt.team_id, name: tt.team?.name || "?" }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
+      }
+    };
+    fetchTeams();
+  }, [isCreator, tournamentId, match.team1_id, match.team2_id]);
+
+  const handleRefereeOverride = async (newTeamId: string) => {
+    const newTeam = allTournamentTeams.find(t => t.id === newTeamId);
+    try {
+      if (refereeDbId) {
+        await supabase.from("match_referees").update({ referee_team_id: newTeamId, status: "pending" }).eq("id", refereeDbId);
+      } else {
+        const { data } = await supabase.from("match_referees")
+          .insert({ tournament_id: tournamentId, match_id: match.id, referee_team_id: newTeamId, status: "pending" })
+          .select("id").single();
+        if (data) setRefereeDbId(data.id);
+      }
+      setRefereeTeamId(newTeamId);
+      setRefereeTeamName(newTeam?.name || null);
+      setEditingReferee(false);
+      toast.success(`Arbitre : ${newTeam?.name}`);
+    } catch {
+      toast.error("Erreur lors de la modification");
+    }
+  };
 
   // Load players on mount to calculate scores
   useEffect(() => {
@@ -1198,6 +1261,43 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               <Target className="h-3 w-3" />
               View Live Stats
             </Button>
+          </div>
+        )}
+
+        {/* Referee display */}
+        {(refereeTeamName || isCreator) && (
+          <div className="flex items-center justify-between gap-2 mt-1 pt-2 border-t border-border/40">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="font-medium">Arbitre :</span>
+              {editingReferee && isCreator ? (
+                <select
+                  autoFocus
+                  className="text-xs bg-background border border-border rounded px-1.5 py-0.5 text-foreground max-w-[140px]"
+                  defaultValue={refereeTeamId || ""}
+                  onChange={(e) => handleRefereeOverride(e.target.value)}
+                  onBlur={() => setEditingReferee(false)}
+                >
+                  <option value="" disabled>— Choisir —</option>
+                  {allTournamentTeams.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className={refereeTeamName ? "text-foreground font-medium" : "italic"}>
+                  {refereeTeamName || "Non assigné"}
+                </span>
+              )}
+            </div>
+            {isCreator && !isClosed && !editingReferee && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground"
+                onClick={() => setEditingReferee(true)}
+              >
+                Modifier
+              </Button>
+            )}
           </div>
         )}
 
