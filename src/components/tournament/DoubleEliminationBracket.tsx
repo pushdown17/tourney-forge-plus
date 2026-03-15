@@ -1661,42 +1661,51 @@ export const DoubleEliminationBracket = ({
                           t2 = pendingSlot?.team2 ?? null;
                         }
 
-                        const hasPending = !!(t1 || t2);
-                        const isLoserSlot = isLosers;
+                        // Render a static matchbox that looks IDENTICAL to BracketMatch:
+                        // same header height (h-5 + mb-0.5), same card background/border,
+                        // same team row heights (py-2 px-3), same text styles.
+                        const matchNum = isSentinelMatch && realMatch
+                          ? (realRoundMatches.indexOf(realMatch) + 1)
+                          : slotIdx + 1;
 
-                        const renderTeamSlot = (t: typeof t1, mb: boolean) => (
+                        const renderTeamRow = (t: typeof t1, isTeam2: boolean) => (
                           <div className={cn(
-                            "flex items-center gap-2 py-1.5 px-2 rounded border",
-                            mb ? "mb-1" : "",
-                            "bg-card/50 border-border/30"
+                            "flex items-center justify-between px-3 py-2",
+                            isTeam2 ? "" : "border-b border-border/30"
                           )}>
-                            {t ? (
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                {t.seed && (
-                                  <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
-                                    #{t.seed}
-                                  </span>
-                                )}
-                                <span className="text-sm text-foreground truncate">{t.name}</span>
-                                {(t as any).isBye && (
-                                  <span className="ml-auto shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground border border-border/30">
-                                    BYE
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground italic">TBD</span>
-                            )}
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              {t?.seed && (
+                                <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
+                                  #{t.seed}
+                                </span>
+                              )}
+                              <span className="text-sm text-muted-foreground italic truncate">
+                                {t ? t.name : "TBD"}
+                              </span>
+                              {t?.isBye && (
+                                <span className="ml-1 shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground">
+                                  BYE
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
 
                         slotContent = (
-                          <div
-                            className="rounded-lg border border-border/50 bg-card/80 flex flex-col justify-center gap-1 px-3"
-                            style={{ height: `${matchHeight}px`, width: COL_W }}
-                          >
-                            {renderTeamSlot(t1, false)}
-                            {renderTeamSlot(t2, false)}
+                          <div className="flex flex-col h-full w-full" style={{ height: `${matchHeight}px`, width: COL_W }}>
+                            {/* Match header — identical to BracketMatch */}
+                            <div className="flex items-center justify-center gap-2 mb-0.5 h-5 shrink-0">
+                              <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                                M{matchNum}
+                              </span>
+                            </div>
+                            {/* Card — identical classes to BracketMatch Card */}
+                            <div
+                              className="overflow-hidden flex-1 flex flex-col justify-center rounded-lg border bg-card text-card-foreground shadow-sm bg-card/80 backdrop-blur-sm border-border/50"
+                            >
+                              {renderTeamRow(t1, false)}
+                              {renderTeamRow(t2, true)}
+                            </div>
                           </div>
                         );
                       } else {
