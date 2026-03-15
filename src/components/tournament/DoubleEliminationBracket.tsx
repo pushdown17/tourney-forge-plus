@@ -1555,7 +1555,9 @@ export const DoubleEliminationBracket = ({
       if (round === 1) {
         // L-R1 minor: losers from W-R(loserFirstWRound)
         // For play-in brackets: W-R1 losers are eliminated → use W-R2 losers instead
-        const loserFeederWRound = byeCount > 0 ? 2 : 1;
+        // For play-in brackets (playInCount > 0): W-R1 losers are eliminated → use W-R2 losers instead
+        // byeCount can be negative for play-in formats (e.g. 12 teams: 8-12=-4), so use playInCount
+        const loserFeederWRound = playInCount > 0 ? 2 : 1;
         const wR1 = allW.filter(m => m.round_number === loserFeederWRound).sort(sortFnField);
         const expectedCount = Math.floor(wR1.length / 2);
         for (let k = 0; k < expectedCount; k++) {
