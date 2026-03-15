@@ -536,33 +536,6 @@ const PlayerStatsInput = ({ player, stats, onUpdate }: PlayerStatsInputProps) =>
             </div>
           </div>
 
-          {/* 2min Penalty */}
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium min-w-[50px]">2min Pen.</span>
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => decrementStat("penalty_2m", stats.penalty_2m || 0)}
-              >
-                -
-              </Button>
-              <div className="h-8 w-12 flex items-center justify-center bg-primary/10 rounded font-bold text-sm">
-                {stats.penalty_2m || 0}
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => incrementStat("penalty_2m", stats.penalty_2m || 0)}
-              >
-                +
-              </Button>
-            </div>
-          </div>
         </div>
       </CollapsibleContent>
     </Collapsible>
