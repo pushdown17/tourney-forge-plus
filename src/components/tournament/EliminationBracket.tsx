@@ -587,6 +587,7 @@ export const EliminationBracket = ({
         }
         frozenSeedMapRef.current = seedMap;
         frozenSeedToTeamRef.current = reverseSeedMap;
+        saveFrozenSeedsToStorage(seedMap, reverseSeedMap);
       } else {
         // Bracket already exists: reuse frozen seeds
         seedMap = frozenSeedMapRef.current;
