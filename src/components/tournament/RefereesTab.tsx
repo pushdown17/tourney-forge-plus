@@ -34,17 +34,16 @@ interface MatchWithReferee {
 
 // ── Algorithm ──────────────────────────────────────────────────────────────────
 /**
- * Assigns a referee team (from the opposite group) to each match.
- * Constraints:
- *  - Cross-group: referee must be from the opposite group
- *  - Rest: a team cannot referee the match immediately before or after its own match
- *  - Fair rotation: distribute assignments as evenly as possible (max diff = 1)
+ * Assigns referees in consecutive BLOCKS so each team does all its duties at once.
+ * - Cross-group: referee must be from the opposite group
+ * - Block assignment: each team gets 2 or 3 consecutive matches to referee
+ * - Fair rotation: distribute as evenly as possible (diff ≤ 1)
+ * - Shuffle candidate teams so blocks are randomly ordered each generation
  */
 function assignReferees(
   matches: { id: string; team1_id: string; team2_id: string; group_name: string | null }[],
-  groupedTeams: Record<string, string[]> // groupName -> teamId[]
+  groupedTeams: Record<string, string[]>
 ): Record<string, string> {
-  // We only handle exactly 2 groups
   const groupNames = Object.keys(groupedTeams);
   if (groupNames.length !== 2) return {};
 
@@ -52,53 +51,46 @@ function assignReferees(
   const matchesA = matches.filter(m => m.group_name === groupA);
   const matchesB = matches.filter(m => m.group_name === groupB);
 
-  const result: Record<string, string> = {}; // matchId -> refereeTeamId
+  const result: Record<string, string> = {};
 
-  function assignGroup(
+  // Fisher-Yates shuffle for fair randomization each generation
+  function shuffle<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function assignGroupBlocked(
     targetMatches: typeof matches,
     candidateTeams: string[]
   ) {
-    // Count assignments per candidate team
-    const counts: Record<string, number> = {};
-    candidateTeams.forEach(t => (counts[t] = 0));
+    const n = targetMatches.length;
+    const k = candidateTeams.length;
+    if (k === 0 || n === 0) return;
 
-    for (let i = 0; i < targetMatches.length; i++) {
-      const match = targetMatches[i];
-      const prevMatch = i > 0 ? targetMatches[i - 1] : null;
-      const nextMatch = i < targetMatches.length - 1 ? targetMatches[i + 1] : null;
+    // Shuffle so blocks rotate randomly across generations
+    const teams = shuffle(candidateTeams);
 
-      // Build list of teams "busy" around this slot (playing prev or next match)
-      const busyTeams = new Set<string>();
-      if (prevMatch) {
-        busyTeams.add(prevMatch.team1_id);
-        busyTeams.add(prevMatch.team2_id);
-      }
-      if (nextMatch) {
-        busyTeams.add(nextMatch.team1_id);
-        busyTeams.add(nextMatch.team2_id);
-      }
+    // Distribute n matches into k blocks (some blocks baseSize, some baseSize+1)
+    const baseSize = Math.floor(n / k);
+    const extras = n % k; // first 'extras' teams get one extra match
 
-      // Filter available candidates: not busy, from opposite group
-      const available = candidateTeams.filter(t => !busyTeams.has(t));
-
-      if (available.length === 0) {
-        // Fallback: relax rest constraint, pick least-assigned
-        const sorted = [...candidateTeams].sort((a, b) => counts[a] - counts[b]);
-        const pick = sorted[0];
-        result[match.id] = pick;
-        counts[pick]++;
-      } else {
-        // Pick the least-assigned available team
-        available.sort((a, b) => counts[a] - counts[b]);
-        const pick = available[0];
-        result[match.id] = pick;
-        counts[pick]++;
+    let matchIdx = 0;
+    for (let ti = 0; ti < k; ti++) {
+      const blockSize = ti < extras ? baseSize + 1 : baseSize;
+      const team = teams[ti];
+      for (let j = 0; j < blockSize && matchIdx < n; j++) {
+        result[targetMatches[matchIdx].id] = team;
+        matchIdx++;
       }
     }
   }
 
-  assignGroup(matchesA, groupedTeams[groupB]);
-  assignGroup(matchesB, groupedTeams[groupA]);
+  assignGroupBlocked(matchesA, groupedTeams[groupB]);
+  assignGroupBlocked(matchesB, groupedTeams[groupA]);
 
   return result;
 }
