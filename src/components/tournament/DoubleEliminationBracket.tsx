@@ -1563,11 +1563,12 @@ export const DoubleEliminationBracket = ({
   };
 
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
-    const matchHeight = 108;
-    const baseGap = 16;
+    // ── Standard Matchbox dimensions (strict grid) ──
+    const matchHeight = 110;   // fixed height for ALL matchboxes
+    const baseGap = 20;        // constant vertical gap between matchboxes in same column
     const unit = matchHeight + baseGap;
-    const matchCenterY = 75; // header ~24px + card_center ~51px
-    const COL_W = 200;
+    const matchCenterY = matchHeight / 2; // geometric center = 55px — anchor for all connectors
+    const COL_W = 250;         // fixed column width for ALL rounds
     const CONNECTOR_W = 32;
 
     const expectedRounds = getExpectedMatchCounts(isLosers);
