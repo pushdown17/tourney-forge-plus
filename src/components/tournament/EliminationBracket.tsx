@@ -1804,7 +1804,7 @@ export const EliminationBracket = ({
                 let realMatchCount = 0;
                 
                 return (
-                  <div key={`round-${roundIndex}`} className="flex flex-col" style={{ minWidth: "180px" }}>
+                  <div key={`round-${roundIndex}`} className="flex flex-col" style={{ width: "282px" }}>
                     {/* Round header */}
                     <div className={cn(
                       "text-center mb-4 py-2 px-4 rounded-lg",
