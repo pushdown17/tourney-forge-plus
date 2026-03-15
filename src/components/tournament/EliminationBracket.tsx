@@ -1749,11 +1749,6 @@ export const EliminationBracket = ({
     );
   }
 
-  if (generating) {
-    // Don't replace the full bracket — show a subtle overlay instead (see below)
-    // return early removed intentionally: bracket remains visible while generating next round
-  }
-
   // Group matches by round
   const matchesByRound = matches.reduce((acc, match) => {
     if (!acc[match.round_number]) {
