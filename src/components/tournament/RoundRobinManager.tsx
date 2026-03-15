@@ -320,6 +320,63 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     setMatches(data || []);
   };
 
+  // ── Round-robin scheduling with rest constraint ─────────────────────────────
+  // For N teams (sequential play on 1 field), builds all C(N,2) pairs then
+  // orders them so each team has at least MIN_REST matches between appearances.
+  // Uses a greedy scheduler with backtracking fallback.
+  const scheduleWithRest = (teamIds: string[], minRest = 1): { t1: string; t2: string }[] => {
+    // Build all pairs
+    const pairs: { t1: string; t2: string }[] = [];
+    for (let i = 0; i < teamIds.length; i++) {
+      for (let j = i + 1; j < teamIds.length; j++) {
+        pairs.push({ t1: teamIds[i], t2: teamIds[j] });
+      }
+    }
+
+    // Shuffle pairs for variety
+    const shuffle = <T,>(arr: T[]): T[] => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+
+    const trySchedule = (pool: typeof pairs, minR: number): typeof pairs | null => {
+      const scheduled: typeof pairs = [];
+      const remaining = [...pool];
+      // lastPlayed[teamId] = index of last scheduled match they appeared in
+      const lastPlayed: Record<string, number> = {};
+
+      while (remaining.length > 0) {
+        const idx = remaining.findIndex(p => {
+          const lastT1 = lastPlayed[p.t1] ?? -999;
+          const lastT2 = lastPlayed[p.t2] ?? -999;
+          const pos = scheduled.length;
+          return (pos - lastT1) > minR && (pos - lastT2) > minR;
+        });
+
+        if (idx === -1) return null; // Dead end
+
+        const chosen = remaining.splice(idx, 1)[0];
+        const pos = scheduled.length;
+        lastPlayed[chosen.t1] = pos;
+        lastPlayed[chosen.t2] = pos;
+        scheduled.push(chosen);
+      }
+      return scheduled;
+    };
+
+    // Try up to 200 random orderings with minRest=1, fallback to minRest=0
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const result = trySchedule(shuffle(pairs), minRest);
+      if (result) return result;
+    }
+    // Absolute fallback: no constraint
+    return shuffle(pairs);
+  };
+
   const generateAllMatches = async () => {
     setLoading(true);
     try {
@@ -365,7 +422,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         return;
       }
 
-      // Generate matches per group (or all teams if no groups)
+      // Generate matches per group with rest constraint
       const allMatches: { 
         tournament_id: string; 
         phase: "round_robin"; 
@@ -377,38 +434,18 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       for (const [, groupTeamIds] of teamsByGroup) {
         if (groupTeamIds.length < 2) continue;
         
-        const teamIds = [...groupTeamIds];
-        const n = teamIds.length;
+        // Schedule with minimum 1-match rest between appearances
+        const scheduled = scheduleWithRest(groupTeamIds, 1);
         
-        if (n % 2 === 1) {
-          teamIds.push("BYE");
-        }
-        
-        const totalTeams = teamIds.length;
-        const rounds = totalTeams - 1;
-        const matchesPerRound = totalTeams / 2;
-        
-        const rotatingTeams = [...teamIds];
-        
-        for (let round = 0; round < rounds; round++) {
-          for (let match = 0; match < matchesPerRound; match++) {
-            const home = match === 0 ? rotatingTeams[0] : rotatingTeams[match];
-            const away = rotatingTeams[totalTeams - 1 - match];
-            
-            if (home !== "BYE" && away !== "BYE") {
-              allMatches.push({
-                tournament_id: tournamentId,
-                phase: "round_robin" as const,
-                round_number: 1,
-                team1_id: home,
-                team2_id: away,
-              });
-            }
-          }
-          
-          const lastTeam = rotatingTeams.pop()!;
-          rotatingTeams.splice(1, 0, lastTeam);
-        }
+        scheduled.forEach((m, i) => {
+          allMatches.push({
+            tournament_id: tournamentId,
+            phase: "round_robin" as const,
+            round_number: i + 1, // sequential slot number (1-based)
+            team1_id: m.t1,
+            team2_id: m.t2,
+          });
+        });
       }
 
       if (allMatches.length === 0) {

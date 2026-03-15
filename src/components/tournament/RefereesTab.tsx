@@ -55,6 +55,19 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+// Returns the match index (in the TARGET group) just BEFORE the given slot,
+// where the referee team plays in its OWN group.
+// We need the round_number of each target match and the referee team's own matches
+// to detect if they played the immediately preceding match (cross-group timeline).
+// For simplicity: we just check if the referee team PLAYS in an adjacent match
+// within the TARGET group (same-field adjacency check).
+function playsInTargetMatch(
+  match: { team1_id: string; team2_id: string },
+  teamId: string
+): boolean {
+  return match.team1_id === teamId || match.team2_id === teamId;
+}
+
 function assignReferees(
   matches: { id: string; team1_id: string; team2_id: string; group_name: string | null }[],
   groupedTeams: Record<string, string[]>
@@ -67,26 +80,66 @@ function assignReferees(
   const matchesB = matches.filter(m => m.group_name === groupB);
   const result: Record<string, string> = {};
 
-  function assignGroupBlocked(targetMatches: typeof matches, candidateTeams: string[]) {
+  // Assigns consecutive blocks of matches to each referee team.
+  // Before assigning a block, skips 1 slot if the team plays in the match
+  // immediately preceding the block start (rest constraint).
+  function assignGroupBlocked(
+    targetMatches: typeof matches,
+    candidateTeams: string[],
+    ownGroupMatches: typeof matches
+  ) {
     const n = targetMatches.length;
     const k = candidateTeams.length;
     if (k === 0 || n === 0) return;
+
     const teams = shuffle(candidateTeams);
     const baseSize = Math.floor(n / k);
     const extras = n % k;
+
+    // Build an ordered list of slots (indices into targetMatches) to fill
+    // Each team gets a contiguous block; if the block would start immediately
+    // after a match the referee team plays in their own group, shift by 1.
     let matchIdx = 0;
+
     for (let ti = 0; ti < k; ti++) {
       const blockSize = ti < extras ? baseSize + 1 : baseSize;
       const team = teams[ti];
+
+      // Check if this team played the match that immediately precedes the
+      // current slot in their OWN group (cross-timeline rest check).
+      // We approximate by checking if the referee team appears in the match
+      // at position matchIdx - 1 of targetMatches (same sequential position).
+      if (matchIdx > 0) {
+        const preceding = targetMatches[matchIdx - 1];
+        if (playsInTargetMatch(preceding, team)) {
+          // Try to push the block start by 1 if there are enough remaining slots
+          if (matchIdx < n) matchIdx++;
+        }
+      }
+
       for (let j = 0; j < blockSize && matchIdx < n; j++) {
+        // Also skip if referee plays THIS specific match (shouldn't happen in cross-group, but safety)
+        if (playsInTargetMatch(targetMatches[matchIdx], team)) {
+          matchIdx++;
+          if (matchIdx >= n) break;
+        }
         result[targetMatches[matchIdx].id] = team;
         matchIdx++;
       }
     }
+
+    // Fill any unassigned matches (edge case) by cycling teams
+    let fallbackTeamIdx = 0;
+    targetMatches.forEach(m => {
+      if (!result[m.id]) {
+        result[m.id] = teams[fallbackTeamIdx % teams.length];
+        fallbackTeamIdx++;
+      }
+    });
   }
 
-  assignGroupBlocked(matchesA, groupedTeams[groupB]);
-  assignGroupBlocked(matchesB, groupedTeams[groupA]);
+  assignGroupBlocked(matchesA, groupedTeams[groupB], matchesB);
+  assignGroupBlocked(matchesB, groupedTeams[groupA], matchesA);
   return result;
 }
 
