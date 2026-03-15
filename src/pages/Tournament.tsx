@@ -20,6 +20,7 @@ import { TeamHistory } from "@/components/tournament/TeamHistory";
 import { PlayerRankings } from "@/components/tournament/PlayerRankings";
 import { ClosedTournamentSummary } from "@/components/tournament/ClosedTournamentSummary";
 import { RefereeStationsManager } from "@/components/tournament/RefereeStationsManager";
+import { RefereesTab } from "@/components/tournament/RefereesTab";
 import {
   AlertDialog,
   AlertDialogAction,
