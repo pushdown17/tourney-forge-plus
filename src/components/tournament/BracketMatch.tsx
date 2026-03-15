@@ -179,7 +179,7 @@ export const BracketMatch = ({
         <PopoverTrigger asChild>
           <Card
             className={cn(
-              "overflow-hidden transition-all duration-300",
+              "overflow-hidden transition-all duration-300 flex-1 flex flex-col justify-center",
               "bg-card/80 backdrop-blur-sm border-border/50",
               !isPlaceholder && "hover:shadow-md hover:border-primary/30 cursor-pointer",
               isMatchLocked && !isCompleted && "opacity-60 cursor-not-allowed",
