@@ -1876,7 +1876,7 @@ export const EliminationBracket = ({
                       {roundMatches.map((match, matchIndex) => {
                         // Spacer entries: render empty div to preserve vertical alignment
                         if (match.isSpacer) {
-                          return <div key={match.id} style={{ height: `${matchHeight}px` }} />;
+                          return <div key={match.id} style={{ height: `${matchHeight}px`, width: "250px" }} />;
                         }
 
                         const canAccessMatch = isPreviousRoundCompleted(roundNumber);
