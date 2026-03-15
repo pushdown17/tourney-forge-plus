@@ -294,7 +294,9 @@ export const MatchStatsDialog = ({
               ? "Modifiez le score puis cliquez Valider"
               : hasPlayers
                 ? "Le score se met à jour automatiquement via les buts des joueurs"
-                : "Cliquez sur le score pour le modifier directement"}
+                : isCreator
+                  ? "Cliquez sur le score pour le modifier directement"
+                  : null}
           </p>
         </Card>
 
