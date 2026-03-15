@@ -1468,7 +1468,7 @@ const RefereeStation = () => {
     };
 
     // Double-safety: also filter client-side to exclude any match with scores already set
-    const availableMatches = (allMatches || []).filter(
+    const availableMatches = (groupFilteredMatches || []).filter(
       m => m.team1_id && m.team2_id && m.team1_id !== m.team2_id 
         && !activeMatchIds.has(m.id)
         && m.team1_score === null && m.team2_score === null
