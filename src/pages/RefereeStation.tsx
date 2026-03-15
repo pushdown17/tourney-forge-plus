@@ -1402,8 +1402,8 @@ const RefereeStation = () => {
       (activeStations || []).map(s => s.current_match_id).filter(Boolean)
     );
 
-    // ── Compute byeCount for this tournament (needed for DE sequencing) ──
-    let deByeCount = 0;
+    // ── Compute playInCount for this tournament (needed for DE sequencing) ──
+    let dePlayInCount = 0;
     if (currentPhase === 'double_elimination') {
       const { data: tiInfo } = await supabase
         .from("tournaments")
@@ -1412,7 +1412,7 @@ const RefereeStation = () => {
         .single();
       const totalTeamsDE = tiInfo?.teams_for_elimination || 8;
       const bracketSizeDE = prevPow2Station(totalTeamsDE);
-      deByeCount = bracketSizeDE - totalTeamsDE;
+      dePlayInCount = totalTeamsDE - bracketSizeDE; // positive for hybrid (e.g. 4 for 12 teams)
     }
 
     // ── Sequence function for Double Elimination ──
