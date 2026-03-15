@@ -1438,7 +1438,7 @@ const RefereeStation = () => {
       // GF rounds use high sentinel values regardless of bracket type
       if (r >= 10 && !isL) return 50 + r;
 
-      if (deByeCount > 0) {
+      if (dePlayInCount > 0) {
         // ── Hybrid (play-in) formula — works for ALL sizes (6,10,12,14,20,24…) ──
         const wSeqH = (k: number): number =>
           k === 1 ? 1 : k === 2 ? 2 : 3 * k - 5;
