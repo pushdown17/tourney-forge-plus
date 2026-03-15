@@ -1542,10 +1542,13 @@ export const EliminationBracket = ({
             const isWaiting = existingMatch.team1_id === existingMatch.team2_id && !existingMatch.winner_id;
             if (isWaiting) {
               // Show direct seed as team1, TBD as team2
+              // hasAdvancedTeam1/2 intentionally NOT set — the seed is not "advancing", it's just waiting
               roundMatches.push({
                 ...existingMatch,
                 team2: null,
                 team2_id: "",
+                hasAdvancedTeam1: false,
+                hasAdvancedTeam2: false,
                 isPlaceholder: false, // It's a real match record, just waiting for opponent
               });
             } else {
