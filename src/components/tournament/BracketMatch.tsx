@@ -123,9 +123,9 @@ export const BracketMatch = ({
   const isDimmed = !!highlightedTeamId && !matchInvolvesHighlight;
   
   return (
-    <div className={cn("animate-fade-in flex flex-col transition-opacity duration-200", isDimmed && "opacity-25")}>
-      {/* Match header */}
-      <div className="flex items-center justify-center gap-2 mb-1">
+    <div className={cn("animate-fade-in flex flex-col h-full w-full transition-opacity duration-200", isDimmed && "opacity-25")}>
+      {/* Match header — compact, fixed 20px row */}
+      <div className="flex items-center justify-center gap-2 mb-0.5 h-5 shrink-0">
         <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
           M{matchNumber}
         </span>
@@ -179,7 +179,7 @@ export const BracketMatch = ({
         <PopoverTrigger asChild>
           <Card
             className={cn(
-              "overflow-hidden transition-all duration-300",
+              "overflow-hidden transition-all duration-300 flex-1 flex flex-col justify-center",
               "bg-card/80 backdrop-blur-sm border-border/50",
               !isPlaceholder && "hover:shadow-md hover:border-primary/30 cursor-pointer",
               isMatchLocked && !isCompleted && "opacity-60 cursor-not-allowed",

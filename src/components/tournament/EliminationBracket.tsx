@@ -1770,12 +1770,12 @@ export const EliminationBracket = ({
                 const hasPreliminaryRound = bracketStructure.length > 0 && bracketStructure[0]?.[0]?.round_number === 0;
                 const isPreliminaryRound = roundNumber === 0;
                 
-                // matchHeight = total slot height as rendered (header row ~24px + card ~84px).
-                // Connectors point to matchCenterY which is header + half card height.
-                const matchHeight = 108;
-                const baseGap = 16;
+                // ── Standard Matchbox dimensions (strict grid) ──
+                // matchCenterY = matchHeight / 2 → geometric center for connector anchors.
+                const matchHeight = 110;
+                const baseGap = 20;
                 const unit = matchHeight + baseGap;
-                const matchCenterY = 75;
+                const matchCenterY = matchHeight / 2; // = 55px
 
                 
                 // When there's a preliminary round, both prelim and R1 share the same spacing level
@@ -1804,12 +1804,12 @@ export const EliminationBracket = ({
                 let realMatchCount = 0;
                 
                 return (
-                  <div key={`round-${roundIndex}`} className="flex flex-col" style={{ minWidth: "180px" }}>
+                  <div key={`round-${roundIndex}`} className="flex flex-col" style={{ width: "282px" }}>
                     {/* Round header */}
                     <div className={cn(
                       "text-center mb-4 py-2 px-4 rounded-lg",
                       isLastRound ? "bg-primary/20 border border-primary/30" : "bg-muted/50"
-                    )}>
+                    )} style={{ width: "250px" }}>
                       <span className={cn(
                         "text-sm font-bold",
                         isLastRound ? "text-primary" : "text-foreground"
@@ -1876,7 +1876,7 @@ export const EliminationBracket = ({
                       {roundMatches.map((match, matchIndex) => {
                         // Spacer entries: render empty div to preserve vertical alignment
                         if (match.isSpacer) {
-                          return <div key={match.id} style={{ height: `${matchHeight}px` }} />;
+                          return <div key={match.id} style={{ height: `${matchHeight}px`, width: "250px" }} />;
                         }
 
                         const canAccessMatch = isPreviousRoundCompleted(roundNumber);
@@ -1892,7 +1892,7 @@ export const EliminationBracket = ({
                         const matchNumber = isLastRound && thirdPlaceMatch ? rawMatchNumber + 1 : rawMatchNumber;
 
                         return (
-                          <div key={match.id} style={{ height: `${matchHeight}px` }}>
+                          <div key={match.id} style={{ height: `${matchHeight}px`, width: "250px" }}>
                             <BracketMatch
                               match={match}
                               matchNumber={matchNumber}

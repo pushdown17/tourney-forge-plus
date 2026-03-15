@@ -1563,11 +1563,12 @@ export const DoubleEliminationBracket = ({
   };
 
   const renderBracket = (realMatches: Match[], isLosers: boolean) => {
-    const matchHeight = 108;
-    const baseGap = 16;
+    // ── Standard Matchbox dimensions (strict grid) ──
+    const matchHeight = 110;   // fixed height for ALL matchboxes
+    const baseGap = 20;        // constant vertical gap between matchboxes in same column
     const unit = matchHeight + baseGap;
-    const matchCenterY = 75; // header ~24px + card_center ~51px
-    const COL_W = 200;
+    const matchCenterY = matchHeight / 2; // geometric center = 55px — anchor for all connectors
+    const COL_W = 250;         // fixed column width for ALL rounds
     const CONNECTOR_W = 32;
 
     const expectedRounds = getExpectedMatchCounts(isLosers);
@@ -1691,22 +1692,15 @@ export const DoubleEliminationBracket = ({
                         slotContent = (
                           <div
                             className={cn(
-                              "rounded-lg border flex flex-col justify-center px-3",
+                              "rounded-lg border flex flex-col justify-center gap-1 px-3",
                               hasPending
-                                ? (isLoserSlot ? "border-orange-500/40 bg-orange-500/5" : "border-primary/30 bg-primary/5")
-                                : "border-dashed border-border/30 bg-muted/10 items-center"
+                                ? (isLoserSlot ? "border-orange-500/30 bg-orange-500/5" : "border-primary/20 bg-primary/5")
+                                : "border-dashed border-border/30 bg-muted/10"
                             )}
                             style={{ height: `${matchHeight}px`, width: COL_W }}
                           >
-                            {hasPending ? (
-                              <>
-                                <p className="text-xs text-muted-foreground mb-1.5 font-medium">En attente…</p>
-                                {renderTeamSlot(t1, true)}
-                                {renderTeamSlot(t2, false)}
-                              </>
-                            ) : (
-                              <span className="text-xs text-muted-foreground/40 font-medium">TBD</span>
-                            )}
+                            {renderTeamSlot(t1, false)}
+                            {renderTeamSlot(t2, false)}
                           </div>
                         );
                       } else {
