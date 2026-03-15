@@ -1668,21 +1668,18 @@ export const DoubleEliminationBracket = ({
                           <div className={cn(
                             "flex items-center gap-2 py-1.5 px-2 rounded border",
                             mb ? "mb-1" : "",
-                            t
-                              ? (isLoserSlot ? "bg-orange-500/10 border-orange-500/20" : "bg-primary/10 border-primary/20")
-                              : "bg-muted/20 border-dashed border-border/30"
+                            "bg-card/50 border-border/30"
                           )}>
                             {t ? (
                               <div className="flex items-center gap-1.5 min-w-0">
-                                {isLoserSlot && <Skull className="h-3 w-3 text-orange-500 shrink-0" />}
                                 {t.seed && (
                                   <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/50 px-1 py-0.5 rounded shrink-0">
                                     #{t.seed}
                                   </span>
                                 )}
-                                <span className="text-sm font-semibold text-foreground truncate">{t.name}</span>
+                                <span className="text-sm text-foreground truncate">{t.name}</span>
                                 {(t as any).isBye && (
-                                  <span className="ml-auto shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">
+                                  <span className="ml-auto shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground border border-border/30">
                                     BYE
                                   </span>
                                 )}
@@ -1695,12 +1692,7 @@ export const DoubleEliminationBracket = ({
 
                         slotContent = (
                           <div
-                            className={cn(
-                              "rounded-lg border flex flex-col justify-center gap-1 px-3",
-                              hasPending
-                                ? (isLoserSlot ? "border-orange-500/30 bg-orange-500/5" : "border-primary/20 bg-primary/5")
-                                : "border-dashed border-border/30 bg-muted/10"
-                            )}
+                            className="rounded-lg border border-border/50 bg-card/80 flex flex-col justify-center gap-1 px-3"
                             style={{ height: `${matchHeight}px`, width: COL_W }}
                           >
                             {renderTeamSlot(t1, false)}
