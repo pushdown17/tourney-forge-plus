@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw, Wand2, CheckCircle, Clock } from "lucide-react";
 
 interface RefereesTabProps {
@@ -113,6 +114,7 @@ export const RefereesTab = ({
   const [matches, setMatches] = useState<MatchWithReferee[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<string>("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -300,6 +302,9 @@ export const RefereesTab = ({
 
   const groupNames = Object.keys(groupedMatches).sort();
 
+  // Default to first group once loaded
+  const effectiveTab = activeGroup || groupNames[0] || "";
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-16">
@@ -310,8 +315,111 @@ export const RefereesTab = ({
 
   const hasAssignments = matches.some(m => m.referee_id !== null);
 
+  const renderGroupList = (groupName: string) => {
+    const groupMatches = groupedMatches[groupName] || [];
+    const oppositeGroup = groupNames.find(g => g !== groupName) || "";
+    return (
+      <div className="space-y-3">
+        {/* Sub-header */}
+        <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
+          {oppositeGroup && (
+            <span>Arbitré par : <span className="font-medium text-foreground">{oppositeGroup}</span></span>
+          )}
+          <span>
+            {groupMatches.filter(m => m.referee_status === "present").length}/{groupMatches.length} présents
+          </span>
+        </div>
+
+        <Card className="overflow-hidden">
+          <div className="divide-y divide-border/50">
+            {groupMatches.length === 0 && (
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                Aucun match pour ce groupe.
+              </div>
+            )}
+            {groupMatches.map((match, idx) => (
+              <div
+                key={match.id}
+                className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors"
+              >
+                {/* Match info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-muted-foreground shrink-0">
+                      M{idx + 1}
+                    </span>
+                    <span className="text-sm font-medium truncate">
+                      {match.team1_name}
+                      <span className="text-muted-foreground mx-1.5">vs</span>
+                      {match.team2_name}
+                    </span>
+                  </div>
+                  {(match.team1_score !== null && match.team2_score !== null) && (
+                    <span className="text-xs text-muted-foreground ml-6">
+                      {match.team1_score} – {match.team2_score}
+                    </span>
+                  )}
+                </div>
+
+                <Separator orientation="vertical" className="hidden sm:block h-8" />
+
+                {/* Referee info */}
+                <div className="flex items-center gap-3 sm:w-64">
+                  {match.referee_team_name ? (
+                    <>
+                      <span className="text-sm truncate flex-1">{match.referee_team_name}</span>
+                      {isCreator && !isClosed ? (
+                        <button
+                          onClick={() => toggleStatus(match)}
+                          className="shrink-0"
+                          title="Changer le statut"
+                        >
+                          <Badge
+                            variant={match.referee_status === "present" ? "default" : "secondary"}
+                            className={`cursor-pointer select-none transition-colors ${
+                              match.referee_status === "present"
+                                ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border-green-500/30"
+                                : "hover:bg-muted"
+                            }`}
+                          >
+                            {match.referee_status === "present" ? (
+                              <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
+                            ) : (
+                              <><Clock className="h-3 w-3 mr-1" />En attente</>
+                            )}
+                          </Badge>
+                        </button>
+                      ) : (
+                        <Badge
+                          variant={match.referee_status === "present" ? "default" : "secondary"}
+                          className={
+                            match.referee_status === "present"
+                              ? "bg-green-500/20 text-green-400 border-green-500/30"
+                              : ""
+                          }
+                        >
+                          {match.referee_status === "present" ? (
+                            <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
+                          ) : (
+                            <><Clock className="h-3 w-3 mr-1" />En attente</>
+                          )}
+                        </Badge>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Non assigné</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -349,129 +457,26 @@ export const RefereesTab = ({
         </Card>
       )}
 
-      {groupNames.map(groupName => {
-        const groupMatches = groupedMatches[groupName];
-        const oppositeGroup = groupNames.find(g => g !== groupName) || "";
-        return (
-          <Card key={groupName} className="overflow-hidden">
-            <div className="px-4 py-3 bg-muted/40 border-b flex items-center justify-between">
-              <div>
-                <span className="font-semibold text-sm">{groupName}</span>
-                {oppositeGroup && (
-                  <span className="text-xs text-muted-foreground ml-2">
-                    — arbitré par {oppositeGroup}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span>{groupMatches.length} matchs</span>
-                <span>
-                  {groupMatches.filter(m => m.referee_status === "present").length} présents
-                </span>
-              </div>
-            </div>
+      {groupNames.length > 0 && (
+        <Tabs value={effectiveTab} onValueChange={setActiveGroup}>
+          <TabsList className={`grid w-full grid-cols-${groupNames.length} bg-muted/50`}>
+            {groupNames.map(g => (
+              <TabsTrigger
+                key={g}
+                value={g}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                {g}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-            <div className="divide-y divide-border/50">
-              {groupMatches.map((match, idx) => (
-                <div
-                  key={match.id}
-                  className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors"
-                >
-                  {/* Match info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground shrink-0">
-                        M{idx + 1}
-                      </span>
-                      <span className="text-sm font-medium truncate">
-                        {match.team1_name}
-                        <span className="text-muted-foreground mx-1.5">vs</span>
-                        {match.team2_name}
-                      </span>
-                    </div>
-                    {(match.team1_score !== null && match.team2_score !== null) && (
-                      <span className="text-xs text-muted-foreground ml-6">
-                        {match.team1_score} – {match.team2_score}
-                      </span>
-                    )}
-                  </div>
-
-                  <Separator orientation="vertical" className="hidden sm:block h-8" />
-
-                  {/* Referee info */}
-                  <div className="flex items-center gap-3 sm:w-64">
-                    {match.referee_team_name ? (
-                      <>
-                        <span className="text-sm truncate flex-1">{match.referee_team_name}</span>
-                        {isCreator && !isClosed ? (
-                          <button
-                            onClick={() => toggleStatus(match)}
-                            className="shrink-0"
-                            title="Changer le statut"
-                          >
-                            <Badge
-                              variant={match.referee_status === "present" ? "default" : "secondary"}
-                              className={`cursor-pointer select-none transition-colors ${
-                                match.referee_status === "present"
-                                  ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border-green-500/30"
-                                  : "hover:bg-muted"
-                              }`}
-                            >
-                              {match.referee_status === "present" ? (
-                                <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
-                              ) : (
-                                <><Clock className="h-3 w-3 mr-1" />En attente</>
-                              )}
-                            </Badge>
-                          </button>
-                        ) : (
-                          <Badge
-                            variant={match.referee_status === "present" ? "default" : "secondary"}
-                            className={
-                              match.referee_status === "present"
-                                ? "bg-green-500/20 text-green-400 border-green-500/30"
-                                : ""
-                            }
-                          >
-                            {match.referee_status === "present" ? (
-                              <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
-                            ) : (
-                              <><Clock className="h-3 w-3 mr-1" />En attente</>
-                            )}
-                          </Badge>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground italic">Non assigné</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        );
-      })}
-
-      {/* Summary footer */}
-      {hasAssignments && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {groupNames.map(g => {
-            const gMatches = groupedMatches[g] || [];
-            const present = gMatches.filter(m => m.referee_status === "present").length;
-            return (
-              <Card key={g} className="p-3 text-center">
-                <p className="text-xs text-muted-foreground">{g}</p>
-                <p className="text-lg font-bold mt-0.5">
-                  {present}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    /{gMatches.length}
-                  </span>
-                </p>
-                <p className="text-xs text-muted-foreground">arbitres présents</p>
-              </Card>
-            );
-          })}
-        </div>
+          {groupNames.map(g => (
+            <TabsContent key={g} value={g} className="mt-4">
+              {renderGroupList(g)}
+            </TabsContent>
+          ))}
+        </Tabs>
       )}
     </div>
   );
