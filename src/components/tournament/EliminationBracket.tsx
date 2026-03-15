@@ -137,6 +137,9 @@ export const EliminationBracket = ({
   } | null>(null);
   const thirdPlaceDecisionMadeRef = useRef(false);
   const prevResetTrigger = useRef(resetTrigger);
+  // Frozen seed map: set once at bracket generation, never recomputed from live stats
+  const frozenSeedMapRef = useRef<Map<string, number>>(new Map());
+  const frozenSeedToTeamRef = useRef<Map<number, Team>>(new Map());
 
   useEffect(() => {
     fetchTournamentAndMatches(true);
