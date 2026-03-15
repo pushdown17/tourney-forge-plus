@@ -646,6 +646,9 @@ export const EliminationBracket = ({
 
   const handleResetBracket = async () => {
     setGenerating(true);
+    // Reset frozen seeds so they are recomputed from fresh standings on next generation
+    frozenSeedMapRef.current = new Map();
+    frozenSeedToTeamRef.current = new Map();
     try {
       const { error } = await supabase
         .from("matches")
