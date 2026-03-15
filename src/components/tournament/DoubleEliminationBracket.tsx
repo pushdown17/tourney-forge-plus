@@ -1862,7 +1862,7 @@ export const DoubleEliminationBracket = ({
     <Card className="glass-card p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-2">
             <Trophy className="h-6 w-6 text-primary" />
             <h2 className="text-xl font-bold">Double Elimination</h2>
             {hasReset && (
@@ -1870,6 +1870,12 @@ export const DoubleEliminationBracket = ({
                 <RotateCcw className="h-3 w-3" />
                 Bracket Reset!
               </Badge>
+            )}
+            {generating && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground animate-pulse">
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                Mise à jour…
+              </span>
             )}
           </div>
           <p className="text-sm text-muted-foreground ml-9">
