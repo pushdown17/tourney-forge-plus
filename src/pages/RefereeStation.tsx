@@ -998,7 +998,7 @@ const RefereeStation = () => {
         if (isMinorRound) {
           // Minor round: winner goes to next major round vs W-dropin
           const nextMajorRound = nextRound;
-          const wFeederRound = byeCount > 0
+          const wFeederRound = playInCount > 0
             ? nextMajorRound / 2 + 2  // Play-in: L-R2←W-R3, L-R4←W-R4
             : nextMajorRound / 2 + 1; // Standard: L-R2←W-R2, L-R4←W-R3
 
