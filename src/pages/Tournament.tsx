@@ -20,6 +20,7 @@ import { TeamHistory } from "@/components/tournament/TeamHistory";
 import { PlayerRankings } from "@/components/tournament/PlayerRankings";
 import { ClosedTournamentSummary } from "@/components/tournament/ClosedTournamentSummary";
 import { RefereeStationsManager } from "@/components/tournament/RefereeStationsManager";
+import { RefereesTab } from "@/components/tournament/RefereesTab";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -382,19 +383,25 @@ const Tournament = () => {
           </div>
 
           <TabsContent value="teams" className="animate-fade-in">
-            <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-4">
+          <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-4">
               <div className="overflow-x-auto -mx-4 px-4">
                 {isCreator ? (
-                  <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-4 bg-muted/30">
+                  <TabsList className={`inline-flex w-auto min-w-full md:grid md:w-full bg-muted/30 ${tournament.number_of_groups >= 2 ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                     <TabsTrigger value="manage-teams" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Teams</TabsTrigger>
                     <TabsTrigger value="manage-players" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Players</TabsTrigger>
                     <TabsTrigger value="player-stats" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Player Stats</TabsTrigger>
+                    {tournament.number_of_groups >= 2 && (
+                      <TabsTrigger value="referees" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Referees</TabsTrigger>
+                    )}
                     <TabsTrigger value="referee-stations" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Stations</TabsTrigger>
                   </TabsList>
                 ) : (
-                  <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-2 bg-muted/30">
+                  <TabsList className={`inline-flex w-auto min-w-full md:grid md:w-full bg-muted/30 ${tournament.number_of_groups >= 2 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
                     <TabsTrigger value="manage-teams" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Teams</TabsTrigger>
                     <TabsTrigger value="player-stats" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Player Stats</TabsTrigger>
+                    {tournament.number_of_groups >= 2 && (
+                      <TabsTrigger value="referees" className="whitespace-nowrap px-3 py-2 text-sm md:text-base">Referees</TabsTrigger>
+                    )}
                   </TabsList>
                 )}
               </div>
@@ -412,6 +419,17 @@ const Tournament = () => {
               <TabsContent value="player-stats">
                 <PlayerStatsManager tournamentId={id!} isClosed={tournament.is_closed} isCreator={isCreator} />
               </TabsContent>
+
+              {tournament.number_of_groups >= 2 && (
+                <TabsContent value="referees">
+                  <RefereesTab
+                    tournamentId={id!}
+                    isCreator={isCreator}
+                    isClosed={tournament.is_closed}
+                    numberOfGroups={tournament.number_of_groups || 2}
+                  />
+                </TabsContent>
+              )}
 
               {isCreator && (
                 <TabsContent value="referee-stations">
