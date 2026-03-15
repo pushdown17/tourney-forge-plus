@@ -1892,7 +1892,7 @@ export const EliminationBracket = ({
                         const matchNumber = isLastRound && thirdPlaceMatch ? rawMatchNumber + 1 : rawMatchNumber;
 
                         return (
-                          <div key={match.id} style={{ height: `${matchHeight}px` }}>
+                          <div key={match.id} style={{ height: `${matchHeight}px`, width: "250px" }}>
                             <BracketMatch
                               match={match}
                               matchNumber={matchNumber}
