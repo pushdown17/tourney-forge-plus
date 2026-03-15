@@ -1095,8 +1095,7 @@ export const DoubleEliminationBracket = ({
             // ── Winners advancement: create R3 (Semi) match ──
             const w1 = myPosInR % 2 === 0 ? winnerId : partnerMatch.winner_id;
             const w2 = myPosInR % 2 === 0 ? partnerMatch.winner_id : winnerId;
-            const winnerR3 = Math.log2(getBracketSize(completedMatch.round_number)) + 1; // always R3 for hybrid
-            const nextWRound = 3;
+            const nextWRound = 3; // R2 QF → R3 Semi for all hybrid formats
             if (!matchExists(winnersBracket, nextWRound, w1, w2)) {
               matchesToCreate.push({
                 tournament_id: tournamentId, phase: "double_elimination",
