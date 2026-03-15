@@ -1692,22 +1692,15 @@ export const DoubleEliminationBracket = ({
                         slotContent = (
                           <div
                             className={cn(
-                              "rounded-lg border flex flex-col justify-center px-3",
+                              "rounded-lg border flex flex-col justify-center gap-1 px-3",
                               hasPending
-                                ? (isLoserSlot ? "border-orange-500/40 bg-orange-500/5" : "border-primary/30 bg-primary/5")
-                                : "border-dashed border-border/30 bg-muted/10 items-center"
+                                ? (isLoserSlot ? "border-orange-500/30 bg-orange-500/5" : "border-primary/20 bg-primary/5")
+                                : "border-dashed border-border/30 bg-muted/10"
                             )}
                             style={{ height: `${matchHeight}px`, width: COL_W }}
                           >
-                            {hasPending ? (
-                              <>
-                                <p className="text-xs text-muted-foreground mb-1.5 font-medium">En attente…</p>
-                                {renderTeamSlot(t1, true)}
-                                {renderTeamSlot(t2, false)}
-                              </>
-                            ) : (
-                              <span className="text-xs text-muted-foreground/40 font-medium">TBD</span>
-                            )}
+                            {renderTeamSlot(t1, false)}
+                            {renderTeamSlot(t2, false)}
                           </div>
                         );
                       } else {
