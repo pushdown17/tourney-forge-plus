@@ -198,7 +198,7 @@ export const DoubleEliminationBracket = ({
 
   useEffect(() => {
     if (currentPhase !== "double_elimination") return;
-    fetchTournamentAndMatches();
+    fetchTournamentAndMatches(true);
     fetchActiveTimers();
   }, [tournamentId, currentPhase]);
 
