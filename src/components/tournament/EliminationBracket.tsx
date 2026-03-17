@@ -1875,16 +1875,21 @@ export const EliminationBracket = ({
                         marginTop: `${topOffset}px`
                       }}
                     >
-                      {/* Connection lines — one SVG per Matchbox, anchored to its exact position */}
+                      {/* Connection lines — one SVG per Matchbox slot, anchored to its exact position.
+                          Column width = 282px, Matchbox width = 250px, inter-column gap = gap-8 = 32px.
+                          SVG starts at x=250 (right edge of Matchbox) and spans 64px:
+                            32px inside the current column remainder + 32px of the inter-column gap
+                          → x=64 lands exactly on the left edge of the next column's Matchbox. */}
                       {!isLastRound && roundMatches.map((m, idx) => {
                         if (m.isSpacer) return null;
 
                         const totalSlotHeight = matchHeight + verticalGap;
-                        // Top of this Matchbox slot within the flex column (gap already handled by flex gap)
                         const slotTop = idx * totalSlotHeight;
+                        // Bridge width: (282-250)px column remainder + 32px gap = 64px
+                        const bridgeW = 64;
+                        const mid = bridgeW / 2; // 32px — vertical junction at center of bridge
 
                         if (isPreliminaryRound) {
-                          // 1-to-1 horizontal dashed line from right edge of Matchbox to left edge of next column
                           return (
                             <svg
                               key={`conn-prelim-${idx}`}
@@ -1892,14 +1897,14 @@ export const EliminationBracket = ({
                               style={{
                                 left: "250px",
                                 top: `${slotTop}px`,
-                                width: "32px",
+                                width: `${bridgeW}px`,
                                 height: `${matchHeight}px`,
                                 overflow: "visible",
                                 zIndex: 10,
                               }}
                             >
                               <line
-                                x1="0" y1={matchCenterY} x2="32" y2={matchCenterY}
+                                x1="0" y1={matchCenterY} x2={bridgeW} y2={matchCenterY}
                                 stroke="hsl(var(--primary))"
                                 strokeWidth="2"
                                 strokeDasharray="6 4"
@@ -1913,12 +1918,10 @@ export const EliminationBracket = ({
                         if (idx % 2 !== 0) return null;
                         if (idx + 1 >= roundMatches.length) return null;
 
-                        // y coords relative to SVG origin (slotTop of the even match)
                         const y1 = matchCenterY;
                         const y2 = totalSlotHeight + matchCenterY;
                         const yMid = (y1 + y2) / 2;
-                        const svgHeight = y2 + 4; // small padding so line isn't clipped
-                        const mid = 16;
+                        const svgHeight = y2 + 4;
 
                         return (
                           <svg
@@ -1927,20 +1930,16 @@ export const EliminationBracket = ({
                             style={{
                               left: "250px",
                               top: `${slotTop}px`,
-                              width: "32px",
+                              width: `${bridgeW}px`,
                               height: `${svgHeight}px`,
                               overflow: "visible",
                               zIndex: 10,
                             }}
                           >
-                            {/* Horizontal stub from right edge of top match */}
                             <line x1="0" y1={y1} x2={mid} y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
-                            {/* Horizontal stub from right edge of bottom match */}
                             <line x1="0" y1={y2} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
-                            {/* Vertical bridge */}
                             <line x1={mid} y1={y1} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
-                            {/* Horizontal to left edge of next Matchbox */}
-                            <line x1={mid} y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                            <line x1={mid} y1={yMid} x2={bridgeW} y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
                           </svg>
                         );
                       })}
