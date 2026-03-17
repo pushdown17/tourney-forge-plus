@@ -1880,11 +1880,11 @@ export const EliminationBracket = ({
                         <svg
                           className="absolute pointer-events-none"
                           style={{
-                            // Start 32px before the right edge of the column (overlaps the Matchbox border by 1px)
-                            // and extends 33px to the right (overlaps the next Matchbox border by 1px)
-                            left: "218px",
+                          // Positioned at right edge of the 250px Matchbox, spanning the 32px gap to next column
+                            // overflow:visible lets lines overlap 1px into each Matchbox border
+                            left: "250px",
                             top: 0,
-                            width: "65px",
+                            width: "32px",
                             height: "100%",
                             overflow: "visible",
                             zIndex: 10,
