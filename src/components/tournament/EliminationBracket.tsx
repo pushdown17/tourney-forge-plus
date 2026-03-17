@@ -1878,27 +1878,42 @@ export const EliminationBracket = ({
                       {/* Connection lines */}
                       {!isLastRound && (
                         <svg
-                          className="absolute left-full top-0 pointer-events-none"
+                          className="absolute pointer-events-none"
                           style={{
+                          // Positioned at right edge of the 250px Matchbox, spanning the 32px gap to next column
+                            // overflow:visible lets lines overlap 1px into each Matchbox border
+                            left: "250px",
+                            top: 0,
                             width: "32px",
                             height: "100%",
                             overflow: "visible",
+                            zIndex: 10,
                           }}
                         >
                           {isPreliminaryRound ? (
-                            // Preliminary → R1: 1-to-1 horizontal lines (each prelim connects to its R1 slot)
+                            // Preliminary → R1: perfectly horizontal dashed lines
+                            // SVG left=250px, width=32px, overflow=visible
+                            // x1=-1 overlaps 1px into source Matchbox, x2=33 overlaps 1px into target Matchbox
                             roundMatches.map((m, idx) => {
                               if (m.isSpacer) return null;
                               const totalSlotHeight = matchHeight + verticalGap;
                               const y = idx * totalSlotHeight + matchCenterY;
                               return (
                                 <g key={idx} className="animate-fade-in">
-                                  <line x1="0" y1={y} x2="32" y2={y} stroke="hsl(var(--primary))" strokeWidth="2" className="opacity-30" />
+                                  <line
+                                    x1="-1" y1={y} x2="33" y2={y}
+                                    stroke="hsl(var(--primary))"
+                                    strokeWidth="2"
+                                    strokeDasharray="6 4"
+                                    opacity="0.7"
+                                  />
                                 </g>
                               );
                             })
                           ) : (
-                            // Standard pairs merge connection lines
+                            // Standard pairs: bracket merge connectors
+                            // x=-1 overlaps 1px into source Matchbox, x=33 overlaps 1px into target Matchbox
+                            // vertical junction at x=16 (center of the 32px gap)
                             roundMatches.map((_, matchIndex) => {
                               if (matchIndex % 2 !== 0) return null;
                               if (matchIndex + 1 >= roundMatches.length) return null;
@@ -1908,15 +1923,20 @@ export const EliminationBracket = ({
                               const y1 = baseY + matchCenterY;
                               const y2 = baseY + totalSlotHeight + matchCenterY;
                               const yMid = (y1 + y2) / 2;
+                              const mid = 16;
 
-                            return (
-                              <g key={matchIndex}>
-                                <line x1="0" y1={y1} x2="16" y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                <line x1="0" y1={y2} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                <line x1="16" y1={y1} x2="16" y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                                <line x1="16" y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.65" />
-                              </g>
-                            );
+                              return (
+                                <g key={matchIndex}>
+                                  {/* Horizontal from right edge of top source match */}
+                                  <line x1="-1" y1={y1} x2={mid} y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                                  {/* Horizontal from right edge of bottom source match */}
+                                  <line x1="-1" y1={y2} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                                  {/* Vertical bridge */}
+                                  <line x1={mid} y1={y1} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                                  {/* Horizontal to left edge of target Matchbox */}
+                                  <line x1={mid} y1={yMid} x2="33" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                                </g>
+                              );
                             })
                           )}
                         </svg>
