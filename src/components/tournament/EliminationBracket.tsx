@@ -1875,72 +1875,75 @@ export const EliminationBracket = ({
                         marginTop: `${topOffset}px`
                       }}
                     >
-                      {/* Connection lines */}
-                      {!isLastRound && (
-                        <svg
-                          className="absolute pointer-events-none"
-                          style={{
-                          // Positioned at right edge of the 250px Matchbox, spanning the 32px gap to next column
-                            // overflow:visible lets lines overlap 1px into each Matchbox border
-                            left: "250px",
-                            top: 0,
-                            width: "32px",
-                            height: "100%",
-                            overflow: "visible",
-                            zIndex: 10,
-                          }}
-                        >
-                          {isPreliminaryRound ? (
-                            // Preliminary → R1: perfectly horizontal dashed lines
-                            // SVG left=250px, width=32px, overflow=visible
-                            // x1=-1 overlaps 1px into source Matchbox, x2=33 overlaps 1px into target Matchbox
-                            roundMatches.map((m, idx) => {
-                              if (m.isSpacer) return null;
-                              const totalSlotHeight = matchHeight + verticalGap;
-                              const y = idx * totalSlotHeight + matchCenterY;
-                              return (
-                                <g key={idx} className="animate-fade-in">
-                                  <line
-                                    x1="-1" y1={y} x2="33" y2={y}
-                                    stroke="hsl(var(--primary))"
-                                    strokeWidth="2"
-                                    strokeDasharray="6 4"
-                                    opacity="0.7"
-                                  />
-                                </g>
-                              );
-                            })
-                          ) : (
-                            // Standard pairs: bracket merge connectors
-                            // x=-1 overlaps 1px into source Matchbox, x=33 overlaps 1px into target Matchbox
-                            // vertical junction at x=16 (center of the 32px gap)
-                            roundMatches.map((_, matchIndex) => {
-                              if (matchIndex % 2 !== 0) return null;
-                              if (matchIndex + 1 >= roundMatches.length) return null;
+                      {/* Connection lines — one SVG per Matchbox, anchored to its exact position */}
+                      {!isLastRound && roundMatches.map((m, idx) => {
+                        if (m.isSpacer) return null;
 
-                              const totalSlotHeight = matchHeight + verticalGap;
-                              const baseY = matchIndex * totalSlotHeight;
-                              const y1 = baseY + matchCenterY;
-                              const y2 = baseY + totalSlotHeight + matchCenterY;
-                              const yMid = (y1 + y2) / 2;
-                              const mid = 16;
+                        const totalSlotHeight = matchHeight + verticalGap;
+                        // Top of this Matchbox slot within the flex column (gap already handled by flex gap)
+                        const slotTop = idx * totalSlotHeight;
 
-                              return (
-                                <g key={matchIndex}>
-                                  {/* Horizontal from right edge of top source match */}
-                                  <line x1="-1" y1={y1} x2={mid} y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
-                                  {/* Horizontal from right edge of bottom source match */}
-                                  <line x1="-1" y1={y2} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
-                                  {/* Vertical bridge */}
-                                  <line x1={mid} y1={y1} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
-                                  {/* Horizontal to left edge of target Matchbox */}
-                                  <line x1={mid} y1={yMid} x2="33" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
-                                </g>
-                              );
-                            })
-                          )}
-                        </svg>
-                      )}
+                        if (isPreliminaryRound) {
+                          // 1-to-1 horizontal dashed line from right edge of Matchbox to left edge of next column
+                          return (
+                            <svg
+                              key={`conn-prelim-${idx}`}
+                              className="absolute pointer-events-none"
+                              style={{
+                                left: "250px",
+                                top: `${slotTop}px`,
+                                width: "32px",
+                                height: `${matchHeight}px`,
+                                overflow: "visible",
+                                zIndex: 10,
+                              }}
+                            >
+                              <line
+                                x1="0" y1={matchCenterY} x2="32" y2={matchCenterY}
+                                stroke="hsl(var(--primary))"
+                                strokeWidth="2"
+                                strokeDasharray="6 4"
+                                opacity="0.8"
+                              />
+                            </svg>
+                          );
+                        }
+
+                        // Standard pairs: only draw on even-indexed matches
+                        if (idx % 2 !== 0) return null;
+                        if (idx + 1 >= roundMatches.length) return null;
+
+                        // y coords relative to SVG origin (slotTop of the even match)
+                        const y1 = matchCenterY;
+                        const y2 = totalSlotHeight + matchCenterY;
+                        const yMid = (y1 + y2) / 2;
+                        const svgHeight = y2 + 4; // small padding so line isn't clipped
+                        const mid = 16;
+
+                        return (
+                          <svg
+                            key={`conn-${idx}`}
+                            className="absolute pointer-events-none"
+                            style={{
+                              left: "250px",
+                              top: `${slotTop}px`,
+                              width: "32px",
+                              height: `${svgHeight}px`,
+                              overflow: "visible",
+                              zIndex: 10,
+                            }}
+                          >
+                            {/* Horizontal stub from right edge of top match */}
+                            <line x1="0" y1={y1} x2={mid} y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                            {/* Horizontal stub from right edge of bottom match */}
+                            <line x1="0" y1={y2} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                            {/* Vertical bridge */}
+                            <line x1={mid} y1={y1} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                            {/* Horizontal to left edge of next Matchbox */}
+                            <line x1={mid} y1={yMid} x2="32" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                          </svg>
+                        );
+                      })}
                       
                       {roundMatches.map((match, matchIndex) => {
                         // Spacer entries: render empty div to preserve vertical alignment
