@@ -1891,8 +1891,9 @@ export const EliminationBracket = ({
                           }}
                         >
                           {isPreliminaryRound ? (
-                            // Preliminary → R1: 1-to-1 perfectly horizontal lines
-                            // x1=0 is right-edge of Matchbox (250-32=218), x2=65 is left-edge of next Matchbox
+                            // Preliminary → R1: perfectly horizontal dashed lines
+                            // SVG left=250px, width=32px, overflow=visible
+                            // x1=-1 overlaps 1px into source Matchbox, x2=33 overlaps 1px into target Matchbox
                             roundMatches.map((m, idx) => {
                               if (m.isSpacer) return null;
                               const totalSlotHeight = matchHeight + verticalGap;
@@ -1900,7 +1901,7 @@ export const EliminationBracket = ({
                               return (
                                 <g key={idx} className="animate-fade-in">
                                   <line
-                                    x1="1" y1={y} x2="64" y2={y}
+                                    x1="-1" y1={y} x2="33" y2={y}
                                     stroke="hsl(var(--primary))"
                                     strokeWidth="2"
                                     strokeDasharray="6 4"
@@ -1911,7 +1912,8 @@ export const EliminationBracket = ({
                             })
                           ) : (
                             // Standard pairs: bracket merge connectors
-                            // x=1 touches right edge of source Matchbox, x=64 touches left edge of target Matchbox
+                            // x=-1 overlaps 1px into source Matchbox, x=33 overlaps 1px into target Matchbox
+                            // vertical junction at x=16 (center of the 32px gap)
                             roundMatches.map((_, matchIndex) => {
                               if (matchIndex % 2 !== 0) return null;
                               if (matchIndex + 1 >= roundMatches.length) return null;
@@ -1921,18 +1923,18 @@ export const EliminationBracket = ({
                               const y1 = baseY + matchCenterY;
                               const y2 = baseY + totalSlotHeight + matchCenterY;
                               const yMid = (y1 + y2) / 2;
-                              const mid = 32;
+                              const mid = 16;
 
                               return (
                                 <g key={matchIndex}>
-                                  {/* Horizontal from right edge of top match */}
-                                  <line x1="1" y1={y1} x2={mid} y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
-                                  {/* Horizontal from right edge of bottom match */}
-                                  <line x1="1" y1={y2} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
-                                  {/* Vertical connector */}
+                                  {/* Horizontal from right edge of top source match */}
+                                  <line x1="-1" y1={y1} x2={mid} y2={y1} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                                  {/* Horizontal from right edge of bottom source match */}
+                                  <line x1="-1" y1={y2} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                                  {/* Vertical bridge */}
                                   <line x1={mid} y1={y1} x2={mid} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
-                                  {/* Horizontal to left edge of next round Matchbox */}
-                                  <line x1={mid} y1={yMid} x2="64" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
+                                  {/* Horizontal to left edge of target Matchbox */}
+                                  <line x1={mid} y1={yMid} x2="33" y2={yMid} stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.7" />
                                 </g>
                               );
                             })
