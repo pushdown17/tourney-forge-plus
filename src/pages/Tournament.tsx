@@ -154,15 +154,24 @@ const Tournament = () => {
     setUpdatingStatus(true);
     setCloseDialogOpen(false);
     try {
+      const isReopening = tournament.is_closed;
+      const updatePayload: Record<string, any> = { is_closed: !tournament.is_closed };
+
+      // When manually reopening, set is_manually_closed = true so auto-close won't re-close it
+      if (isReopening) {
+        updatePayload.is_manually_closed = true;
+        updatePayload.auto_closed_at = null;
+      }
+
       const { error } = await supabase
         .from("tournaments")
-        .update({ is_closed: !tournament.is_closed })
+        .update(updatePayload)
         .eq("id", id);
 
       if (error) throw error;
       
       toast.success(
-        tournament.is_closed 
+        isReopening 
           ? "Tournament reopened successfully" 
           : "Tournament closed successfully"
       );
