@@ -609,6 +609,7 @@ export type Database = {
       }
       tournaments: {
         Row: {
+          auto_closed_at: string | null
           created_at: string
           created_by: string
           current_phase: Database["public"]["Enums"]["tournament_phase"]
@@ -619,6 +620,7 @@ export type Database = {
           id: string
           initial_phase: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed: boolean
+          is_manually_closed: boolean
           name: string
           number_of_fields: number | null
           number_of_groups: number | null
@@ -627,6 +629,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_closed_at?: string | null
           created_at?: string
           created_by: string
           current_phase?: Database["public"]["Enums"]["tournament_phase"]
@@ -637,6 +640,7 @@ export type Database = {
           id?: string
           initial_phase?: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed?: boolean
+          is_manually_closed?: boolean
           name: string
           number_of_fields?: number | null
           number_of_groups?: number | null
@@ -645,6 +649,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_closed_at?: string | null
           created_at?: string
           created_by?: string
           current_phase?: Database["public"]["Enums"]["tournament_phase"]
@@ -655,6 +660,7 @@ export type Database = {
           id?: string
           initial_phase?: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed?: boolean
+          is_manually_closed?: boolean
           name?: string
           number_of_fields?: number | null
           number_of_groups?: number | null
