@@ -286,7 +286,15 @@ const Tournament = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72">
-                       <div className="space-y-4">
+                     <div className="space-y-4">
+                         {tournament.auto_closed_at && (
+                           <div className="flex items-start gap-2 rounded-md border border-muted bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                             <Lock className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-500" />
+                             <span>
+                               Ce tournoi a été clôturé automatiquement après 2 jours d'inactivité.
+                             </span>
+                           </div>
+                         )}
                          <Button
                            variant="destructive"
                            size="sm"
