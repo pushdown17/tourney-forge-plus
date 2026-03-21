@@ -183,13 +183,31 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'matches',
           filter: `tournament_id=eq.${tournamentId}`
         },
         (payload) => {
-          console.log('Match update received:', payload);
+          const updated = payload.new as any;
+          // Instant local update — no network re-fetch needed for score changes
+          setMatches(prev => prev.map(m =>
+            m.id === updated.id
+              ? { ...m, team1_score: updated.team1_score, team2_score: updated.team2_score, winner_id: updated.winner_id }
+              : m
+          ));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'matches',
+          filter: `tournament_id=eq.${tournamentId}`
+        },
+        () => {
+          // New match added (e.g. next round) — full refresh needed
           fetchMatches();
         }
       )
