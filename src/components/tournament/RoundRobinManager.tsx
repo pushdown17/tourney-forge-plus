@@ -1259,11 +1259,12 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <div className="flex-1 flex flex-col min-w-0 text-right">
+          <div className="flex items-center gap-2">
+            {/* Team 1 — left-aligned */}
+            <div className="flex-1 flex flex-col min-w-0">
               <button
                 onClick={() => onTeamClick?.(match.team1?.name)}
-                className={`font-medium text-sm sm:text-base truncate text-right hover:text-primary hover:underline transition-colors cursor-pointer ${
+                className={`font-medium text-sm truncate text-left hover:text-primary hover:underline transition-colors cursor-pointer ${
                   match.team1?.name === selectedTeam ? "text-primary font-bold underline" : ""
                 }`}
               >
@@ -1275,22 +1276,24 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="font-bold text-lg sm:text-xl w-6 text-center">{team1Score}</span>
+            {/* Score — fixed width, always centered */}
+            <div className="shrink-0 w-20 flex items-center justify-center gap-1.5 px-3 py-2 bg-background rounded-lg">
+              <span className="font-bold text-xl tabular-nums">{team1Score}</span>
               <span className="text-muted-foreground text-sm">-</span>
-              <span className="font-bold text-lg sm:text-xl w-6 text-center">{team2Score}</span>
+              <span className="font-bold text-xl tabular-nums">{team2Score}</span>
             </div>
-            <div className="flex-1 flex flex-col min-w-0">
+            {/* Team 2 — right-aligned */}
+            <div className="flex-1 flex flex-col min-w-0 items-end">
               <button
                 onClick={() => onTeamClick?.(match.team2?.name)}
-                className={`font-medium text-sm sm:text-base truncate text-left hover:text-primary hover:underline transition-colors cursor-pointer ${
+                className={`font-medium text-sm truncate text-right hover:text-primary hover:underline transition-colors cursor-pointer ${
                   match.team2?.name === selectedTeam ? "text-primary font-bold underline" : ""
                 }`}
               >
                 {match.team2?.name || "Team 2"}
               </button>
               {team2Players.length > 0 && (
-                <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">
+                <span className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate text-right">
                   {team2Players.map(p => p.name).join(", ")}
                 </span>
               )}
@@ -1890,39 +1893,46 @@ const CompletedRRMatchCard = ({ match, highlighted, selectedTeam, onTeamClick, o
             : "bg-muted/30"
       }`}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1">
-          <div className="flex flex-col">
+      <div className="flex items-center gap-2">
+        {/* Team 1 — left-aligned, fills remaining space */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <button
+            onClick={() => onTeamClick(match.team1?.name)}
+            className={`font-medium text-sm truncate text-left hover:text-primary hover:underline transition-colors cursor-pointer ${
+              match.team1?.name === selectedTeam ? "text-primary font-bold underline" : ""
+            } ${match.winner_id === match.team1_id ? 'text-primary font-bold' : ''}`}
+          >
+            {match.team1?.name}
+          </button>
+          {team1Players.length > 0 && (
+            <span className="text-[9px] text-muted-foreground leading-tight truncate">
+              {team1Players.join(", ")}
+            </span>
+          )}
+        </div>
+
+        {/* Score badge — fixed width, always centered */}
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <PopoverTrigger asChild>
             <button
-              onClick={() => onTeamClick(match.team1?.name)}
-              className={`font-medium hover:text-primary hover:underline transition-colors cursor-pointer text-left ${
-                match.team1?.name === selectedTeam ? "text-primary font-bold underline" : ""
-              } ${match.winner_id === match.team1_id ? 'text-primary font-bold' : ''}`}
+              onClick={handleScoreClick}
+              className={`shrink-0 w-20 flex items-center justify-center gap-1.5 px-3 py-2 bg-background rounded-lg transition-colors ${
+                isCreator && !isClosed
+                  ? 'hover:bg-primary hover:text-primary-foreground cursor-pointer'
+                  : 'cursor-default'
+              }`}
+              title={isCreator ? "Gérer le score" : "Match terminé"}
             >
-              {match.team1?.name}
-            </button>
-            {team1Players.length > 0 && (
-              <span className="text-[9px] text-muted-foreground leading-tight truncate">
-                {team1Players.join(", ")}
+              <span className={`text-xl font-bold tabular-nums ${match.winner_id === match.team1_id ? 'text-primary' : ''}`}>
+                {match.team1_score}
               </span>
-            )}
-          </div>
-          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-            <PopoverTrigger asChild>
-              <button
-                onClick={handleScoreClick}
-                className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
-                title="View match details"
-              >
-                <span className={`text-xl font-bold ${match.winner_id === match.team1_id ? 'text-primary' : ''}`}>
-                  {match.team1_score}
-                </span>
-                <span className="text-muted-foreground">-</span>
-                <span className={`text-xl font-bold ${match.winner_id === match.team2_id ? 'text-primary' : ''}`}>
-                  {match.team2_score}
-                </span>
-              </button>
-            </PopoverTrigger>
+              <span className="text-muted-foreground text-sm">-</span>
+              <span className={`text-xl font-bold tabular-nums ${match.winner_id === match.team2_id ? 'text-primary' : ''}`}>
+                {match.team2_score}
+              </span>
+            </button>
+          </PopoverTrigger>
+          {isCreator && !isClosed && (
             <PopoverContent className="w-48 p-2">
               <div className="flex flex-col gap-1">
                 <Button
@@ -1951,22 +1961,24 @@ const CompletedRRMatchCard = ({ match, highlighted, selectedTeam, onTeamClick, o
                 </Button>
               </div>
             </PopoverContent>
-          </Popover>
-          <div className="flex flex-col">
-            <button
-              onClick={() => onTeamClick(match.team2?.name)}
-              className={`font-medium hover:text-primary hover:underline transition-colors cursor-pointer text-left ${
-                match.team2?.name === selectedTeam ? "text-primary font-bold underline" : ""
-              } ${match.winner_id === match.team2_id ? 'text-primary font-bold' : ''}`}
-            >
-              {match.team2?.name}
-            </button>
-            {team2Players.length > 0 && (
-              <span className="text-[9px] text-muted-foreground leading-tight truncate">
-                {team2Players.join(", ")}
-              </span>
-            )}
-          </div>
+          )}
+        </Popover>
+
+        {/* Team 2 — right-aligned, fills remaining space */}
+        <div className="flex-1 flex flex-col min-w-0 items-end">
+          <button
+            onClick={() => onTeamClick(match.team2?.name)}
+            className={`font-medium text-sm truncate text-right hover:text-primary hover:underline transition-colors cursor-pointer ${
+              match.team2?.name === selectedTeam ? "text-primary font-bold underline" : ""
+            } ${match.winner_id === match.team2_id ? 'text-primary font-bold' : ''}`}
+          >
+            {match.team2?.name}
+          </button>
+          {team2Players.length > 0 && (
+            <span className="text-[9px] text-muted-foreground leading-tight truncate text-right">
+              {team2Players.join(", ")}
+            </span>
+          )}
         </div>
       </div>
     </Card>
