@@ -29,6 +29,9 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchTeams();
