@@ -76,6 +76,44 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
     }
   };
 
+  const startEditing = (team: any) => {
+    setEditingTeamId(team.id);
+    setEditingName(team.name);
+    setTimeout(() => editInputRef.current?.focus(), 50);
+  };
+
+  const cancelEditing = () => {
+    setEditingTeamId(null);
+    setEditingName("");
+  };
+
+  const handleRenameTeam = async (teamId: string) => {
+    const trimmed = editingName.trim();
+    if (!trimmed) return;
+
+    // Optimistic update
+    setTeams(prev => prev.map(t => t.id === teamId ? { ...t, name: trimmed } : t));
+    setEditingTeamId(null);
+
+    const { error } = await supabase
+      .from("teams")
+      .update({ name: trimmed })
+      .eq("id", teamId);
+
+    if (error) {
+      toast.error("Erreur lors du renommage");
+      // Revert on error
+      fetchTeams();
+    } else {
+      toast.success("Équipe renommée avec succès !");
+    }
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent, teamId: string) => {
+    if (e.key === "Enter") handleRenameTeam(teamId);
+    if (e.key === "Escape") cancelEditing();
+  };
+
   const handleAddTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!teamName.trim()) return;
