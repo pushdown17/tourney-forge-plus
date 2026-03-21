@@ -377,14 +377,42 @@ export const TeamsManager = ({ tournamentId, isClosed = false, isCreator = false
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {teams.map((team) => {
               const players = teamPlayers[team.tournament_team_id] || [];
+              const isEditing = editingTeamId === team.id;
               return (
                 <div key={team.id} className="flex flex-col p-3 md:p-4 bg-secondary/20 rounded-lg gap-2">
-                  <div className="flex items-center justify-between min-h-[32px]">
-                    <span className="font-medium text-sm md:text-base">{team.name}</span>
-                    {isCreator && (
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteTeam(team.tournament_team_id)} className="h-10 w-10 p-0" disabled={isClosed}>
-                        <Trash2 className="h-5 w-5 text-destructive" />
-                      </Button>
+                  <div className="flex items-center justify-between min-h-[32px] gap-2">
+                    {isEditing ? (
+                      <div className="flex items-center gap-1 flex-1">
+                        <Input
+                          ref={editInputRef}
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => handleRenameKeyDown(e, team.id)}
+                          className="h-8 text-sm flex-1"
+                        />
+                        <Button variant="ghost" size="sm" onClick={() => handleRenameTeam(team.id)} className="h-8 w-8 p-0 text-primary hover:text-primary">
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={cancelEditing} className="h-8 w-8 p-0 text-muted-foreground">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="font-medium text-sm md:text-base truncate">{team.name}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {isCreator && !isClosed && (
+                            <Button variant="ghost" size="sm" onClick={() => startEditing(team)} className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {isCreator && (
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteTeam(team.tournament_team_id)} className="h-8 w-8 p-0" disabled={isClosed}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
                   {showPlayers && players.length > 0 && (
