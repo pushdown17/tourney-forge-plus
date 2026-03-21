@@ -309,8 +309,12 @@ const RefereeStation = () => {
     if (!station?.tournament_id) return;
 
     // Create and subscribe to the broadcast channel
+    // self: true ensures the sender also receives its own broadcasts (useful for debugging)
+    // ack: false gives fire-and-forget behaviour with lower latency
     const channel = supabase
-      .channel(`tournament-live-${station.tournament_id}`)
+      .channel(`tournament-live-${station.tournament_id}`, {
+        config: { broadcast: { self: false, ack: false } }
+      })
       .subscribe((status) => {
         console.log('Broadcast channel status:', status);
       });
