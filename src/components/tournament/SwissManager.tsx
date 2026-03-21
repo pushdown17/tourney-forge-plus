@@ -228,13 +228,6 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
               ? { ...m, team1_score: updated.team1_score, team2_score: updated.team2_score, winner_id: updated.winner_id }
               : m
           ));
-          if (hasGroups) {
-            setUltimateMatches(prev => prev.map(m =>
-              m.id === updated.id
-                ? { ...m, team1_score: updated.team1_score, team2_score: updated.team2_score, winner_id: updated.winner_id }
-                : m
-            ));
-          }
         }
       )
       .on(
@@ -247,7 +240,6 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
         },
         () => {
           fetchMatches();
-          if (hasGroups) fetchUltimateMatches();
         }
       )
       .subscribe();
