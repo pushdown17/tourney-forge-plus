@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -175,6 +176,12 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     fetchMatches();
     fetchActiveStationMatches();
   }, [tournamentId]);
+
+  // Re-sync scores & timers when user returns from background/sleep
+  usePageVisibility(useCallback(() => {
+    fetchMatches();
+    fetchActiveStationMatches();
+  }, [tournamentId]));
 
   // Real-time subscription for match updates
   useEffect(() => {

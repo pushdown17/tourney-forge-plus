@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -207,6 +208,14 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
       fetchActiveStationMatches();
     }
   }, [tournamentId, currentRound, initialized]);
+
+  // Re-sync scores & timers when user returns from background/sleep
+  usePageVisibility(useCallback(() => {
+    if (initialized) {
+      fetchMatches();
+      fetchActiveStationMatches();
+    }
+  }, [tournamentId, currentRound, initialized]));
 
   // Real-time subscription for match updates
   useEffect(() => {

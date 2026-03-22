@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BracketMatch } from "./BracketMatch";
@@ -167,6 +168,12 @@ export const EliminationBracket = ({
     fetchTournamentAndMatches(true);
     fetchActiveTimers();
   }, [tournamentId]);
+
+  // Re-sync when the user returns from background/sleep
+  usePageVisibility(useCallback(() => {
+    fetchTournamentAndMatches(false);
+    fetchActiveTimers();
+  }, [tournamentId]));
 
   // Reset bracket when triggered from parent (settings gear)
   useEffect(() => {

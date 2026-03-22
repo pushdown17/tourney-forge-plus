@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
+import { syncServerTimeOffset } from "@/lib/serverTime";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -300,6 +302,14 @@ const RefereeStation = () => {
       supabase.removeChannel(channel);
     };
   }, [stationId, user, fetchStation]);
+
+  // Re-sync station & timer when user returns from background/sleep
+  usePageVisibility(useCallback(async () => {
+    // Re-calibrate server clock offset (critical for timer accuracy after sleep)
+    await syncServerTimeOffset();
+    // Then re-fetch station so timer props & match state are fresh
+    fetchStation();
+  }, [fetchStation]));
 
   // Persistent broadcast channel reference
   const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);

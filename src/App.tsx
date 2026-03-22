@@ -16,7 +16,14 @@ import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
 import { syncServerTimeOffset } from "@/lib/serverTime";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: true,
+      staleTime: 30_000,
+    },
+  },
+});
 
 const App = () => {
   useEffect(() => {
