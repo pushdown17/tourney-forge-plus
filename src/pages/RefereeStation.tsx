@@ -303,6 +303,14 @@ const RefereeStation = () => {
     };
   }, [stationId, user, fetchStation]);
 
+  // Re-sync station & timer when user returns from background/sleep
+  usePageVisibility(useCallback(async () => {
+    // Re-calibrate server clock offset (critical for timer accuracy after sleep)
+    await syncServerTimeOffset();
+    // Then re-fetch station so timer props & match state are fresh
+    fetchStation();
+  }, [fetchStation]));
+
   // Persistent broadcast channel reference
   const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
