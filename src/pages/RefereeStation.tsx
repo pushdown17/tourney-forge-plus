@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
+import { syncServerTimeOffset } from "@/lib/serverTime";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";

@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BracketMatch } from "./BracketMatch";
