@@ -293,10 +293,17 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase 
                 </div>
               </TableCell>
               <TableCell className="font-bold">
-                <div className="flex items-center gap-2">
-                  {stat.team?.name}
-                  {showGroupColumn && ultimateResult === "pending" && (
-                    <Badge variant="outline" className="text-xs">Provisional</Badge>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    {stat.team?.name}
+                    {showGroupColumn && ultimateResult === "pending" && (
+                      <Badge variant="outline" className="text-xs">Provisional</Badge>
+                    )}
+                  </div>
+                  {teamPlayersMap.get(stat.team_id)?.length > 0 && (
+                    <div className="text-xs text-muted-foreground font-normal leading-tight">
+                      {teamPlayersMap.get(stat.team_id)?.join(", ")}
+                    </div>
                   )}
                 </div>
               </TableCell>
