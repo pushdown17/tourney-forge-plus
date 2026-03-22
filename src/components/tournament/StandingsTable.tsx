@@ -20,6 +20,7 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase 
   const [ultimateMatches, setUltimateMatches] = useState<any[]>([]);
   const previousPositions = useRef<Map<string, number>>(new Map());
   const [positionChanges, setPositionChanges] = useState<Map<string, number>>(new Map());
+  const [teamPlayersMap, setTeamPlayersMap] = useState<Map<string, string[]>>(new Map());
 
   const hasGroups = numberOfGroups > 1;
 
