@@ -169,6 +169,12 @@ export const EliminationBracket = ({
     fetchActiveTimers();
   }, [tournamentId]);
 
+  // Re-sync when the user returns from background/sleep
+  usePageVisibility(useCallback(() => {
+    fetchTournamentAndMatches(false);
+    fetchActiveTimers();
+  }, [tournamentId]));
+
   // Reset bracket when triggered from parent (settings gear)
   useEffect(() => {
     if (resetTrigger > 0 && resetTrigger !== prevResetTrigger.current) {
