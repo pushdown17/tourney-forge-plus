@@ -20,8 +20,38 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase 
   const [ultimateMatches, setUltimateMatches] = useState<any[]>([]);
   const previousPositions = useRef<Map<string, number>>(new Map());
   const [positionChanges, setPositionChanges] = useState<Map<string, number>>(new Map());
+  const [teamPlayersMap, setTeamPlayersMap] = useState<Map<string, string[]>>(new Map());
 
   const hasGroups = numberOfGroups > 1;
+
+  // Fetch players for each team in the tournament
+  useEffect(() => {
+    const fetchTeamPlayers = async () => {
+      const { data: ttData } = await supabase
+        .from("tournament_teams")
+        .select("id, team_id")
+        .eq("tournament_id", tournamentId);
+
+      if (!ttData || ttData.length === 0) return;
+
+      const ttIds = ttData.map(tt => tt.id);
+      const { data: ttpData } = await supabase
+        .from("tournament_team_players")
+        .select("tournament_team_id, player_id, players(name)")
+        .in("tournament_team_id", ttIds);
+
+      const map = new Map<string, string[]>();
+      ttData.forEach(tt => {
+        const players = (ttpData || [])
+          .filter(p => p.tournament_team_id === tt.id)
+          .map(p => (p.players as any)?.name)
+          .filter(Boolean);
+        map.set(tt.team_id, players);
+      });
+      setTeamPlayersMap(map);
+    };
+    fetchTeamPlayers();
+  }, [tournamentId]);
 
   // Fetch team group assignments
   useEffect(() => {
@@ -263,10 +293,17 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase 
                 </div>
               </TableCell>
               <TableCell className="font-bold">
-                <div className="flex items-center gap-2">
-                  {stat.team?.name}
-                  {showGroupColumn && ultimateResult === "pending" && (
-                    <Badge variant="outline" className="text-xs">Provisional</Badge>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    {stat.team?.name}
+                    {showGroupColumn && ultimateResult === "pending" && (
+                      <Badge variant="outline" className="text-xs">Provisional</Badge>
+                    )}
+                  </div>
+                  {teamPlayersMap.get(stat.team_id)?.length > 0 && (
+                    <div className="text-xs text-muted-foreground font-normal leading-tight">
+                      {teamPlayersMap.get(stat.team_id)?.join(", ")}
+                    </div>
                   )}
                 </div>
               </TableCell>
