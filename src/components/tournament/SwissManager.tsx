@@ -209,6 +209,14 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
     }
   }, [tournamentId, currentRound, initialized]);
 
+  // Re-sync scores & timers when user returns from background/sleep
+  usePageVisibility(useCallback(() => {
+    if (initialized) {
+      fetchMatches();
+      fetchActiveStationMatches();
+    }
+  }, [tournamentId, currentRound, initialized]));
+
   // Real-time subscription for match updates
   useEffect(() => {
     const matchChannel = supabase

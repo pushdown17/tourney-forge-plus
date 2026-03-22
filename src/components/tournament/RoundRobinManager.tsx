@@ -177,6 +177,12 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     fetchActiveStationMatches();
   }, [tournamentId]);
 
+  // Re-sync scores & timers when user returns from background/sleep
+  usePageVisibility(useCallback(() => {
+    fetchMatches();
+    fetchActiveStationMatches();
+  }, [tournamentId]));
+
   // Real-time subscription for match updates
   useEffect(() => {
     const matchChannel = supabase
