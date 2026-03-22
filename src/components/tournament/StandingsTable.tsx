@@ -24,6 +24,35 @@ export const StandingsTable = ({ tournamentId, numberOfGroups = 1, initialPhase 
 
   const hasGroups = numberOfGroups > 1;
 
+  // Fetch players for each team in the tournament
+  useEffect(() => {
+    const fetchTeamPlayers = async () => {
+      const { data: ttData } = await supabase
+        .from("tournament_teams")
+        .select("id, team_id")
+        .eq("tournament_id", tournamentId);
+
+      if (!ttData || ttData.length === 0) return;
+
+      const ttIds = ttData.map(tt => tt.id);
+      const { data: ttpData } = await supabase
+        .from("tournament_team_players")
+        .select("tournament_team_id, player_id, players(name)")
+        .in("tournament_team_id", ttIds);
+
+      const map = new Map<string, string[]>();
+      ttData.forEach(tt => {
+        const players = (ttpData || [])
+          .filter(p => p.tournament_team_id === tt.id)
+          .map(p => (p.players as any)?.name)
+          .filter(Boolean);
+        map.set(tt.team_id, players);
+      });
+      setTeamPlayersMap(map);
+    };
+    fetchTeamPlayers();
+  }, [tournamentId]);
+
   // Fetch team group assignments
   useEffect(() => {
     if (!hasGroups) return;
