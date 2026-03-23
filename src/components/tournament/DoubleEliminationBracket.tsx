@@ -770,7 +770,7 @@ export const DoubleEliminationBracket = ({
 
       const directSeed = s1;       // top seed → direct BYE to QF
       const contestedSeed = s2;    // bottom seed → contested via play-in
-      const extraSeed = contestedToExtra.get(contestedSeed);
+      const extraSeed = getExtraSeed(contestedSeed);
 
       const directTeam = standings[directSeed - 1];
       const contestedTeam = standings[contestedSeed - 1];
