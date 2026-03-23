@@ -189,7 +189,7 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
             Referee Stations
           </h3>
           <p className="text-sm text-muted-foreground">
-            Manage referee devices for each field
+            Manage referee devices for each court
           </p>
         </div>
         
