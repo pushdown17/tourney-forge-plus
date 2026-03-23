@@ -774,7 +774,7 @@ export const DoubleEliminationBracket = ({
 
       const directTeam = standings[directSeed - 1];
       const contestedTeam = standings[contestedSeed - 1];
-      const extraTeam = extraSeed !== undefined ? standings[extraSeed - 1] : undefined;
+      const extraTeam = extraSeed <= teamsCount ? standings[extraSeed - 1] : undefined;
 
       if (!directTeam) {
         console.warn(`[generateBracketHybrid] Missing direct team for seed #${directSeed}`);
