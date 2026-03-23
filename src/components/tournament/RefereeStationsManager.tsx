@@ -161,6 +161,17 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
     window.open(url, '_blank');
   };
 
+  const copyOverlayLink = (stationId: string) => {
+    const url = `${window.location.origin}/overlay/${stationId}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Overlay URL copied! Paste it in OBS as a Browser Source.");
+  };
+
+  const openOverlay = (stationId: string) => {
+    const url = `${window.location.origin}/overlay/${stationId}`;
+    window.open(url, '_blank');
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center p-8">
