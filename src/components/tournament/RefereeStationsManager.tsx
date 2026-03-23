@@ -189,7 +189,7 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
             Referee Stations
           </h3>
           <p className="text-sm text-muted-foreground">
-            Manage referee devices for each field
+            Manage referee devices for each court
           </p>
         </div>
         
@@ -205,7 +205,7 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
               <DialogHeader>
                 <DialogTitle>Add Referee Station</DialogTitle>
                 <DialogDescription>
-                  Create a new referee station for a field.
+                  Create a new referee station for a court.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">
@@ -235,7 +235,7 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
         <div className="text-center py-8 text-muted-foreground">
           <Monitor className="h-12 w-12 mx-auto mb-3 opacity-50" />
           <p>No referee stations yet</p>
-          {isCreator && <p className="text-sm">Create stations for each field</p>}
+          {isCreator && <p className="text-sm">Create stations for each court</p>}
         </div>
       ) : (
         <div className="space-y-3">
