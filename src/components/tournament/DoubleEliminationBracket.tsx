@@ -1492,17 +1492,17 @@ export const DoubleEliminationBracket = ({
   };
 
   // Generate expected number of matches per round for a full bracket structure
-  // For BYE brackets (e.g. 12 teams in 16-slot bracket):
-  //   - R1: only play-in matches shown (playInCount/2)
-  //   - R2+: full bracketSize-based slots
+  // For 12 teams (bracketSize=8, playInCount=4):
+  //   - R1: 4 play-in matches (ALL bracketSize/2 slots are contested)
+  //   - R2+: full bracketSize-based slots (4 QF, 2 SF, 1 Final)
   const getExpectedMatchCounts = (isLosers: boolean): { round: number; count: number }[] => {
     const rounds: { round: number; count: number }[] = [];
     if (!isLosers) {
       for (let r = 1; r <= winnersRoundsCount; r++) {
         let count = Math.pow(2, winnersRoundsCount - r);
         if (r === 1 && playInCount > 0) {
-          // Only real R1 matches: the play-in matches (playInCount/2)
-          count = playInCount / 2;
+          // R1 = all bracket/2 play-in matches (every QF slot is contested via play-in)
+          count = bracketSize / 2;
         }
         if (count > 0) rounds.push({ round: r, count });
       }
@@ -1522,13 +1522,12 @@ export const DoubleEliminationBracket = ({
 
   /**
    * Returns a map of slotIndex → { team1, team2 } for pending (not-yet-created) match slots.
-   * For BYE brackets: R2 pending slots show the known BYE seed directly alongside TBD opponent.
+   * For all play-in hybrid brackets: ALL R2 QF slots show the known BYE seed + TBD opponent.
    */
   const getPendingTeamsForRound = (isLosers: boolean, round: number): Map<number, { team1: { name: string; teamId: string; isBye?: boolean } | null; team2: { name: string; teamId: string; isBye?: boolean } | null }> => {
     const pending = new Map<number, { team1: { name: string; teamId: string; isBye?: boolean } | null; team2: { name: string; teamId: string; isBye?: boolean } | null }>();
     const allW = winnersMatches.sort(sortFnField);
     const allL = losersMatches.sort(sortFnField);
-    const byeCount = bracketSize - totalTeams;
 
     const teamFromMatch = (m: Match, role: 'winner' | 'loser'): { name: string; teamId: string } | null => {
       if (!m.winner_id) return null;
@@ -1551,54 +1550,33 @@ export const DoubleEliminationBracket = ({
       const currentRoundMatches = allW.filter(m => m.round_number === round).sort(sortFnField);
 
       if (round === 1) {
-        // R1 with BYE brackets: no pending slots (BYE slots are hidden, only real matches shown)
+        // R1 play-in column: all real matches are shown, no pending placeholders needed
         return pending;
       }
 
       if (round === 2 && playInCount > 0) {
-        // R2 with play-ins: show pending slots for each bracketSize/2 R2 slot.
-        // Direct teams (seeds 1..bracketSize-playInSlotsCount) are known; play-in slots show "TBD".
-        const playInSlotsCount = playInCount / 2;
-        const playInThreshold = bracketSize - playInSlotsCount;
+        // R2 QF with play-ins: ALL slots are play-in slots.
+        // Direct seed (s1=top) is known; bottom (s2=contested) is TBD until prelim completes.
         const r1Matches = allW.filter(m => m.round_number === 1).sort(sortFnField);
         const fullPairs = getStandardSeedingPairs(bracketSize);
 
-        // Identify which pair slots are play-in slots (contested seed > playInThreshold)
-        const slotIsPlayIn = fullPairs.map(([s1, s2]) =>
-          s1 > playInThreshold || s2 > playInThreshold
-        );
-
-        // For play-in slots: the direct seed (the one ≤ playInThreshold) is known
-        const playInSlotToDirectTeam = new Map<number, { name: string; teamId: string }>();
-        fullPairs.forEach(([s1, s2], pairIdx) => {
-          if (!slotIsPlayIn[pairIdx]) return;
-          const directSeed = s1 <= playInThreshold ? s1 : s2;
-          const team = standingsTeams[directSeed - 1];
-          if (team) playInSlotToDirectTeam.set(pairIdx, team);
-        });
-
-        // Map R1 play-in matches to their pair slots (sorted by field_number)
-        const playInSlotIndices: number[] = [];
-        fullPairs.forEach(([s1, s2], pairIdx) => {
-          if (slotIsPlayIn[pairIdx]) playInSlotIndices.push(pairIdx);
-        });
-        const pairSlotToR1Match = new Map<number, Match>();
-        playInSlotIndices.forEach((pairSlotIdx, k) => {
-          if (r1Matches[k]) pairSlotToR1Match.set(pairSlotIdx, r1Matches[k]);
-        });
+        // Build map from R1 match field_number → Match (for prelim winner lookup)
+        const r1ByFieldNum = new Map<number, Match>();
+        r1Matches.forEach(m => r1ByFieldNum.set(m.field_number ?? 1, m));
 
         for (let pairIdx = 0; pairIdx < fullPairs.length; pairIdx++) {
-          if (currentRoundMatches.find(m => m.field_number === pairIdx + 1)) continue;
+          const fieldNum = pairIdx + 1;
+          // Skip if real R2 match already exists for this slot
+          if (currentRoundMatches.find(m => m.field_number === fieldNum)) continue;
 
-          const directTeam = playInSlotToDirectTeam.get(pairIdx);
-          const r1M = pairSlotToR1Match.get(pairIdx);
+          const [s1] = fullPairs[pairIdx]; // s1 = direct/top seed
+          const directTeamData = standingsTeams[s1 - 1];
+          const r1M = r1ByFieldNum.get(fieldNum);
           const playInWinner = r1M ? teamFromMatch(r1M, 'winner') : null;
 
-          if (slotIsPlayIn[pairIdx]) {
-            const t1 = directTeam ? { ...directTeam, isBye: true } : null;
-            const t2 = playInWinner;
-            if (t1 || t2) pending.set(pairIdx, { team1: t1, team2: t2 });
-          }
+          const t1 = directTeamData ? { name: directTeamData.name, teamId: directTeamData.teamId, isBye: true } : null;
+          const t2 = playInWinner;
+          if (t1 || t2) pending.set(pairIdx, { team1: t1, team2: t2 });
         }
         return pending;
       }
