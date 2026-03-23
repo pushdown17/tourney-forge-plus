@@ -808,6 +808,13 @@ export const DoubleEliminationBracket = ({
   const generateBracket = async (teamsCount: number) => {
     setGenerating(true);
     try {
+      // Refresh auth session before any DB write to avoid RLS 42501 errors
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        toast.error("Session expirée, veuillez vous reconnecter");
+        return;
+      }
+
       const bracketSz = getBracketSize(teamsCount);
       const playInCount = getPlayInCount(teamsCount);
 
