@@ -408,7 +408,7 @@ export const RefereesTab = ({
         {/* Sub-header */}
         <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
           {oppositeGroup && (
-            <span>Arbitré par : <span className="font-medium text-foreground">{oppositeGroup}</span></span>
+            <span>Refereed by: <span className="font-medium text-foreground">{oppositeGroup}</span></span>
           )}
           <span>{groupMatches.filter(m => m.referee_status === "present").length}/{groupMatches.length} présents</span>
         </div>
