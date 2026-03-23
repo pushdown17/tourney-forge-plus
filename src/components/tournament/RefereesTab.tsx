@@ -496,8 +496,8 @@ export const RefereesTab = ({
                               }`}
                             >
                               {match.referee_status === "present"
-                                ? <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
-                                : <><Clock className="h-3 w-3 mr-1" />En attente</>}
+                                ? <><CheckCircle className="h-3 w-3 mr-1" />Present</>
+                                : <><Clock className="h-3 w-3 mr-1" />Pending</>}
                             </Badge>
                           </button>
                         )}
