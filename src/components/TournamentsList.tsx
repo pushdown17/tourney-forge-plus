@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Trophy, MapPin, Zap, Clock, Archive } from "lucide-react";
+import { Calendar, Trophy, MapPin, Zap, Clock, Archive, User } from "lucide-react";
 
 export const TournamentsList = () => {
   const [tournaments, setTournaments] = useState<any[]>([]);
@@ -18,16 +18,32 @@ export const TournamentsList = () => {
     try {
       const { data, error } = await supabase
         .from("tournaments")
-        .select("*")
+        .select("*, organizer:profiles!inner(first_name, last_name, nickname, user_id)")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setTournaments(data || []);
+      if (error) {
+        // Fallback without join if RLS or relation issue
+        const { data: fallback } = await supabase
+          .from("tournaments")
+          .select("*")
+          .order("created_at", { ascending: false });
+        setTournaments(fallback || []);
+      } else {
+        setTournaments(data || []);
+      }
     } catch (error) {
       console.error("Error fetching tournaments:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getOrganizerName = (tournament: any) => {
+    const p = tournament.organizer;
+    if (!p) return null;
+    if (p.nickname) return p.nickname;
+    if (p.first_name || p.last_name) return [p.first_name, p.last_name].filter(Boolean).join(" ");
+    return null;
   };
 
   const getPhaseLabel = (phase: string) => {
@@ -90,6 +106,7 @@ export const TournamentsList = () => {
           badgeLabel="In Progress"
           getPhaseLabel={getPhaseLabel}
           formatDate={formatDate}
+          getOrganizerName={getOrganizerName}
           initialLimit={6}
         />
       )}
@@ -103,6 +120,7 @@ export const TournamentsList = () => {
           badgeLabel="Upcoming"
           getPhaseLabel={getPhaseLabel}
           formatDate={formatDate}
+          getOrganizerName={getOrganizerName}
           initialLimit={6}
         />
       )}
@@ -116,6 +134,7 @@ export const TournamentsList = () => {
           badgeLabel="Completed"
           getPhaseLabel={getPhaseLabel}
           formatDate={formatDate}
+          getOrganizerName={getOrganizerName}
           initialLimit={6}
         />
       )}
@@ -131,6 +150,7 @@ const TournamentSection = ({
   badgeLabel,
   getPhaseLabel,
   formatDate,
+  getOrganizerName,
   initialLimit,
 }: {
   icon: React.ReactNode;
@@ -140,6 +160,7 @@ const TournamentSection = ({
   badgeLabel: string;
   getPhaseLabel: (phase: string) => string;
   formatDate: (date: string) => string;
+  getOrganizerName: (t: any) => string | null;
   initialLimit?: number;
 }) => {
   const [showAll, setShowAll] = useState(false);
@@ -155,62 +176,72 @@ const TournamentSection = ({
         <Badge variant={badgeVariant} className="text-sm">{tournaments.length}</Badge>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {visible.map((tournament, index) => (
-          <Link
-            key={tournament.id}
-            to={`/tournament/${tournament.id}`}
-            className={index >= (initialLimit || Infinity) ? "animate-fade-in" : ""}
-            style={index >= (initialLimit || Infinity) ? { animationDelay: `${(index - (initialLimit || 0)) * 75}ms`, animationFillMode: "backwards" } : undefined}
-          >
-            <Card className="glass-card p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-pointer h-full group">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xl font-bold truncate group-hover:text-primary transition-colors">
-                    {tournament.name}
-                  </h3>
-                </div>
-                <Badge variant={badgeVariant} className="ml-2 shrink-0">
-                  {badgeLabel}
-                </Badge>
-              </div>
-
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <Calendar className="h-4 w-4 shrink-0 text-primary/70" />
-                  <span>
-                    {formatDate(tournament.start_date)} — {formatDate(tournament.end_date)}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <Trophy className="h-4 w-4 shrink-0 text-primary/70" />
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant="outline" className="text-xs">
-                      {getPhaseLabel(tournament.initial_phase)}
-                    </Badge>
-                    {tournament.elimination_type && (
-                      <Badge variant="outline" className="text-xs">
-                        {tournament.elimination_type === "single" ? "Single" : "Double"} Elim.
-                      </Badge>
-                    )}
+        {visible.map((tournament, index) => {
+          const organizerName = getOrganizerName(tournament);
+          return (
+            <Link
+              key={tournament.id}
+              to={`/tournament/${tournament.id}`}
+              className={index >= (initialLimit || Infinity) ? "animate-fade-in" : ""}
+              style={index >= (initialLimit || Infinity) ? { animationDelay: `${(index - (initialLimit || 0)) * 75}ms`, animationFillMode: "backwards" } : undefined}
+            >
+              <Card className="glass-card p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-pointer h-full group">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-bold truncate group-hover:text-primary transition-colors">
+                      {tournament.name}
+                    </h3>
                   </div>
+                  <Badge variant={badgeVariant} className="ml-2 shrink-0">
+                    {badgeLabel}
+                  </Badge>
                 </div>
 
-                {tournament.number_of_fields && (
+                <div className="space-y-3 text-sm">
                   <div className="flex items-center gap-3 text-muted-foreground">
-                    <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
-                    <span>{tournament.number_of_fields} court{tournament.number_of_fields > 1 ? 's' : ''}</span>
+                    <Calendar className="h-4 w-4 shrink-0 text-primary/70" />
+                    <span>
+                      {formatDate(tournament.start_date)} — {formatDate(tournament.end_date)}
+                    </span>
                   </div>
-                )}
-              </div>
-            </Card>
-          </Link>
-        ))}
+
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <Trophy className="h-4 w-4 shrink-0 text-primary/70" />
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="outline" className="text-xs">
+                        {getPhaseLabel(tournament.initial_phase)}
+                      </Badge>
+                      {tournament.elimination_type && (
+                        <Badge variant="outline" className="text-xs">
+                          {tournament.elimination_type === "single" ? "Single" : "Double"} Elim.
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {tournament.number_of_fields && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
+                      <span>{tournament.number_of_fields} court{tournament.number_of_fields > 1 ? 's' : ''}</span>
+                    </div>
+                  )}
+
+                  {organizerName && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <User className="h-4 w-4 shrink-0 text-primary/70" />
+                      <span className="truncate">{organizerName}</span>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
       {hasMore && !showAll && (
         <div className="text-center mt-6">
           <Button variant="outline" onClick={() => setShowAll(true)}>
-            Voir plus ({tournaments.length - initialLimit!} restants)
+            Show more ({tournaments.length - initialLimit!} remaining)
           </Button>
         </div>
       )}
