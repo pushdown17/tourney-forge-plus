@@ -759,18 +759,10 @@ export const DoubleEliminationBracket = ({
     //       k=2: seed 7 vs seed 10
     //       k=3: seed 8 vs seed 9
 
-    // Get all bottom seeds from pairs (s2 values), sorted ascending
-    const contestedSeeds = fullPairs.map(([, s2]) => s2).sort((a, b) => a - b);
-    // Extra seeds: bracketSz+1..teamsCount
-    const extraSeeds: number[] = [];
-    for (let s = bracketSz + 1; s <= teamsCount; s++) extraSeeds.push(s);
-
-    // Build map: contestedSeed → extraSeed (mirror pairing)
-    // contestedSeeds[0] (lowest) pairs with extraSeeds[playInCount-1] (highest extra)
-    const contestedToExtra = new Map<number, number>();
-    contestedSeeds.forEach((cs, k) => {
-      contestedToExtra.set(cs, extraSeeds[playInCount - 1 - k]);
-    });
+    // For each pair [s1, s2], the extra opponent of s2 is computed by mirror:
+    // extraSeed = bracketSz + 1 + (bracketSz - s2)
+    // e.g. bracketSz=8: s2=8→9, s2=5→12, s2=7→10, s2=6→11  ✓
+    const getExtraSeed = (s2: number): number => bracketSz + 1 + (bracketSz - s2);
 
     for (let pairIdx = 0; pairIdx < fullPairs.length; pairIdx++) {
       const [s1, s2] = fullPairs[pairIdx];
