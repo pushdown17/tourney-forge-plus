@@ -539,7 +539,7 @@ export const RefereesTab = ({
                   <Card key={t.id} className="p-2 text-center">
                     <p className="text-xs font-medium truncate">{t.name}</p>
                     <p className="text-lg font-bold leading-none mt-1">{count}</p>
-                    <p className="text-[10px] text-muted-foreground">match{count > 1 ? "s" : ""}</p>
+                    <p className="text-[10px] text-muted-foreground">match{count > 1 ? "es" : ""}</p>
                   </Card>
                 );
               })}
