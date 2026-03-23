@@ -249,7 +249,7 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
                   <span className="font-bold text-primary">{station.station_number}</span>
                 </div>
                 <div>
-                  <p className="font-medium">{station.station_name} {station.station_number}</p>
+                  <p className="font-medium">{station.station_name}</p>
                   {station.current_match ? (
                     <Badge variant="default" className="text-xs">
                       {station.current_match.team1.name} vs {station.current_match.team2.name}
