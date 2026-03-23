@@ -327,132 +327,163 @@ const Overlay = () => {
         {match && (
           <motion.div
             key="scoreboard"
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: -30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
+            exit={{ opacity: 0, y: -30 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3"
-            style={{ minWidth: 560 }}
+            className="absolute top-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+            style={{ maxWidth: "90vw" }}
           >
-            {/* Tournament name + phase chip */}
-            <div className="flex items-center gap-2">
+            {/* Tournament name + phase pill */}
+            <div className="flex items-center gap-2 mb-0.5">
               {tournamentName && (
                 <span
-                  className="text-white text-sm font-semibold uppercase tracking-widest px-3 py-0.5 rounded-full"
+                  className="text-white/70 text-xs font-semibold uppercase tracking-widest px-3 py-0.5 rounded-full"
                   style={{
-                    background: "rgba(0,0,0,0.55)",
-                    textShadow: "0 2px 8px rgba(0,0,0,0.9)",
-                    backdropFilter: "blur(6px)",
+                    background: "rgba(15,23,42,0.55)",
+                    backdropFilter: "blur(8px)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    textShadow: "0 1px 4px rgba(0,0,0,0.9)",
                   }}
                 >
                   {tournamentName}
                 </span>
               )}
               <span
-                className="text-white/80 text-xs font-medium uppercase tracking-widest px-3 py-0.5 rounded-full"
+                className="text-white/50 text-xs font-medium uppercase tracking-widest px-3 py-0.5 rounded-full"
                 style={{
-                  background: "rgba(0,0,0,0.40)",
-                  textShadow: "0 2px 8px rgba(0,0,0,0.9)",
-                  backdropFilter: "blur(6px)",
+                  background: "rgba(15,23,42,0.40)",
+                  backdropFilter: "blur(8px)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  textShadow: "0 1px 4px rgba(0,0,0,0.9)",
                 }}
               >
                 {phaseLabel(match.phase, match.round_number, match.is_third_place_match)}
               </span>
             </div>
 
-            {/* Main HUD bar */}
+            {/* Main HUD bar — glassmorphism */}
             <div
-              className="flex items-stretch rounded-2xl overflow-hidden"
+              className="flex items-center rounded-2xl overflow-hidden"
               style={{
-                background: "rgba(0,0,0,0.72)",
-                backdropFilter: "blur(14px)",
-                boxShadow: "0 8px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)",
+                background: "rgba(15,23,42,0.62)",
+                backdropFilter: "blur(18px)",
+                WebkitBackdropFilter: "blur(18px)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.10)",
               }}
             >
-              {/* Team 1 */}
+              {/* Team 1 name */}
               <motion.div
-                animate={scoreFlash?.team === 1 ? { backgroundColor: ["rgba(34,197,94,0.35)", "rgba(0,0,0,0)"] } : {}}
-                transition={{ duration: 0.6 }}
-                className="flex items-center gap-4 px-6 py-4"
-                style={{ minWidth: 180 }}
+                animate={scoreFlash?.team === 1 ? { backgroundColor: ["rgba(34,197,94,0.28)", "rgba(0,0,0,0)"] } : {}}
+                transition={{ duration: 0.7 }}
+                className="flex items-center justify-end px-5 py-3"
+                style={{ width: 200 }}
               >
                 <span
-                  className="text-white font-black text-xl leading-tight text-right flex-1"
+                  className="text-white font-black text-xl leading-tight text-right"
                   style={{
-                    textShadow: "0 2px 12px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8)",
+                    textShadow: "0 2px 14px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    maxWidth: 160,
+                    maxWidth: 190,
+                    display: "block",
                   }}
                 >
                   {match.team1?.name}
                 </span>
+              </motion.div>
+
+              {/* Score block */}
+              <div
+                className="flex items-center gap-0 px-1 py-3"
+                style={{ borderLeft: "1px solid rgba(255,255,255,0.10)", borderRight: "1px solid rgba(255,255,255,0.10)" }}
+              >
+                {/* Score T1 */}
                 <motion.span
                   key={`t1-${team1Score}`}
-                  initial={{ scale: 1.4, color: "#22c55e" }}
+                  initial={{ scale: 1.5, color: "#22c55e" }}
                   animate={{ scale: 1, color: "#ffffff" }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  className="font-black text-4xl tabular-nums"
-                  style={{ textShadow: "0 2px 16px rgba(0,0,0,1)" }}
+                  transition={{ type: "spring", stiffness: 320, damping: 18 }}
+                  className="font-black text-5xl tabular-nums w-14 text-center"
+                  style={{ textShadow: "0 2px 18px rgba(0,0,0,1)" }}
                 >
                   {team1Score}
                 </motion.span>
-              </motion.div>
 
-              {/* Center divider + Timer */}
-              <div
-                className="flex flex-col items-center justify-center px-4 py-2 gap-1"
-                style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", borderRight: "1px solid rgba(255,255,255,0.1)", minWidth: 90 }}
-              >
-                <span className="text-white/30 font-bold text-lg">VS</span>
-                {hasTimer && (
-                  <motion.span
-                    animate={timerEnded ? { opacity: [1, 0.3, 1] } : {}}
-                    transition={timerEnded ? { repeat: Infinity, duration: 0.8 } : {}}
-                    className="font-mono font-black tabular-nums text-base"
-                    style={{
-                      color: timerEnded ? "#ef4444" : isPaused ? "#f59e0b" : "#ffffff",
-                      textShadow: "0 2px 12px rgba(0,0,0,1)",
-                    }}
-                  >
-                    {formatTime(remainingSeconds)}
-                    {isPaused && <span className="text-xs ml-1 text-yellow-400">▐▐</span>}
-                  </motion.span>
-                )}
-              </div>
+                <span
+                  className="font-black text-2xl text-white/20 px-1 select-none"
+                  style={{ textShadow: "0 1px 6px rgba(0,0,0,0.8)" }}
+                >
+                  —
+                </span>
 
-              {/* Team 2 */}
-              <motion.div
-                animate={scoreFlash?.team === 2 ? { backgroundColor: ["rgba(34,197,94,0.35)", "rgba(0,0,0,0)"] } : {}}
-                transition={{ duration: 0.6 }}
-                className="flex items-center gap-4 px-6 py-4"
-                style={{ minWidth: 180 }}
-              >
+                {/* Score T2 */}
                 <motion.span
                   key={`t2-${team2Score}`}
-                  initial={{ scale: 1.4, color: "#22c55e" }}
+                  initial={{ scale: 1.5, color: "#22c55e" }}
                   animate={{ scale: 1, color: "#ffffff" }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  className="font-black text-4xl tabular-nums"
-                  style={{ textShadow: "0 2px 16px rgba(0,0,0,1)" }}
+                  transition={{ type: "spring", stiffness: 320, damping: 18 }}
+                  className="font-black text-5xl tabular-nums w-14 text-center"
+                  style={{ textShadow: "0 2px 18px rgba(0,0,0,1)" }}
                 >
                   {team2Score}
                 </motion.span>
+              </div>
+
+              {/* Team 2 name */}
+              <motion.div
+                animate={scoreFlash?.team === 2 ? { backgroundColor: ["rgba(34,197,94,0.28)", "rgba(0,0,0,0)"] } : {}}
+                transition={{ duration: 0.7 }}
+                className="flex items-center justify-start px-5 py-3"
+                style={{ width: 200 }}
+              >
                 <span
-                  className="text-white font-black text-xl leading-tight flex-1"
+                  className="text-white font-black text-xl leading-tight text-left"
                   style={{
-                    textShadow: "0 2px 12px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8)",
+                    textShadow: "0 2px 14px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    maxWidth: 160,
+                    maxWidth: 190,
+                    display: "block",
                   }}
                 >
                   {match.team2?.name}
                 </span>
               </motion.div>
             </div>
+
+            {/* Timer pill — below score */}
+            {hasTimer && (
+              <motion.div
+                animate={timerEnded ? { opacity: [1, 0.35, 1] } : {}}
+                transition={timerEnded ? { repeat: Infinity, duration: 0.8 } : {}}
+                className="flex items-center gap-2 px-5 py-1.5 rounded-full mt-1"
+                style={{
+                  background: timerEnded
+                    ? "rgba(239,68,68,0.25)"
+                    : isPaused
+                    ? "rgba(245,158,11,0.22)"
+                    : "rgba(15,23,42,0.55)",
+                  backdropFilter: "blur(12px)",
+                  border: `1px solid ${timerEnded ? "rgba(239,68,68,0.4)" : isPaused ? "rgba(245,158,11,0.4)" : "rgba(255,255,255,0.10)"}`,
+                }}
+              >
+                <span
+                  className="font-mono font-black tabular-nums text-sm tracking-widest"
+                  style={{
+                    color: timerEnded ? "#ef4444" : isPaused ? "#f59e0b" : "rgba(255,255,255,0.85)",
+                    textShadow: "0 1px 8px rgba(0,0,0,0.9)",
+                  }}
+                >
+                  {formatTime(remainingSeconds)}
+                </span>
+                {isPaused && (
+                  <span className="text-yellow-400 text-xs font-bold tracking-widest">▐▐ PAUSE</span>
+                )}
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -462,36 +493,37 @@ const Overlay = () => {
         {!match && nextMatch && (
           <motion.div
             key="next-match"
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 30 }}
+            exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.5 }}
-            className="absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+            className="absolute top-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
           >
             <span
-              className="text-white/60 text-xs font-semibold uppercase tracking-widest"
-              style={{ textShadow: "0 2px 8px rgba(0,0,0,0.9)" }}
+              className="text-white/50 text-xs font-semibold uppercase tracking-widest"
+              style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}
             >
               Next Match
             </span>
             <div
-              className="flex items-center gap-4 px-8 py-4 rounded-2xl"
+              className="flex items-center gap-4 px-8 py-3 rounded-2xl"
               style={{
-                background: "rgba(0,0,0,0.65)",
-                backdropFilter: "blur(12px)",
-                boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+                background: "rgba(15,23,42,0.62)",
+                backdropFilter: "blur(18px)",
+                WebkitBackdropFilter: "blur(18px)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.10)",
               }}
             >
               <span
                 className="text-white font-black text-2xl"
-                style={{ textShadow: "0 2px 10px rgba(0,0,0,1)" }}
+                style={{ textShadow: "0 2px 10px rgba(0,0,0,1)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
               >
                 {nextMatch.team1Name}
               </span>
-              <span className="text-white/40 font-bold text-lg">vs</span>
+              <span className="text-white/30 font-bold text-base tracking-widest px-1">VS</span>
               <span
                 className="text-white font-black text-2xl"
-                style={{ textShadow: "0 2px 10px rgba(0,0,0,1)" }}
+                style={{ textShadow: "0 2px 10px rgba(0,0,0,1)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
               >
                 {nextMatch.team2Name}
               </span>
