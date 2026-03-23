@@ -408,9 +408,9 @@ export const RefereesTab = ({
         {/* Sub-header */}
         <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
           {oppositeGroup && (
-            <span>Arbitré par : <span className="font-medium text-foreground">{oppositeGroup}</span></span>
+            <span>Refereed by: <span className="font-medium text-foreground">{oppositeGroup}</span></span>
           )}
-          <span>{groupMatches.filter(m => m.referee_status === "present").length}/{groupMatches.length} présents</span>
+          <span>{groupMatches.filter(m => m.referee_status === "present").length}/{groupMatches.length} present</span>
         </div>
 
         <Card className="overflow-hidden">
@@ -496,8 +496,8 @@ export const RefereesTab = ({
                               }`}
                             >
                               {match.referee_status === "present"
-                                ? <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
-                                : <><Clock className="h-3 w-3 mr-1" />En attente</>}
+                                ? <><CheckCircle className="h-3 w-3 mr-1" />Present</>
+                                : <><Clock className="h-3 w-3 mr-1" />Pending</>}
                             </Badge>
                           </button>
                         )}
@@ -513,8 +513,8 @@ export const RefereesTab = ({
                             className={match.referee_status === "present" ? "bg-green-500/20 text-green-400 border-green-500/30 text-xs" : "text-xs"}
                           >
                             {match.referee_status === "present"
-                              ? <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
-                              : <><Clock className="h-3 w-3 mr-1" />En attente</>}
+                              ? <><CheckCircle className="h-3 w-3 mr-1" />Present</>
+                              : <><Clock className="h-3 w-3 mr-1" />Pending</>}
                           </Badge>
                         </>
                       ) : (
