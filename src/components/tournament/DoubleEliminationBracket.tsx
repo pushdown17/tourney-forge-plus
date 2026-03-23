@@ -698,102 +698,128 @@ export const DoubleEliminationBracket = ({
   // HYBRID BRACKET GENERATOR (any playInCount > 0: 6, 10, 12, 14, 20, 24…)
   // ══════════════════════════════════════════════════════════════════════════════
   //
-  // New "prevPow2" architecture:
+  // Architecture "prevPow2" — correct design for 12 teams:
   //
-  //   bracketSize = prevPow2(teamsCount) — e.g. 16 for 20 teams
-  //   playInCount = teamsCount - bracketSize — e.g. 4 for 20 teams
-  //   playInSlotsCount = playInCount / 2 — number of bracket slots contested by play-ins (e.g. 2)
-  //   playInThreshold = bracketSize - playInSlotsCount — seeds > threshold are contested (e.g. 14 for 20 teams)
+  //   bracketSize = prevPow2(teamsCount) — e.g. 8 for 12 teams
+  //   playInCount = teamsCount - bracketSize — e.g. 4 for 12 teams
   //
-  //   Use getStandardSeedingPairs(bracketSize) → gives bracketSize/2 pair slots (e.g. 8 pairs for 16).
+  //   For 12 teams (bracketSize=8, playInCount=4):
+  //     - ALL 4 QF slots are play-in slots → seeds #1-#4 get a BYE (direct QF)
+  //     - Seeds #5-#12 play the Preliminary Round:
+  //         R1 M1: #8 vs #9 → winner faces #1 in QF
+  //         R1 M2: #5 vs #12 → winner faces #4 in QF
+  //         R1 M3: #7 vs #10 → winner faces #2 in QF
+  //         R1 M4: #6 vs #11 → winner faces #3 in QF
+  //     - Losers of Preliminary Round are ELIMINATED (do NOT enter Losers Bracket)
   //
-  //   For each pair [s1, s2]:
-  //     - If s1 > playInThreshold OR s2 > playInThreshold → PLAY-IN slot:
-  //         The contested seed is the one > playInThreshold (e.g. seed 15 or 16).
-  //         The direct seed is the opponent (e.g. seed 1 or 2).
-  //         Create:
-  //           • R1 play-in: extra seeds paired as (extras[i] vs extras[playInCount-1-i])
-  //           • R2 sentinel: directSeed vs directSeed (TBD, play-in winner fills team2 slot)
-  //     - Otherwise → direct R2 match (both seeds known, no play-in needed)
+  //   For each QF slot (standard seeding [1,8,4,5,2,7,3,6]):
+  //     - directSeed = the TOP seed (≤ bracketSize/2)
+  //     - contestedSeed = the BOTTOM seed (> bracketSize/2)
+  //     - The contestedSeed is replaced by a play-in match between:
+  //         contestedSeed vs (teamsCount + 1 - contestedSeed)
   //
   //   field_number invariant: R1 play-in field_number=K → R2 sentinel field_number=K
   //   ABSOLUTE ROUTING: play-in winner → R2.team2 (BOTTOM slot only, team1=direct seed is LOCKED)
   //
   // ══════════════════════════════════════════════════════════════════════════════
   const generateBracketHybrid = async (standings: any[], teamsCount: number) => {
-    const bracketSz = getBracketSize(teamsCount);     // e.g. 16 for 20 teams
-    const playInCount = teamsCount - bracketSz;        // e.g. 4 for 20 teams
-    const playInSlotsCount = playInCount / 2;          // e.g. 2: how many bracket slots are contested
-    const playInThreshold = bracketSz - playInSlotsCount; // e.g. 14: seeds > this are contested
+    const bracketSz = getBracketSize(teamsCount);     // e.g. 8 for 12 teams
+    const playInCount = teamsCount - bracketSz;        // e.g. 4 for 12 teams
 
+    // Standard seeding pairs for the bracket size
+    // e.g. for bracketSize=8: [[1,8],[4,5],[2,7],[3,6]]
     const fullPairs = getStandardSeedingPairs(bracketSz);
-
-    // Extra seeds (seeds bracketSz+1..teamsCount) that play in the play-in matches
-    // Paired as: extras[0] vs extras[playInCount-1], extras[1] vs extras[playInCount-2], ...
-    // e.g. for 20 teams: [seed17 vs seed20, seed18 vs seed19]
-    const extraStandings = standings.slice(bracketSz); // standings[16..19] for 20 teams
 
     const r1Matches: any[] = [];
     const r2Matches: any[] = [];
 
-    // Map contested seed (bracketSz-playInSlotsCount+1..bracketSz) to play-in pair index
-    // contestedSeed=bracketSz → pairIdx=0 (weakest contested → weakest extra pair)
-    // contestedSeed=bracketSz-1 → pairIdx=1, etc.
-    const contestedSeedToPairIdx = (seed: number): number => bracketSz - seed;
+    // For each QF pair [s1, s2]:
+    //   s1 = top seed (lower number = better), s2 = bottom seed (higher number)
+    //   The "bottom" seed (s2) is the one that gets contested via play-in.
+    //   The "top" seed (s1) always qualifies directly (BYE).
+    //
+    //   For 12 teams, bracketSize=8:
+    //     Pair [1,8]: s1=1 (direct BYE), s2=8 (contested by #8 vs #9)
+    //     Pair [4,5]: s1=4 (direct BYE), s2=5 (contested by #5 vs #12)
+    //     Pair [2,7]: s1=2 (direct BYE), s2=7 (contested by #7 vs #10)
+    //     Pair [3,6]: s1=3 (direct BYE), s2=6 (contested by #6 vs #11)
+    //
+    //   The opponent of contestedSeed in the play-in = teamsCount + 1 - contestedSeed
+    //     e.g. seed #8 faces seed #(12+1-8) = #5 … wait, that's wrong.
+    //     Correct: the bottom half of teams contest the bottom seeds:
+    //     seeds #(bracketSz/2+1)..#bracketSz are contested,
+    //     seeds #(bracketSz+1)..#teamsCount are the extras.
+    //
+    //   Correct pairing: contestedSeed[k] vs extraSeed[k]
+    //     where contestedSeeds = [s2 for each pair, sorted asc] = [5,6,7,8] for bracketSz=8
+    //     and extraSeeds = [9,10,11,12] for 12 teams
+    //     Mirror pairing: contestedSeeds[k] vs extraSeeds[playInCount-1-k]
+    //       k=0: seed 5 vs seed 12
+    //       k=1: seed 6 vs seed 11
+    //       k=2: seed 7 vs seed 10
+    //       k=3: seed 8 vs seed 9
+
+    // Get all bottom seeds from pairs (s2 values), sorted ascending
+    const contestedSeeds = fullPairs.map(([, s2]) => s2).sort((a, b) => a - b);
+    // Extra seeds: bracketSz+1..teamsCount
+    const extraSeeds: number[] = [];
+    for (let s = bracketSz + 1; s <= teamsCount; s++) extraSeeds.push(s);
+
+    // Build map: contestedSeed → extraSeed (mirror pairing)
+    // contestedSeeds[0] (lowest) pairs with extraSeeds[playInCount-1] (highest extra)
+    const contestedToExtra = new Map<number, number>();
+    contestedSeeds.forEach((cs, k) => {
+      contestedToExtra.set(cs, extraSeeds[playInCount - 1 - k]);
+    });
 
     for (let pairIdx = 0; pairIdx < fullPairs.length; pairIdx++) {
       const [s1, s2] = fullPairs[pairIdx];
       const fieldNum = pairIdx + 1;
 
-      const isPlayInSlot = s1 > playInThreshold || s2 > playInThreshold;
+      const directSeed = s1;       // top seed → direct BYE to QF
+      const contestedSeed = s2;    // bottom seed → contested via play-in
+      const extraSeed = contestedToExtra.get(contestedSeed);
 
-      if (isPlayInSlot) {
-        // Contested seed: the one > playInThreshold; direct seed: the other
-        const contestedSeed = s1 > playInThreshold ? s1 : s2;
-        const directSeed = s1 > playInThreshold ? s2 : s1;
+      const directTeam = standings[directSeed - 1];
+      const contestedTeam = standings[contestedSeed - 1];
+      const extraTeam = extraSeed !== undefined ? standings[extraSeed - 1] : undefined;
 
-        const pIdx = contestedSeedToPairIdx(contestedSeed); // 0-indexed within contested range
-        // Extra pair: extraStandings[pIdx] vs extraStandings[playInCount-1-pIdx]
-        const extraA = extraStandings[pIdx];
-        const extraB = extraStandings[playInCount - 1 - pIdx];
+      if (!directTeam) {
+        console.warn(`[generateBracketHybrid] Missing direct team for seed #${directSeed}`);
+        continue;
+      }
 
-        if (!extraA || !extraB) {
-          console.warn(`[generateBracketHybrid] Missing extra standings for pIdx=${pIdx}`);
-          continue;
-        }
-
-        const directTeam = standings[directSeed - 1];
-        if (!directTeam) continue;
-
-        // R1 play-in: extra seeds play each other for this slot
+      if (contestedTeam && extraTeam && extraSeed !== undefined) {
+        // Play-in slot: contested seed vs extra seed
+        // Winner advances to QF against direct seed
         r1Matches.push({
           tournament_id: tournamentId, phase: "double_elimination" as const,
-          round_number: 1, team1_id: extraA.team_id, team2_id: extraB.team_id,
+          round_number: 1,
+          team1_id: contestedTeam.team_id, team2_id: extraTeam.team_id,
           field_number: fieldNum, is_third_place_match: false,
         });
 
-        // R2 sentinel: directSeed is LOCKED in team1, team2 = directSeed (TBD = sentinel)
+        // R2 sentinel: directSeed LOCKED in team1, team2 = directSeed (sentinel = TBD)
         r2Matches.push({
           tournament_id: tournamentId, phase: "double_elimination" as const,
-          round_number: 2, team1_id: directTeam.team_id, team2_id: directTeam.team_id,
+          round_number: 2,
+          team1_id: directTeam.team_id, team2_id: directTeam.team_id,
           field_number: fieldNum, is_third_place_match: false,
         });
-
       } else {
-        // Direct R2 match: both seeds are within bracketSz, no play-in needed
-        const team1 = standings[s1 - 1];
-        const team2 = standings[s2 - 1];
-        if (!team1 || !team2) continue;
-
+        // Not enough extra teams for this slot → direct match (fallback)
+        const team2 = standings[contestedSeed - 1];
+        if (!team2) continue;
         r2Matches.push({
           tournament_id: tournamentId, phase: "double_elimination" as const,
-          round_number: 2, team1_id: team1.team_id, team2_id: team2.team_id,
+          round_number: 2,
+          team1_id: directTeam.team_id, team2_id: team2.team_id,
           field_number: fieldNum, is_third_place_match: false,
         });
       }
     }
 
-    console.log(`[generateBracketHybrid] ${teamsCount} teams → bracketSz=${bracketSz}, playIn=${playInCount}, R1=${r1Matches.length} play-in matches, R2=${r2Matches.length} matches`);
+    console.log(`[generateBracketHybrid] ${teamsCount} teams → bracketSz=${bracketSz}, playIn=${playInCount}, R1=${r1Matches.length} prelim matches, R2=${r2Matches.length} QF sentinels`);
 
     if (r1Matches.length > 0) {
       const { error: r1Err } = await supabase.from("matches").insert(r1Matches);
@@ -1466,17 +1492,17 @@ export const DoubleEliminationBracket = ({
   };
 
   // Generate expected number of matches per round for a full bracket structure
-  // For BYE brackets (e.g. 12 teams in 16-slot bracket):
-  //   - R1: only play-in matches shown (playInCount/2)
-  //   - R2+: full bracketSize-based slots
+  // For 12 teams (bracketSize=8, playInCount=4):
+  //   - R1: 4 play-in matches (ALL bracketSize/2 slots are contested)
+  //   - R2+: full bracketSize-based slots (4 QF, 2 SF, 1 Final)
   const getExpectedMatchCounts = (isLosers: boolean): { round: number; count: number }[] => {
     const rounds: { round: number; count: number }[] = [];
     if (!isLosers) {
       for (let r = 1; r <= winnersRoundsCount; r++) {
         let count = Math.pow(2, winnersRoundsCount - r);
         if (r === 1 && playInCount > 0) {
-          // Only real R1 matches: the play-in matches (playInCount/2)
-          count = playInCount / 2;
+          // R1 = all bracket/2 play-in matches (every QF slot is contested via play-in)
+          count = bracketSize / 2;
         }
         if (count > 0) rounds.push({ round: r, count });
       }
@@ -1496,13 +1522,12 @@ export const DoubleEliminationBracket = ({
 
   /**
    * Returns a map of slotIndex → { team1, team2 } for pending (not-yet-created) match slots.
-   * For BYE brackets: R2 pending slots show the known BYE seed directly alongside TBD opponent.
+   * For all play-in hybrid brackets: ALL R2 QF slots show the known BYE seed + TBD opponent.
    */
   const getPendingTeamsForRound = (isLosers: boolean, round: number): Map<number, { team1: { name: string; teamId: string; isBye?: boolean } | null; team2: { name: string; teamId: string; isBye?: boolean } | null }> => {
     const pending = new Map<number, { team1: { name: string; teamId: string; isBye?: boolean } | null; team2: { name: string; teamId: string; isBye?: boolean } | null }>();
     const allW = winnersMatches.sort(sortFnField);
     const allL = losersMatches.sort(sortFnField);
-    const byeCount = bracketSize - totalTeams;
 
     const teamFromMatch = (m: Match, role: 'winner' | 'loser'): { name: string; teamId: string } | null => {
       if (!m.winner_id) return null;
@@ -1525,54 +1550,33 @@ export const DoubleEliminationBracket = ({
       const currentRoundMatches = allW.filter(m => m.round_number === round).sort(sortFnField);
 
       if (round === 1) {
-        // R1 with BYE brackets: no pending slots (BYE slots are hidden, only real matches shown)
+        // R1 play-in column: all real matches are shown, no pending placeholders needed
         return pending;
       }
 
       if (round === 2 && playInCount > 0) {
-        // R2 with play-ins: show pending slots for each bracketSize/2 R2 slot.
-        // Direct teams (seeds 1..bracketSize-playInSlotsCount) are known; play-in slots show "TBD".
-        const playInSlotsCount = playInCount / 2;
-        const playInThreshold = bracketSize - playInSlotsCount;
+        // R2 QF with play-ins: ALL slots are play-in slots.
+        // Direct seed (s1=top) is known; bottom (s2=contested) is TBD until prelim completes.
         const r1Matches = allW.filter(m => m.round_number === 1).sort(sortFnField);
         const fullPairs = getStandardSeedingPairs(bracketSize);
 
-        // Identify which pair slots are play-in slots (contested seed > playInThreshold)
-        const slotIsPlayIn = fullPairs.map(([s1, s2]) =>
-          s1 > playInThreshold || s2 > playInThreshold
-        );
-
-        // For play-in slots: the direct seed (the one ≤ playInThreshold) is known
-        const playInSlotToDirectTeam = new Map<number, { name: string; teamId: string }>();
-        fullPairs.forEach(([s1, s2], pairIdx) => {
-          if (!slotIsPlayIn[pairIdx]) return;
-          const directSeed = s1 <= playInThreshold ? s1 : s2;
-          const team = standingsTeams[directSeed - 1];
-          if (team) playInSlotToDirectTeam.set(pairIdx, team);
-        });
-
-        // Map R1 play-in matches to their pair slots (sorted by field_number)
-        const playInSlotIndices: number[] = [];
-        fullPairs.forEach(([s1, s2], pairIdx) => {
-          if (slotIsPlayIn[pairIdx]) playInSlotIndices.push(pairIdx);
-        });
-        const pairSlotToR1Match = new Map<number, Match>();
-        playInSlotIndices.forEach((pairSlotIdx, k) => {
-          if (r1Matches[k]) pairSlotToR1Match.set(pairSlotIdx, r1Matches[k]);
-        });
+        // Build map from R1 match field_number → Match (for prelim winner lookup)
+        const r1ByFieldNum = new Map<number, Match>();
+        r1Matches.forEach(m => r1ByFieldNum.set(m.field_number ?? 1, m));
 
         for (let pairIdx = 0; pairIdx < fullPairs.length; pairIdx++) {
-          if (currentRoundMatches.find(m => m.field_number === pairIdx + 1)) continue;
+          const fieldNum = pairIdx + 1;
+          // Skip if real R2 match already exists for this slot
+          if (currentRoundMatches.find(m => m.field_number === fieldNum)) continue;
 
-          const directTeam = playInSlotToDirectTeam.get(pairIdx);
-          const r1M = pairSlotToR1Match.get(pairIdx);
+          const [s1] = fullPairs[pairIdx]; // s1 = direct/top seed
+          const directTeamData = standingsTeams[s1 - 1];
+          const r1M = r1ByFieldNum.get(fieldNum);
           const playInWinner = r1M ? teamFromMatch(r1M, 'winner') : null;
 
-          if (slotIsPlayIn[pairIdx]) {
-            const t1 = directTeam ? { ...directTeam, isBye: true } : null;
-            const t2 = playInWinner;
-            if (t1 || t2) pending.set(pairIdx, { team1: t1, team2: t2 });
-          }
+          const t1 = directTeamData ? { name: directTeamData.name, teamId: directTeamData.teamId, isBye: true } : null;
+          const t2 = playInWinner;
+          if (t1 || t2) pending.set(pairIdx, { team1: t1, team2: t2 });
         }
         return pending;
       }
