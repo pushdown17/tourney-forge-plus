@@ -205,7 +205,7 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
               <DialogHeader>
                 <DialogTitle>Add Referee Station</DialogTitle>
                 <DialogDescription>
-                  Create a new referee station for a field.
+                  Create a new referee station for a court.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">
