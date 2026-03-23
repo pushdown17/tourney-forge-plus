@@ -410,7 +410,7 @@ export const RefereesTab = ({
           {oppositeGroup && (
             <span>Refereed by: <span className="font-medium text-foreground">{oppositeGroup}</span></span>
           )}
-          <span>{groupMatches.filter(m => m.referee_status === "present").length}/{groupMatches.length} présents</span>
+          <span>{groupMatches.filter(m => m.referee_status === "present").length}/{groupMatches.length} present</span>
         </div>
 
         <Card className="overflow-hidden">
