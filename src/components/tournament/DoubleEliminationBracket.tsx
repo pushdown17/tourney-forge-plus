@@ -781,7 +781,7 @@ export const DoubleEliminationBracket = ({
         continue;
       }
 
-      if (contestedTeam && extraTeam && extraSeed !== undefined) {
+      if (contestedTeam && extraTeam) {
         // Play-in slot: contested seed vs extra seed
         // Winner advances to QF against direct seed
         r1Matches.push({
