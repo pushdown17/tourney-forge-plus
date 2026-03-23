@@ -734,6 +734,13 @@ export const EliminationBracket = ({
   const generateBracket = async (teamsCount: number) => {
     setGenerating(true);
     try {
+      // Refresh auth session before any DB write to avoid RLS 42501 errors
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        toast.error("Session expirée, veuillez vous reconnecter");
+        return;
+      }
+
       // Get qualified teams according to ranking
       const { data: standingsRaw, error: standingsError } = await supabase
         .from("team_stats")
