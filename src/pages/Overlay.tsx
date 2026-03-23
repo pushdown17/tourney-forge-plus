@@ -517,7 +517,7 @@ const Overlay = () => {
                 border: "1px solid rgba(255,255,255,0.2)",
               }}
             >
-              <span className="text-2xl">⚽</span>
+              <span className="text-2xl">🟠</span>
               <div className="flex flex-col">
                 <span
                   className="text-white font-black text-lg uppercase tracking-wide"
