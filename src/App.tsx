@@ -47,6 +47,7 @@ const App = () => {
             <Route path="/my-account" element={<MyAccount />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/referee-station/:stationId" element={<RefereeStation />} />
+            <Route path="/overlay/:stationId" element={<Overlay />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
