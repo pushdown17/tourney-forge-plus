@@ -12,6 +12,7 @@ import BracketDemo from "./pages/BracketDemo";
 import PlayerProfile from "./pages/PlayerProfile";
 import MyAccount from "./pages/MyAccount";
 import RefereeStation from "./pages/RefereeStation";
+import Overlay from "./pages/Overlay";
 import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
 import { syncServerTimeOffset } from "@/lib/serverTime";
