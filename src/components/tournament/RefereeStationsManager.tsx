@@ -276,7 +276,7 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
                   variant="ghost"
                   size="icon"
                   onClick={() => copyStationLink(station.id)}
-                  title="Copy link"
+                  title="Copy referee link"
                 >
                   <Copy className="h-4 w-4" />
                 </Button>
@@ -284,9 +284,18 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
                   variant="ghost"
                   size="icon"
                   onClick={() => openStation(station.id)}
-                  title="Open station"
+                  title="Open referee station"
                 >
                   <ExternalLink className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => openOverlay(station.id)}
+                  title="Open streaming overlay"
+                  className="text-primary hover:text-primary"
+                >
+                  <Tv2 className="h-4 w-4" />
                 </Button>
                 {isCreator && !station.current_match_id && (
                   <Button
@@ -302,6 +311,23 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Streaming Overlay info section */}
+      {stations.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-border">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+            <Tv2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium text-foreground">Streaming Overlay (OBS)</p>
+              <p className="text-muted-foreground mt-0.5">
+                Click the <Tv2 className="h-3 w-3 inline mx-1" /> icon on any station to open its live overlay.
+                In OBS, add a <span className="font-mono text-xs bg-muted px-1 rounded">Browser Source</span> and paste the overlay URL.
+                Set background to transparent (check "Custom CSS" → <span className="font-mono text-xs bg-muted px-1 rounded">background-color: rgba(0,0,0,0);</span>).
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </Card>
