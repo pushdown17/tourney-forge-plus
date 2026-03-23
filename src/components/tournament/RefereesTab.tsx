@@ -531,7 +531,7 @@ export const RefereesTab = ({
         {/* Per-team summary for this group's referee teams (opposite group) */}
         {hasAssignments && oppositeTeams.length > 0 && (
           <div>
-            <p className="text-xs text-muted-foreground mb-2 px-1">Charge d'arbitrage — {oppositeGroup}</p>
+            <p className="text-xs text-muted-foreground mb-2 px-1">Refereeing load — {oppositeGroup}</p>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {oppositeTeams.map(t => {
                 const count = refCountByTeam[t.id] || 0;
@@ -539,7 +539,7 @@ export const RefereesTab = ({
                   <Card key={t.id} className="p-2 text-center">
                     <p className="text-xs font-medium truncate">{t.name}</p>
                     <p className="text-lg font-bold leading-none mt-1">{count}</p>
-                    <p className="text-[10px] text-muted-foreground">match{count > 1 ? "s" : ""}</p>
+                    <p className="text-[10px] text-muted-foreground">match{count > 1 ? "es" : ""}</p>
                   </Card>
                 );
               })}
