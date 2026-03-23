@@ -513,8 +513,8 @@ export const RefereesTab = ({
                             className={match.referee_status === "present" ? "bg-green-500/20 text-green-400 border-green-500/30 text-xs" : "text-xs"}
                           >
                             {match.referee_status === "present"
-                              ? <><CheckCircle className="h-3 w-3 mr-1" />Présent</>
-                              : <><Clock className="h-3 w-3 mr-1" />En attente</>}
+                              ? <><CheckCircle className="h-3 w-3 mr-1" />Present</>
+                              : <><Clock className="h-3 w-3 mr-1" />Pending</>}
                           </Badge>
                         </>
                       ) : (
