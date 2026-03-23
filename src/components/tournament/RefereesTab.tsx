@@ -555,8 +555,8 @@ export const RefereesTab = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold">Arbitrage croisé</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Chaque groupe arbitre les matchs du groupe adverse</p>
+          <h2 className="text-xl font-semibold">Cross Refereeing</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Each group referees the matches of the opposing group</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchData}>
