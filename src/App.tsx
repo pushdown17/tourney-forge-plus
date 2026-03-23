@@ -12,6 +12,7 @@ import BracketDemo from "./pages/BracketDemo";
 import PlayerProfile from "./pages/PlayerProfile";
 import MyAccount from "./pages/MyAccount";
 import RefereeStation from "./pages/RefereeStation";
+import Overlay from "./pages/Overlay";
 import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
 import { syncServerTimeOffset } from "@/lib/serverTime";
@@ -46,6 +47,7 @@ const App = () => {
             <Route path="/my-account" element={<MyAccount />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/referee-station/:stationId" element={<RefereeStation />} />
+            <Route path="/overlay/:stationId" element={<Overlay />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
