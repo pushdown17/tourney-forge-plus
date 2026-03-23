@@ -836,21 +836,28 @@ export const DoubleEliminationBracket = ({
       const bracketSz = getBracketSize(teamsCount);
       const playInCount = getPlayInCount(teamsCount);
 
-      const { data: standings, error: standingsError } = await supabase
+      const { data: rawStandings, error: standingsError } = await supabase
         .from("team_stats")
         .select(`*, team:team_id(id, name)`)
-        .eq("tournament_id", tournamentId)
-        .order("points", { ascending: false })
-        .order("goals_for", { ascending: false })
-        .order("team_id", { ascending: true })
-        .limit(teamsCount);
+        .eq("tournament_id", tournamentId);
 
       if (standingsError) throw standingsError;
 
-      if (!standings || standings.length < teamsCount) {
-        toast.error(`Not enough qualified teams (${standings?.length || 0}/${teamsCount})`);
+      if (!rawStandings || rawStandings.length < teamsCount) {
+        toast.error(`Not enough qualified teams (${rawStandings?.length || 0}/${teamsCount})`);
         return;
       }
+
+      // Sort identically to standings display: points DESC → goal_diff DESC → goals_for DESC
+      const standings = [...rawStandings]
+        .sort((a: any, b: any) => {
+          if (b.points !== a.points) return b.points - a.points;
+          const diffA = (a.goals_for ?? 0) - (a.goals_against ?? 0);
+          const diffB = (b.goals_for ?? 0) - (b.goals_against ?? 0);
+          if (diffB !== diffA) return diffB - diffA;
+          return (b.goals_for ?? 0) - (a.goals_for ?? 0);
+        })
+        .slice(0, teamsCount);
 
       if (playInCount === 0) {
         // ── Perfect power-of-2: standard bracket generation ──
