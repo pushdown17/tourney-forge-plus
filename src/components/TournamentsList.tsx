@@ -16,21 +16,27 @@ export const TournamentsList = () => {
 
   const fetchTournaments = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: tournamentsData, error } = await supabase
         .from("tournaments")
-        .select("*, organizer:profiles!inner(first_name, last_name, nickname, user_id)")
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) {
-        // Fallback without join if RLS or relation issue
-        const { data: fallback } = await supabase
-          .from("tournaments")
-          .select("*")
-          .order("created_at", { ascending: false });
-        setTournaments(fallback || []);
-      } else {
-        setTournaments(data || []);
-      }
+      if (error) throw error;
+
+      // Fetch profiles for all unique creators
+      const creatorIds = [...new Set((tournamentsData || []).map(t => t.created_by))];
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, nickname")
+        .in("user_id", creatorIds);
+
+      const profilesMap = Object.fromEntries((profilesData || []).map(p => [p.user_id, p]));
+      const enriched = (tournamentsData || []).map(t => ({
+        ...t,
+        organizer: profilesMap[t.created_by] || null,
+      }));
+
+      setTournaments(enriched);
     } catch (error) {
       console.error("Error fetching tournaments:", error);
     } finally {
