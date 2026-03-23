@@ -561,12 +561,12 @@ export const RefereesTab = ({
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchData}>
             <RefreshCw className="h-4 w-4 mr-1.5" />
-            Rafraîchir
+            Refresh
           </Button>
           {isCreator && !isClosed && (
             <Button size="sm" onClick={handleGenerate} disabled={generating}>
               <Wand2 className="h-4 w-4 mr-1.5" />
-              {generating ? "Génération…" : hasAssignments ? "Régénérer" : "Générer"}
+              {generating ? "Generating…" : hasAssignments ? "Regenerate" : "Generate"}
             </Button>
           )}
         </div>
