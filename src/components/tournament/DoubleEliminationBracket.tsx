@@ -355,7 +355,11 @@ export const DoubleEliminationBracket = ({
             durationSeconds: station.timer_duration_seconds,
             startedAt: station.timer_started_at,
             pausedAt: station.timer_paused_at,
-            elapsedWhenPaused: station.timer_elapsed_when_paused || 0
+            elapsedWhenPaused: station.timer_elapsed_when_paused || 0,
+            // GG fields are not persisted in referee_stations — they come via broadcast only
+            isGoldenGoal: false,
+            goldenGoalStartedAt: null,
+            goldenGoalElapsedWhenPaused: 0,
           };
           if (station.timer_started_at) {
             liveMatchIds.push(station.current_match_id);
