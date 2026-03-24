@@ -493,8 +493,29 @@ const Overlay = () => {
               </motion.div>
             </div>
 
-            {/* Timer pill — below score */}
-            {hasTimer && (
+            {/* Timer pill — below score: Golden Goal mode OR normal countdown */}
+            {isGoldenGoal ? (
+              <motion.div
+                animate={{ opacity: [1, 0.6, 1] }}
+                transition={{ repeat: Infinity, duration: 0.9 }}
+                className="flex items-center gap-2 px-5 py-1.5 rounded-full mt-1"
+                style={{
+                  background: "rgba(245,158,11,0.28)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(245,158,11,0.5)",
+                }}
+              >
+                <span className="text-xs font-bold tracking-widest" style={{ color: "#f59e0b", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}>
+                  ⚡ GOLDEN GOAL
+                </span>
+                <span className="font-mono font-black tabular-nums text-sm tracking-widest" style={{ color: "#fbbf24", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}>
+                  {formatTime(Math.floor(ggElapsedMs / 1000))}
+                </span>
+                {ggFrozen && (
+                  <span className="text-white text-xs font-bold tracking-widest">🏆 BUT !</span>
+                )}
+              </motion.div>
+            ) : hasTimer ? (
               <motion.div
                 animate={timerEnded ? { opacity: [1, 0.35, 1] } : {}}
                 transition={timerEnded ? { repeat: Infinity, duration: 0.8 } : {}}
@@ -522,7 +543,7 @@ const Overlay = () => {
                   <span className="text-yellow-400 text-xs font-bold tracking-widest">▐▐ PAUSE</span>
                 )}
               </motion.div>
-            )}
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>
