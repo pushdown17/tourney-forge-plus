@@ -315,42 +315,69 @@ const Overlay = () => {
 
   const [isGoldenGoal, setIsGoldenGoal] = useState(false);
   const [goldenGoalStartedAt, setGoldenGoalStartedAt] = useState<string | null>(null);
+  const [ggPaused, setGgPaused] = useState(false);
+  const ggElapsedWhenPausedRef = useRef(0);
   const [ggElapsedMs, setGgElapsedMs] = useState(0);
   const [ggFrozen, setGgFrozen] = useState(false);
 
-  // Count-up for Golden Goal overlay (stops when frozen)
+  // Count-up for Golden Goal overlay — stops when paused or frozen
   useEffect(() => {
-    if (!isGoldenGoal || !goldenGoalStartedAt || ggFrozen) return;
+    if (!isGoldenGoal || !goldenGoalStartedAt || ggPaused || ggFrozen) return;
     const interval = setInterval(() => {
-      setGgElapsedMs(getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime());
+      const elapsed = getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime() + ggElapsedWhenPausedRef.current;
+      setGgElapsedMs(elapsed);
     }, 100);
     return () => clearInterval(interval);
-  }, [isGoldenGoal, goldenGoalStartedAt, ggFrozen]);
+  }, [isGoldenGoal, goldenGoalStartedAt, ggPaused, ggFrozen]);
 
-  // Broadcast channel — listens for GG events from the referee station
+  // Broadcast channel — tournament_id may arrive after initial render, so re-subscribe when it changes
+  const tournamentIdForBroadcast = station?.tournament_id;
   useEffect(() => {
-    if (!station?.tournament_id) return;
+    if (!tournamentIdForBroadcast) return;
     const ch = supabase
-      .channel(`tournament-live-${station.tournament_id}`)
+      .channel(`tournament-live-${tournamentIdForBroadcast}`)
       .on('broadcast', { event: 'golden_goal_start' }, (msg) => {
         const { goldenGoalStartedAt: ggAt } = msg.payload as any;
+        const startTs = ggAt ?? new Date().toISOString();
+        ggElapsedWhenPausedRef.current = 0;
         setIsGoldenGoal(true);
-        setGoldenGoalStartedAt(ggAt ?? new Date().toISOString());
+        setGoldenGoalStartedAt(startTs);
+        setGgPaused(false);
         setGgFrozen(false);
         setGgElapsedMs(0);
       })
+      .on('broadcast', { event: 'golden_goal_pause' }, (msg) => {
+        const { elapsedWhenPaused } = (msg.payload ?? {}) as any;
+        if (typeof elapsedWhenPaused === 'number') {
+          ggElapsedWhenPausedRef.current = elapsedWhenPaused * 1000;
+          setGgElapsedMs(elapsedWhenPaused * 1000);
+        }
+        setGgPaused(true);
+        setGoldenGoalStartedAt(null);
+      })
+      .on('broadcast', { event: 'golden_goal_resume' }, (msg) => {
+        const { goldenGoalStartedAt: ggAt, elapsedWhenPaused } = (msg.payload ?? {}) as any;
+        if (typeof elapsedWhenPaused === 'number') {
+          ggElapsedWhenPausedRef.current = elapsedWhenPaused * 1000;
+        }
+        setGoldenGoalStartedAt(ggAt ?? new Date().toISOString());
+        setGgPaused(false);
+      })
       .on('broadcast', { event: 'golden_goal_scored' }, () => {
         setGgFrozen(true);
+        setGgPaused(false);
       })
       .on('broadcast', { event: 'match_ended' }, () => {
         setIsGoldenGoal(false);
         setGoldenGoalStartedAt(null);
+        setGgPaused(false);
         setGgFrozen(false);
+        ggElapsedWhenPausedRef.current = 0;
         setGgElapsedMs(0);
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [station?.tournament_id]);
+  }, [tournamentIdForBroadcast]);
 
   const hasTimer = !!station?.timer_duration_seconds;
   const timerEnded = hasTimer && remainingSeconds <= 0 && !!station?.timer_started_at;
