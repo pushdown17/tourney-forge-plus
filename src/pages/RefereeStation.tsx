@@ -363,6 +363,37 @@ const RefereeStation = () => {
     });
   }, [match]);
 
+  // Start Golden Goal mode (only for elimination phases, tied score, timer ended)
+  const startGoldenGoal = useCallback(async () => {
+    if (!match || !stationId) return;
+    const now = new Date(getSyncedNowMs()).toISOString();
+    setIsGoldenGoal(true);
+    setGoldenGoalStartedAt(now);
+    setGoldenGoalFrozen(false);
+    ggMatchIdRef.current = match.id;
+
+    // Broadcast GG start to overlay
+    broadcastChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'golden_goal_start',
+      payload: { matchId: match.id, goldenGoalStartedAt: now }
+    });
+
+    toast('⚡ Golden Goal activé ! Premier but gagne le match.', { 
+      style: { background: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' } 
+    });
+  }, [match, stationId]);
+
+  // Freeze GG timer when a goal is scored in GG mode
+  const freezeGoldenGoal = useCallback(() => {
+    setGoldenGoalFrozen(true);
+    broadcastChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'golden_goal_scored',
+      payload: { matchId: match?.id }
+    });
+  }, [match?.id]);
+
   // Auto-save debounce ref
   const autoSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
