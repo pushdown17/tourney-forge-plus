@@ -436,11 +436,42 @@ const Overlay = () => {
   const timerEnded = hasTimer && remainingSeconds <= 0 && !!station?.timer_started_at;
   const isPaused = !!station?.timer_started_at && !!station?.timer_paused_at;
 
+  // Scale the 1920×1080 canvas to fit the actual OBS browser source size
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const compute = () => {
+      const sw = window.innerWidth / 1920;
+      const sh = window.innerHeight / 1080;
+      setScale(Math.min(sw, sh));
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, []);
+
   return (
     <div
-      className="w-screen h-screen overflow-hidden relative"
-      style={{ background: "transparent", fontFamily: "'Inter', sans-serif" }}
+      style={{
+        width: "100vw",
+        height: "100vh",
+        overflow: "hidden",
+        position: "relative",
+        background: "transparent",
+        fontFamily: "'Inter', sans-serif",
+      }}
     >
+      {/* Fixed 1920×1080 canvas, scaled & centred */}
+      <div
+        style={{
+          position: "absolute",
+          width: 1920,
+          height: 1080,
+          top: "50%",
+          left: "50%",
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: "center center",
+        }}
+      >
       {/* ───────────── ACTIVE MATCH SCOREBOARD ───────────── */}
       <AnimatePresence>
         {match && (
@@ -451,7 +482,7 @@ const Overlay = () => {
             exit={{ opacity: 0, y: -30 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="absolute top-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-            style={{ maxWidth: "90vw" }}
+            style={{ maxWidth: 1700 }}
           >
             {/* Tournament name + phase pill */}
             <div className="flex items-center gap-2 mb-0.5">
