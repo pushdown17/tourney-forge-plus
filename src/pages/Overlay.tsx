@@ -405,11 +405,11 @@ const Overlay = () => {
   }, [tournamentIdForBroadcast]);
 
   // ---- Realtime: player roster changes ----
+  // matchRef is already declared above (matchRef2 for goals), reuse matchRef here
   const matchRef = useRef<MatchData | null>(null);
   matchRef.current = match;
   useEffect(() => {
-    if (!match?.tournament_team1_id && !match?.tournament_team2_id) return;
-    const ids = [match.tournament_team1_id, match.tournament_team2_id].filter(Boolean) as string[];
+    if (!match?.id) return;
 
     const channel = supabase
       .channel(`overlay-players-${match.id}`)
@@ -430,7 +430,7 @@ const Overlay = () => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [match?.id, match?.tournament_team1_id, match?.tournament_team2_id, fetchPlayers]);
+  }, [match?.id, fetchPlayers]);
 
   const hasTimer = !!station?.timer_duration_seconds;
   const timerEnded = hasTimer && remainingSeconds <= 0 && !!station?.timer_started_at;
