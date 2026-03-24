@@ -142,6 +142,7 @@ export type Database = {
           created_at: string
           field_number: number | null
           id: string
+          is_golden_goal: boolean
           is_third_place_match: boolean
           match_date: string | null
           phase: Database["public"]["Enums"]["tournament_phase"]
@@ -160,6 +161,7 @@ export type Database = {
           created_at?: string
           field_number?: number | null
           id?: string
+          is_golden_goal?: boolean
           is_third_place_match?: boolean
           match_date?: string | null
           phase: Database["public"]["Enums"]["tournament_phase"]
@@ -178,6 +180,7 @@ export type Database = {
           created_at?: string
           field_number?: number | null
           id?: string
+          is_golden_goal?: boolean
           is_third_place_match?: boolean
           match_date?: string | null
           phase?: Database["public"]["Enums"]["tournament_phase"]

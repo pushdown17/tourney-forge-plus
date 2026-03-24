@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn, User as UserIcon, Timer } from "lucide-react";
+import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn, User as UserIcon, Timer, Zap } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -82,6 +82,13 @@ const RefereeStation = () => {
   const [goalScorerPicker, setGoalScorerPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
   const [goalRemoverPicker, setGoalRemoverPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
   // Third place decision is handled on the tournament management page, not here
+
+  // Golden Goal state
+  const [isGoldenGoal, setIsGoldenGoal] = useState(false);
+  const [goldenGoalStartedAt, setGoldenGoalStartedAt] = useState<string | null>(null);
+  const [goldenGoalFrozen, setGoldenGoalFrozen] = useState(false);
+  // ggMatchId tracks which match the GG was started for (reset on match change)
+  const ggMatchIdRef = useRef<string | null>(null);
 
   // Keep last known match assignment to avoid refetching (and resetting local unsaved stats)
   // on every timer tick/update.
@@ -356,6 +363,37 @@ const RefereeStation = () => {
     });
   }, [match]);
 
+  // Start Golden Goal mode (only for elimination phases, tied score, timer ended)
+  const startGoldenGoal = useCallback(async () => {
+    if (!match || !stationId) return;
+    const now = new Date(getSyncedNowMs()).toISOString();
+    setIsGoldenGoal(true);
+    setGoldenGoalStartedAt(now);
+    setGoldenGoalFrozen(false);
+    ggMatchIdRef.current = match.id;
+
+    // Broadcast GG start to overlay
+    broadcastChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'golden_goal_start',
+      payload: { matchId: match.id, goldenGoalStartedAt: now }
+    });
+
+    toast('⚡ Golden Goal activé ! Premier but gagne le match.', { 
+      style: { background: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' } 
+    });
+  }, [match, stationId]);
+
+  // Freeze GG timer when a goal is scored in GG mode
+  const freezeGoldenGoal = useCallback(() => {
+    setGoldenGoalFrozen(true);
+    broadcastChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'golden_goal_scored',
+      payload: { matchId: match?.id }
+    });
+  }, [match?.id]);
+
   // Auto-save debounce ref
   const autoSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -462,6 +500,13 @@ const RefereeStation = () => {
     // Clear pending player-stat saves when switching match.
     Object.values(playerStatSaveTimeouts.current).forEach((t) => clearTimeout(t));
     playerStatSaveTimeouts.current = {};
+    // Reset Golden Goal state when match changes
+    if (match?.id !== ggMatchIdRef.current) {
+      setIsGoldenGoal(false);
+      setGoldenGoalStartedAt(null);
+      setGoldenGoalFrozen(false);
+      ggMatchIdRef.current = null;
+    }
   }, [match?.id]);
 
   // Auto-save scores to database
@@ -509,6 +554,11 @@ const RefereeStation = () => {
     broadcastLiveScore(newTeam1Score, newTeam2Score);
     // Auto-save to database
     triggerAutoSave(newTeam1Score, newTeam2Score);
+
+    // If in Golden Goal mode and a goal was just scored, freeze the timer
+    if (isGoldenGoal && !goldenGoalFrozen && delta > 0) {
+      freezeGoldenGoal();
+    }
 
     // Record anonymous goal event
     if (anonymous && team) {
@@ -653,6 +703,10 @@ const RefereeStation = () => {
     if (stat === 'goals') {
       broadcastLiveScore(newTeam1Score, newTeam2Score);
       triggerAutoSave(newTeam1Score, newTeam2Score);
+      // Freeze GG timer on first goal in Golden Goal mode
+      if (isGoldenGoal && !goldenGoalFrozen && delta > 0) {
+        freezeGoldenGoal();
+      }
     }
 
     // Record event to timeline
@@ -674,7 +728,8 @@ const RefereeStation = () => {
           team1_score: team1.score,
           team2_score: team2.score,
           winner_id: team1.score > team2.score ? team1.id : 
-                     team2.score > team1.score ? team2.id : null
+                     team2.score > team1.score ? team2.id : null,
+          is_golden_goal: isGoldenGoal
         })
         .eq("id", match.id);
 
@@ -1708,6 +1763,12 @@ const RefereeStation = () => {
                 onDurationChange={(newDuration) => {
                   setStation((prev: any) => prev ? { ...prev, timer_duration_seconds: newDuration } : prev);
                 }}
+                isGoldenGoal={isGoldenGoal}
+                goldenGoalStartedAt={goldenGoalStartedAt}
+                onGoldenGoalStart={startGoldenGoal}
+                isEliminationPhase={match.phase === 'single_elimination' || match.phase === 'double_elimination'}
+                isTied={(team1?.score ?? 0) === (team2?.score ?? 0)}
+                goldenGoalFrozen={goldenGoalFrozen}
               />
             ) : (
               <Card className="p-4">
@@ -1960,7 +2021,7 @@ const RefereeStation = () => {
             variant="outline" 
             className="flex-1"
             onClick={saveStats}
-            disabled={saving}
+            disabled={saving || (isGoldenGoal && !goldenGoalFrozen)}
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Save
@@ -1968,9 +2029,14 @@ const RefereeStation = () => {
           <Button 
             className="flex-1"
             onClick={() => setConfirmDialogOpen(true)}
+            disabled={isGoldenGoal && !goldenGoalFrozen}
+            title={isGoldenGoal && !goldenGoalFrozen ? "Un but doit être marqué avant de terminer le match (Golden Goal)" : undefined}
           >
             <Check className="h-4 w-4 mr-2" />
             End Match
+            {isGoldenGoal && !goldenGoalFrozen && (
+              <span className="ml-1 text-xs opacity-70">⚡ GG</span>
+            )}
           </Button>
         </div>
       )}

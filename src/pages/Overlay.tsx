@@ -313,6 +313,45 @@ const Overlay = () => {
     setTimeout(() => setScoreFlash(null), 800);
   };
 
+  const [isGoldenGoal, setIsGoldenGoal] = useState(false);
+  const [goldenGoalStartedAt, setGoldenGoalStartedAt] = useState<string | null>(null);
+  const [ggElapsedMs, setGgElapsedMs] = useState(0);
+  const [ggFrozen, setGgFrozen] = useState(false);
+
+  // Count-up for Golden Goal overlay (stops when frozen)
+  useEffect(() => {
+    if (!isGoldenGoal || !goldenGoalStartedAt || ggFrozen) return;
+    const interval = setInterval(() => {
+      setGgElapsedMs(getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime());
+    }, 100);
+    return () => clearInterval(interval);
+  }, [isGoldenGoal, goldenGoalStartedAt, ggFrozen]);
+
+  // Broadcast channel — listens for GG events from the referee station
+  useEffect(() => {
+    if (!station?.tournament_id) return;
+    const ch = supabase
+      .channel(`tournament-live-${station.tournament_id}`)
+      .on('broadcast', { event: 'golden_goal_start' }, (msg) => {
+        const { goldenGoalStartedAt: ggAt } = msg.payload as any;
+        setIsGoldenGoal(true);
+        setGoldenGoalStartedAt(ggAt ?? new Date().toISOString());
+        setGgFrozen(false);
+        setGgElapsedMs(0);
+      })
+      .on('broadcast', { event: 'golden_goal_scored' }, () => {
+        setGgFrozen(true);
+      })
+      .on('broadcast', { event: 'match_ended' }, () => {
+        setIsGoldenGoal(false);
+        setGoldenGoalStartedAt(null);
+        setGgFrozen(false);
+        setGgElapsedMs(0);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [station?.tournament_id]);
+
   const hasTimer = !!station?.timer_duration_seconds;
   const timerEnded = hasTimer && remainingSeconds <= 0 && !!station?.timer_started_at;
   const isPaused = !!station?.timer_started_at && !!station?.timer_paused_at;
@@ -454,8 +493,29 @@ const Overlay = () => {
               </motion.div>
             </div>
 
-            {/* Timer pill — below score */}
-            {hasTimer && (
+            {/* Timer pill — below score: Golden Goal mode OR normal countdown */}
+            {isGoldenGoal ? (
+              <motion.div
+                animate={{ opacity: [1, 0.6, 1] }}
+                transition={{ repeat: Infinity, duration: 0.9 }}
+                className="flex items-center gap-2 px-5 py-1.5 rounded-full mt-1"
+                style={{
+                  background: "rgba(245,158,11,0.28)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(245,158,11,0.5)",
+                }}
+              >
+                <span className="text-xs font-bold tracking-widest" style={{ color: "#f59e0b", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}>
+                  ⚡ GOLDEN GOAL
+                </span>
+                <span className="font-mono font-black tabular-nums text-sm tracking-widest" style={{ color: "#fbbf24", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}>
+                  {formatTime(Math.floor(ggElapsedMs / 1000))}
+                </span>
+                {ggFrozen && (
+                  <span className="text-white text-xs font-bold tracking-widest">🏆 BUT !</span>
+                )}
+              </motion.div>
+            ) : hasTimer ? (
               <motion.div
                 animate={timerEnded ? { opacity: [1, 0.35, 1] } : {}}
                 transition={timerEnded ? { repeat: Infinity, duration: 0.8 } : {}}
@@ -483,7 +543,7 @@ const Overlay = () => {
                   <span className="text-yellow-400 text-xs font-bold tracking-widest">▐▐ PAUSE</span>
                 )}
               </motion.div>
-            )}
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>
