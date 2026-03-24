@@ -783,6 +783,7 @@ const Overlay = () => {
           {station.station_name} {station.station_number}
         </div>
       )}
+      </div>{/* end 1920×1080 canvas */}
     </div>
   );
 };
