@@ -703,6 +703,10 @@ const RefereeStation = () => {
     if (stat === 'goals') {
       broadcastLiveScore(newTeam1Score, newTeam2Score);
       triggerAutoSave(newTeam1Score, newTeam2Score);
+      // Freeze GG timer on first goal in Golden Goal mode
+      if (isGoldenGoal && !goldenGoalFrozen && delta > 0) {
+        freezeGoldenGoal();
+      }
     }
 
     // Record event to timeline
