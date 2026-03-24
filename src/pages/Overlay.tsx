@@ -486,12 +486,12 @@ const Overlay = () => {
                 boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.10)",
               }}
             >
-              {/* Team 1 name */}
+              {/* Team 1 name + players */}
               <motion.div
                 animate={scoreFlash?.team === 1 ? { backgroundColor: ["rgba(34,197,94,0.28)", "rgba(0,0,0,0)"] } : {}}
                 transition={{ duration: 0.7 }}
-                className="flex items-center justify-end px-5 py-3"
-                style={{ width: 200 }}
+                className="flex flex-col items-end justify-center px-5 py-3 gap-1"
+                style={{ width: 220 }}
               >
                 <span
                   className="text-white font-black text-xl leading-tight text-right"
@@ -500,12 +500,29 @@ const Overlay = () => {
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    maxWidth: 190,
+                    maxWidth: 210,
                     display: "block",
                   }}
                 >
                   {match.team1?.name}
                 </span>
+                {team1Players.length > 0 && (
+                  <span
+                    className="text-right leading-tight uppercase tracking-wide"
+                    style={{
+                      fontSize: "0.6rem",
+                      color: "rgba(255,255,255,0.55)",
+                      textShadow: "0 1px 6px rgba(0,0,0,0.9)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      maxWidth: 210,
+                      display: "block",
+                    }}
+                  >
+                    {team1Players.join(" • ")}
+                  </span>
+                )}
               </motion.div>
 
               {/* Score block */}
@@ -545,12 +562,12 @@ const Overlay = () => {
                 </motion.span>
               </div>
 
-              {/* Team 2 name */}
+              {/* Team 2 name + players */}
               <motion.div
                 animate={scoreFlash?.team === 2 ? { backgroundColor: ["rgba(34,197,94,0.28)", "rgba(0,0,0,0)"] } : {}}
                 transition={{ duration: 0.7 }}
-                className="flex items-center justify-start px-5 py-3"
-                style={{ width: 200 }}
+                className="flex flex-col items-start justify-center px-5 py-3 gap-1"
+                style={{ width: 220 }}
               >
                 <span
                   className="text-white font-black text-xl leading-tight text-left"
@@ -559,12 +576,29 @@ const Overlay = () => {
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    maxWidth: 190,
+                    maxWidth: 210,
                     display: "block",
                   }}
                 >
                   {match.team2?.name}
                 </span>
+                {team2Players.length > 0 && (
+                  <span
+                    className="text-left leading-tight uppercase tracking-wide"
+                    style={{
+                      fontSize: "0.6rem",
+                      color: "rgba(255,255,255,0.55)",
+                      textShadow: "0 1px 6px rgba(0,0,0,0.9)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      maxWidth: 210,
+                      display: "block",
+                    }}
+                  >
+                    {team2Players.join(" • ")}
+                  </span>
+                )}
               </motion.div>
             </div>
 
