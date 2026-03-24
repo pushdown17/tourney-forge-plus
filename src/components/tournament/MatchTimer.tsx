@@ -82,8 +82,12 @@ export const MatchTimer = ({
 
   const calculateGgElapsedMs = useCallback(() => {
     if (!goldenGoalStartedAt) return 0;
+    if (goldenGoalPausedAt) {
+      // Use the frozen elapsed value when paused
+      return 0; // will be computed from ref below
+    }
     return getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime();
-  }, [goldenGoalStartedAt]);
+  }, [goldenGoalStartedAt, goldenGoalPausedAt]);
 
   // Sync state when props change
   useEffect(() => {
