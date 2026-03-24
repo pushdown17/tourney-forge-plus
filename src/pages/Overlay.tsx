@@ -27,6 +27,8 @@ interface MatchData {
   phase: string;
   round_number: number;
   is_third_place_match: boolean;
+  tournament_team1_id: string | null;
+  tournament_team2_id: string | null;
   team1: { id: string; name: string } | null;
   team2: { id: string; name: string } | null;
 }
@@ -73,6 +75,8 @@ const Overlay = () => {
   const [team1Score, setTeam1Score] = useState(0);
   const [team2Score, setTeam2Score] = useState(0);
   const [scoreFlash, setScoreFlash] = useState<{ team: 1 | 2 } | null>(null);
+  const [team1Players, setTeam1Players] = useState<string[]>([]);
+  const [team2Players, setTeam2Players] = useState<string[]>([]);
   const lastEventIdRef = useRef<string | null>(null);
   const stationRef = useRef<StationData | null>(null);
   stationRef.current = station;
@@ -101,6 +105,16 @@ const Overlay = () => {
     return () => clearInterval(interval);
   }, [timerRunning, calcRemaining]);
 
+  // ---- Fetch players for a tournament_team_id ----
+  const fetchPlayers = useCallback(async (ttId: string | null): Promise<string[]> => {
+    if (!ttId) return [];
+    const { data } = await supabase
+      .from("tournament_team_players")
+      .select("player:player_id(name)")
+      .eq("tournament_team_id", ttId);
+    return (data ?? []).map((r: any) => r.player?.name).filter(Boolean);
+  }, []);
+
   // ---- Fetch match & next match ----
   const fetchMatch = useCallback(async (matchId: string, tournamentId: string) => {
     const { data } = await supabase
@@ -117,8 +131,14 @@ const Overlay = () => {
       setMatch(data as MatchData);
       setTeam1Score(data.team1_score ?? 0);
       setTeam2Score(data.team2_score ?? 0);
+      const [p1, p2] = await Promise.all([
+        fetchPlayers(data.tournament_team1_id ?? null),
+        fetchPlayers(data.tournament_team2_id ?? null),
+      ]);
+      setTeam1Players(p1);
+      setTeam2Players(p2);
     }
-  }, []);
+  }, [fetchPlayers]);
 
   const fetchNextMatch = useCallback(async (tournamentId: string) => {
     const { data } = await supabase
@@ -379,6 +399,34 @@ const Overlay = () => {
     return () => { supabase.removeChannel(ch); };
   }, [tournamentIdForBroadcast]);
 
+  // ---- Realtime: player roster changes ----
+  const matchRef = useRef<MatchData | null>(null);
+  matchRef.current = match;
+  useEffect(() => {
+    if (!match?.tournament_team1_id && !match?.tournament_team2_id) return;
+    const ids = [match.tournament_team1_id, match.tournament_team2_id].filter(Boolean) as string[];
+
+    const channel = supabase
+      .channel(`overlay-players-${match.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tournament_team_players" },
+        async () => {
+          const m = matchRef.current;
+          if (!m) return;
+          const [p1, p2] = await Promise.all([
+            fetchPlayers(m.tournament_team1_id ?? null),
+            fetchPlayers(m.tournament_team2_id ?? null),
+          ]);
+          setTeam1Players(p1);
+          setTeam2Players(p2);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [match?.id, match?.tournament_team1_id, match?.tournament_team2_id, fetchPlayers]);
+
   const hasTimer = !!station?.timer_duration_seconds;
   const timerEnded = hasTimer && remainingSeconds <= 0 && !!station?.timer_started_at;
   const isPaused = !!station?.timer_started_at && !!station?.timer_paused_at;
@@ -438,12 +486,12 @@ const Overlay = () => {
                 boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.10)",
               }}
             >
-              {/* Team 1 name */}
+              {/* Team 1 name + players */}
               <motion.div
                 animate={scoreFlash?.team === 1 ? { backgroundColor: ["rgba(34,197,94,0.28)", "rgba(0,0,0,0)"] } : {}}
                 transition={{ duration: 0.7 }}
-                className="flex items-center justify-end px-5 py-3"
-                style={{ width: 200 }}
+                className="flex flex-col items-end justify-center px-5 py-3 gap-1"
+                style={{ width: 220 }}
               >
                 <span
                   className="text-white font-black text-xl leading-tight text-right"
@@ -452,12 +500,29 @@ const Overlay = () => {
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    maxWidth: 190,
+                    maxWidth: 210,
                     display: "block",
                   }}
                 >
                   {match.team1?.name}
                 </span>
+                {team1Players.length > 0 && (
+                  <span
+                    className="text-right leading-tight uppercase tracking-wide"
+                    style={{
+                      fontSize: "0.6rem",
+                      color: "rgba(255,255,255,0.55)",
+                      textShadow: "0 1px 6px rgba(0,0,0,0.9)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      maxWidth: 210,
+                      display: "block",
+                    }}
+                  >
+                    {team1Players.join(" • ")}
+                  </span>
+                )}
               </motion.div>
 
               {/* Score block */}
@@ -497,12 +562,12 @@ const Overlay = () => {
                 </motion.span>
               </div>
 
-              {/* Team 2 name */}
+              {/* Team 2 name + players */}
               <motion.div
                 animate={scoreFlash?.team === 2 ? { backgroundColor: ["rgba(34,197,94,0.28)", "rgba(0,0,0,0)"] } : {}}
                 transition={{ duration: 0.7 }}
-                className="flex items-center justify-start px-5 py-3"
-                style={{ width: 200 }}
+                className="flex flex-col items-start justify-center px-5 py-3 gap-1"
+                style={{ width: 220 }}
               >
                 <span
                   className="text-white font-black text-xl leading-tight text-left"
@@ -511,12 +576,29 @@ const Overlay = () => {
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    maxWidth: 190,
+                    maxWidth: 210,
                     display: "block",
                   }}
                 >
                   {match.team2?.name}
                 </span>
+                {team2Players.length > 0 && (
+                  <span
+                    className="text-left leading-tight uppercase tracking-wide"
+                    style={{
+                      fontSize: "0.6rem",
+                      color: "rgba(255,255,255,0.55)",
+                      textShadow: "0 1px 6px rgba(0,0,0,0.9)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      maxWidth: 210,
+                      display: "block",
+                    }}
+                  >
+                    {team2Players.join(" • ")}
+                  </span>
+                )}
               </motion.div>
             </div>
 
