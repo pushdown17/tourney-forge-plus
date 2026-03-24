@@ -313,6 +313,19 @@ const Overlay = () => {
     setTimeout(() => setScoreFlash(null), 800);
   };
 
+  const [isGoldenGoal, setIsGoldenGoal] = useState(false);
+  const [goldenGoalStartedAt, setGoldenGoalStartedAt] = useState<string | null>(null);
+  const [ggElapsedMs, setGgElapsedMs] = useState(0);
+
+  // Count-up for Golden Goal overlay
+  useEffect(() => {
+    if (!isGoldenGoal || !goldenGoalStartedAt) return;
+    const interval = setInterval(() => {
+      setGgElapsedMs(getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime());
+    }, 100);
+    return () => clearInterval(interval);
+  }, [isGoldenGoal, goldenGoalStartedAt]);
+
   const hasTimer = !!station?.timer_duration_seconds;
   const timerEnded = hasTimer && remainingSeconds <= 0 && !!station?.timer_started_at;
   const isPaused = !!station?.timer_started_at && !!station?.timer_paused_at;
