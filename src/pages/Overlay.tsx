@@ -144,8 +144,8 @@ const Overlay = () => {
       setTeam1Score(data.team1_score ?? 0);
       setTeam2Score(data.team2_score ?? 0);
       const [p1, p2] = await Promise.all([
-        fetchPlayers(data.tournament_team1_id ?? null),
-        fetchPlayers(data.tournament_team2_id ?? null),
+        fetchPlayers(data.tournament_team1_id ?? null, data.team1_id ?? null),
+        fetchPlayers(data.tournament_team2_id ?? null, data.team2_id ?? null),
       ]);
       setTeam1Players(p1);
       setTeam2Players(p2);
