@@ -394,15 +394,27 @@ const RefereeStation = () => {
     const elapsed = (getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime()) / 1000 + goldenGoalElapsedWhenPaused;
     setGoldenGoalPausedAt(now);
     setGoldenGoalElapsedWhenPaused(elapsed);
-    setGoldenGoalStartedAt(null); // reset start so count-up resumes from elapsed on resume
-  }, [goldenGoalStartedAt, goldenGoalElapsedWhenPaused]);
+    setGoldenGoalStartedAt(null);
+
+    broadcastChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'golden_goal_pause',
+      payload: { matchId: match?.id, elapsedWhenPaused: elapsed }
+    });
+  }, [goldenGoalStartedAt, goldenGoalElapsedWhenPaused, match?.id]);
 
   // Resume GG timer after pause
   const resumeGoldenGoal = useCallback(() => {
     const now = new Date(getSyncedNowMs()).toISOString();
     setGoldenGoalStartedAt(now);
     setGoldenGoalPausedAt(null);
-  }, []);
+
+    broadcastChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'golden_goal_resume',
+      payload: { matchId: match?.id, goldenGoalStartedAt: now, elapsedWhenPaused: goldenGoalElapsedWhenPaused }
+    });
+  }, [match?.id, goldenGoalElapsedWhenPaused]);
 
   // Freeze GG timer when a goal is scored in GG mode
   const freezeGoldenGoal = useCallback(() => {
