@@ -316,15 +316,41 @@ const Overlay = () => {
   const [isGoldenGoal, setIsGoldenGoal] = useState(false);
   const [goldenGoalStartedAt, setGoldenGoalStartedAt] = useState<string | null>(null);
   const [ggElapsedMs, setGgElapsedMs] = useState(0);
+  const [ggFrozen, setGgFrozen] = useState(false);
 
-  // Count-up for Golden Goal overlay
+  // Count-up for Golden Goal overlay (stops when frozen)
   useEffect(() => {
-    if (!isGoldenGoal || !goldenGoalStartedAt) return;
+    if (!isGoldenGoal || !goldenGoalStartedAt || ggFrozen) return;
     const interval = setInterval(() => {
       setGgElapsedMs(getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime());
     }, 100);
     return () => clearInterval(interval);
-  }, [isGoldenGoal, goldenGoalStartedAt]);
+  }, [isGoldenGoal, goldenGoalStartedAt, ggFrozen]);
+
+  // Broadcast channel — listens for GG events from the referee station
+  useEffect(() => {
+    if (!station?.tournament_id) return;
+    const ch = supabase
+      .channel(`tournament-live-${station.tournament_id}`)
+      .on('broadcast', { event: 'golden_goal_start' }, (msg) => {
+        const { goldenGoalStartedAt: ggAt } = msg.payload as any;
+        setIsGoldenGoal(true);
+        setGoldenGoalStartedAt(ggAt ?? new Date().toISOString());
+        setGgFrozen(false);
+        setGgElapsedMs(0);
+      })
+      .on('broadcast', { event: 'golden_goal_scored' }, () => {
+        setGgFrozen(true);
+      })
+      .on('broadcast', { event: 'match_ended' }, () => {
+        setIsGoldenGoal(false);
+        setGoldenGoalStartedAt(null);
+        setGgFrozen(false);
+        setGgElapsedMs(0);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [station?.tournament_id]);
 
   const hasTimer = !!station?.timer_duration_seconds;
   const timerEnded = hasTimer && remainingSeconds <= 0 && !!station?.timer_started_at;
