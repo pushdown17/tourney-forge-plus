@@ -469,6 +469,13 @@ const RefereeStation = () => {
     // Clear pending player-stat saves when switching match.
     Object.values(playerStatSaveTimeouts.current).forEach((t) => clearTimeout(t));
     playerStatSaveTimeouts.current = {};
+    // Reset Golden Goal state when match changes
+    if (match?.id !== ggMatchIdRef.current) {
+      setIsGoldenGoal(false);
+      setGoldenGoalStartedAt(null);
+      setGoldenGoalFrozen(false);
+      ggMatchIdRef.current = null;
+    }
   }, [match?.id]);
 
   // Auto-save scores to database
