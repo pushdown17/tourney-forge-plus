@@ -399,6 +399,34 @@ const Overlay = () => {
     return () => { supabase.removeChannel(ch); };
   }, [tournamentIdForBroadcast]);
 
+  // ---- Realtime: player roster changes ----
+  const matchRef = useRef<MatchData | null>(null);
+  matchRef.current = match;
+  useEffect(() => {
+    if (!match?.tournament_team1_id && !match?.tournament_team2_id) return;
+    const ids = [match.tournament_team1_id, match.tournament_team2_id].filter(Boolean) as string[];
+
+    const channel = supabase
+      .channel(`overlay-players-${match.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tournament_team_players" },
+        async () => {
+          const m = matchRef.current;
+          if (!m) return;
+          const [p1, p2] = await Promise.all([
+            fetchPlayers(m.tournament_team1_id ?? null),
+            fetchPlayers(m.tournament_team2_id ?? null),
+          ]);
+          setTeam1Players(p1);
+          setTeam2Players(p2);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [match?.id, match?.tournament_team1_id, match?.tournament_team2_id, fetchPlayers]);
+
   const hasTimer = !!station?.timer_duration_seconds;
   const timerEnded = hasTimer && remainingSeconds <= 0 && !!station?.timer_started_at;
   const isPaused = !!station?.timer_started_at && !!station?.timer_paused_at;
