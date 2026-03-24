@@ -105,6 +105,16 @@ const Overlay = () => {
     return () => clearInterval(interval);
   }, [timerRunning, calcRemaining]);
 
+  // ---- Fetch players for a tournament_team_id ----
+  const fetchPlayers = useCallback(async (ttId: string | null): Promise<string[]> => {
+    if (!ttId) return [];
+    const { data } = await supabase
+      .from("tournament_team_players")
+      .select("player:player_id(name)")
+      .eq("tournament_team_id", ttId);
+    return (data ?? []).map((r: any) => r.player?.name).filter(Boolean);
+  }, []);
+
   // ---- Fetch match & next match ----
   const fetchMatch = useCallback(async (matchId: string, tournamentId: string) => {
     const { data } = await supabase
@@ -121,8 +131,14 @@ const Overlay = () => {
       setMatch(data as MatchData);
       setTeam1Score(data.team1_score ?? 0);
       setTeam2Score(data.team2_score ?? 0);
+      const [p1, p2] = await Promise.all([
+        fetchPlayers(data.tournament_team1_id ?? null),
+        fetchPlayers(data.tournament_team2_id ?? null),
+      ]);
+      setTeam1Players(p1);
+      setTeam2Players(p2);
     }
-  }, []);
+  }, [fetchPlayers]);
 
   const fetchNextMatch = useCallback(async (tournamentId: string) => {
     const { data } = await supabase
