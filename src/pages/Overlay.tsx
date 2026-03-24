@@ -75,6 +75,8 @@ const Overlay = () => {
   const [team1Score, setTeam1Score] = useState(0);
   const [team2Score, setTeam2Score] = useState(0);
   const [scoreFlash, setScoreFlash] = useState<{ team: 1 | 2 } | null>(null);
+  const [team1Players, setTeam1Players] = useState<string[]>([]);
+  const [team2Players, setTeam2Players] = useState<string[]>([]);
   const lastEventIdRef = useRef<string | null>(null);
   const stationRef = useRef<StationData | null>(null);
   stationRef.current = station;
