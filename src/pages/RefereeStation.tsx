@@ -728,7 +728,8 @@ const RefereeStation = () => {
           team1_score: team1.score,
           team2_score: team2.score,
           winner_id: team1.score > team2.score ? team1.id : 
-                     team2.score > team1.score ? team2.id : null
+                     team2.score > team1.score ? team2.id : null,
+          is_golden_goal: isGoldenGoal
         })
         .eq("id", match.id);
 
