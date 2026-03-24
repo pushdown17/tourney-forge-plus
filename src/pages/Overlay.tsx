@@ -432,8 +432,8 @@ const Overlay = () => {
           const m = matchRef.current;
           if (!m) return;
           const [p1, p2] = await Promise.all([
-            fetchPlayers(m.tournament_team1_id ?? null),
-            fetchPlayers(m.tournament_team2_id ?? null),
+            fetchPlayers(m.tournament_team1_id ?? null, m.team1_id ?? null),
+            fetchPlayers(m.tournament_team2_id ?? null, m.team2_id ?? null),
           ]);
           setTeam1Players(p1);
           setTeam2Players(p2);
