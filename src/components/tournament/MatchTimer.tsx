@@ -401,7 +401,7 @@ export const MatchTimer = ({
                 className="gap-2 font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
               >
                 <Zap className="h-5 w-5" />
-                Démarrer Golden Goal
+                Golden Goal
               </Button>
             )}
           </div>
