@@ -83,6 +83,13 @@ const RefereeStation = () => {
   const [goalRemoverPicker, setGoalRemoverPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
   // Third place decision is handled on the tournament management page, not here
 
+  // Golden Goal state
+  const [isGoldenGoal, setIsGoldenGoal] = useState(false);
+  const [goldenGoalStartedAt, setGoldenGoalStartedAt] = useState<string | null>(null);
+  const [goldenGoalFrozen, setGoldenGoalFrozen] = useState(false);
+  // ggMatchId tracks which match the GG was started for (reset on match change)
+  const ggMatchIdRef = useRef<string | null>(null);
+
   // Keep last known match assignment to avoid refetching (and resetting local unsaved stats)
   // on every timer tick/update.
   const stationMatchIdRef = useRef<string | null>(null);
