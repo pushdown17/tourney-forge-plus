@@ -236,7 +236,11 @@ export const DoubleEliminationBracket = ({
               durationSeconds: durationSeconds ?? prev[matchId]?.durationSeconds ?? 0,
               startedAt: timer_started_at,
               pausedAt: timer_paused_at,
-              elapsedWhenPaused: timer_elapsed_when_paused ?? prev[matchId]?.elapsedWhenPaused ?? 0
+              elapsedWhenPaused: timer_elapsed_when_paused ?? prev[matchId]?.elapsedWhenPaused ?? 0,
+              // Preserve GG state across timer updates
+              isGoldenGoal: prev[matchId]?.isGoldenGoal ?? false,
+              goldenGoalStartedAt: prev[matchId]?.goldenGoalStartedAt ?? null,
+              goldenGoalElapsedWhenPaused: prev[matchId]?.goldenGoalElapsedWhenPaused ?? 0,
             }
           }));
           if (action === 'start' || action === 'resume') {
@@ -248,6 +252,50 @@ export const DoubleEliminationBracket = ({
               setMatchTimers(prev => { const next = { ...prev }; delete next[matchId]; return next; });
             }, 1000);
           }
+        }
+      })
+      .on('broadcast', { event: 'golden_goal_start' }, (payload) => {
+        const { matchId, goldenGoalStartedAt } = payload.payload;
+        if (matchId) {
+          setMatchTimers(prev => ({
+            ...prev,
+            [matchId]: {
+              ...(prev[matchId] ?? { durationSeconds: 0, startedAt: null, pausedAt: null, elapsedWhenPaused: 0 }),
+              isGoldenGoal: true,
+              goldenGoalStartedAt,
+              goldenGoalElapsedWhenPaused: 0,
+            }
+          }));
+          setLiveMatches(prev => new Set([...prev, matchId]));
+        }
+      })
+      .on('broadcast', { event: 'golden_goal_pause' }, (payload) => {
+        const { matchId, elapsedWhenPaused } = payload.payload;
+        if (matchId) {
+          setMatchTimers(prev => ({
+            ...prev,
+            [matchId]: {
+              ...(prev[matchId] ?? { durationSeconds: 0, startedAt: null, pausedAt: null, elapsedWhenPaused: 0 }),
+              isGoldenGoal: true,
+              goldenGoalStartedAt: null,
+              goldenGoalElapsedWhenPaused: elapsedWhenPaused ?? 0,
+            }
+          }));
+        }
+      })
+      .on('broadcast', { event: 'golden_goal_resume' }, (payload) => {
+        const { matchId, goldenGoalStartedAt, elapsedWhenPaused } = payload.payload;
+        if (matchId) {
+          setMatchTimers(prev => ({
+            ...prev,
+            [matchId]: {
+              ...(prev[matchId] ?? { durationSeconds: 0, startedAt: null, pausedAt: null, elapsedWhenPaused: 0 }),
+              isGoldenGoal: true,
+              goldenGoalStartedAt,
+              goldenGoalElapsedWhenPaused: elapsedWhenPaused ?? 0,
+            }
+          }));
+          setLiveMatches(prev => new Set([...prev, matchId]));
         }
       })
       .on('broadcast', { event: 'de_match_completed' }, (_payload) => {
