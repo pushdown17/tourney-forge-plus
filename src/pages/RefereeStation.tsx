@@ -2021,7 +2021,7 @@ const RefereeStation = () => {
             variant="outline" 
             className="flex-1"
             onClick={saveStats}
-            disabled={saving}
+            disabled={saving || (isGoldenGoal && !goldenGoalFrozen)}
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Save
@@ -2029,9 +2029,14 @@ const RefereeStation = () => {
           <Button 
             className="flex-1"
             onClick={() => setConfirmDialogOpen(true)}
+            disabled={isGoldenGoal && !goldenGoalFrozen}
+            title={isGoldenGoal && !goldenGoalFrozen ? "Un but doit être marqué avant de terminer le match (Golden Goal)" : undefined}
           >
             <Check className="h-4 w-4 mr-2" />
             End Match
+            {isGoldenGoal && !goldenGoalFrozen && (
+              <span className="ml-1 text-xs opacity-70">⚡ GG</span>
+            )}
           </Button>
         </div>
       )}
