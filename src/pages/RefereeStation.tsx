@@ -1763,6 +1763,12 @@ const RefereeStation = () => {
                 onDurationChange={(newDuration) => {
                   setStation((prev: any) => prev ? { ...prev, timer_duration_seconds: newDuration } : prev);
                 }}
+                isGoldenGoal={isGoldenGoal}
+                goldenGoalStartedAt={goldenGoalStartedAt}
+                onGoldenGoalStart={startGoldenGoal}
+                isEliminationPhase={match.phase === 'single_elimination' || match.phase === 'double_elimination'}
+                isTied={(team1?.score ?? 0) === (team2?.score ?? 0)}
+                goldenGoalFrozen={goldenGoalFrozen}
               />
             ) : (
               <Card className="p-4">
