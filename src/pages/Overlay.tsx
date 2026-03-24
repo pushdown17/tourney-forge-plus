@@ -27,6 +27,8 @@ interface MatchData {
   phase: string;
   round_number: number;
   is_third_place_match: boolean;
+  tournament_team1_id: string | null;
+  tournament_team2_id: string | null;
   team1: { id: string; name: string } | null;
   team2: { id: string; name: string } | null;
 }
