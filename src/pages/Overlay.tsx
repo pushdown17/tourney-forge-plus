@@ -106,13 +106,25 @@ const Overlay = () => {
   }, [timerRunning, calcRemaining]);
 
   // ---- Fetch players for a tournament_team_id ----
-  const fetchPlayers = useCallback(async (ttId: string | null): Promise<string[]> => {
-    if (!ttId) return [];
-    const { data } = await supabase
-      .from("tournament_team_players")
-      .select("player:player_id(name)")
-      .eq("tournament_team_id", ttId);
-    return (data ?? []).map((r: any) => r.player?.name).filter(Boolean);
+  const fetchPlayers = useCallback(async (ttId: string | null, teamId?: string | null): Promise<string[]> => {
+    // Try via tournament_team_players first (has composition)
+    if (ttId) {
+      const { data } = await supabase
+        .from("tournament_team_players")
+        .select("players!tournament_team_players_player_id_fkey(name)")
+        .eq("tournament_team_id", ttId);
+      const names = (data ?? []).map((r: any) => r.players?.name).filter(Boolean) as string[];
+      if (names.length > 0) return names;
+    }
+    // Fallback: fetch players directly linked to the team
+    if (teamId) {
+      const { data } = await supabase
+        .from("players")
+        .select("name")
+        .eq("team_id", teamId);
+      return (data ?? []).map((r: any) => r.name).filter(Boolean) as string[];
+    }
+    return [];
   }, []);
 
   // ---- Fetch match & next match ----
