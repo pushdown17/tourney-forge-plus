@@ -1787,7 +1787,10 @@ const RefereeStation = () => {
                 }}
                 isGoldenGoal={isGoldenGoal}
                 goldenGoalStartedAt={goldenGoalStartedAt}
+                goldenGoalPausedAt={goldenGoalPausedAt}
                 onGoldenGoalStart={startGoldenGoal}
+                onGoldenGoalPause={pauseGoldenGoal}
+                onGoldenGoalResume={resumeGoldenGoal}
                 isEliminationPhase={match.phase === 'single_elimination' || match.phase === 'double_elimination'}
                 isTied={(team1?.score ?? 0) === (team2?.score ?? 0)}
                 goldenGoalFrozen={goldenGoalFrozen}
