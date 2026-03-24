@@ -137,16 +137,19 @@ export const BracketMatch = ({
             C{match.field_number}
           </span>
         )}
-        {isLive && timerState?.startedAt && (
+        {isLive && (timerState?.startedAt || timerState?.isGoldenGoal) && (
           <TimerDisplay
             durationSeconds={timerState.durationSeconds}
             startedAt={timerState.startedAt}
             pausedAt={timerState.pausedAt}
             elapsedWhenPaused={timerState.elapsedWhenPaused}
+            isGoldenGoal={timerState.isGoldenGoal}
+            goldenGoalStartedAt={timerState.goldenGoalStartedAt}
+            goldenGoalElapsedWhenPaused={timerState.goldenGoalElapsedWhenPaused}
             compact
           />
         )}
-        {isLive && (!timerState || !timerState.startedAt) && (
+        {isLive && (!timerState || (!timerState.startedAt && !timerState.isGoldenGoal)) && (
           <Badge variant="outline" className="h-4 px-1.5 text-[10px] font-bold gap-1 border-primary text-primary">
             <Radio className="h-2.5 w-2.5" />
             On Court

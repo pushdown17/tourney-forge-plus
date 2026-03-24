@@ -451,6 +451,54 @@ export const EliminationBracket = ({
       )
       .on(
         'broadcast',
+        { event: 'golden_goal_start' },
+        (payload) => {
+          const { matchId, goldenGoalStartedAt } = payload.payload;
+          setMatchTimers(prev => ({
+            ...prev,
+            [matchId]: {
+              ...(prev[matchId] ?? { durationSeconds: 0, startedAt: null, pausedAt: null, elapsedWhenPaused: 0 }),
+              isGoldenGoal: true,
+              goldenGoalStartedAt,
+              goldenGoalElapsedWhenPaused: 0,
+            }
+          }));
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'golden_goal_pause' },
+        (payload) => {
+          const { matchId, elapsedWhenPaused } = payload.payload;
+          setMatchTimers(prev => ({
+            ...prev,
+            [matchId]: {
+              ...(prev[matchId] ?? { durationSeconds: 0, startedAt: null, pausedAt: null, elapsedWhenPaused: 0 }),
+              isGoldenGoal: true,
+              goldenGoalStartedAt: null,
+              goldenGoalElapsedWhenPaused: elapsedWhenPaused ?? 0,
+            }
+          }));
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'golden_goal_resume' },
+        (payload) => {
+          const { matchId, goldenGoalStartedAt, elapsedWhenPaused } = payload.payload;
+          setMatchTimers(prev => ({
+            ...prev,
+            [matchId]: {
+              ...(prev[matchId] ?? { durationSeconds: 0, startedAt: null, pausedAt: null, elapsedWhenPaused: 0 }),
+              isGoldenGoal: true,
+              goldenGoalStartedAt,
+              goldenGoalElapsedWhenPaused: elapsedWhenPaused ?? 0,
+            }
+          }));
+        }
+      )
+      .on(
+        'broadcast',
         { event: 'match_ended' },
         (payload) => {
           console.log('Match ended broadcast received:', payload);
