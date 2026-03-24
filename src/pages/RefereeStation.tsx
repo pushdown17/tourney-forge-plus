@@ -555,6 +555,11 @@ const RefereeStation = () => {
     // Auto-save to database
     triggerAutoSave(newTeam1Score, newTeam2Score);
 
+    // If in Golden Goal mode and a goal was just scored, freeze the timer
+    if (isGoldenGoal && !goldenGoalFrozen && delta > 0) {
+      freezeGoldenGoal();
+    }
+
     // Record anonymous goal event
     if (anonymous && team) {
       const scoreStr = `${newTeam1Score} - ${newTeam2Score}`;
