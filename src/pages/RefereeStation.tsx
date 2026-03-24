@@ -737,6 +737,18 @@ const RefereeStation = () => {
     if (stat === 'goals') {
       broadcastLiveScore(newTeam1Score, newTeam2Score);
       triggerAutoSave(newTeam1Score, newTeam2Score);
+      // Broadcast goal_scored event for overlay alert
+      if (delta > 0 && player && team && broadcastChannelRef.current) {
+        broadcastChannelRef.current.send({
+          type: 'broadcast',
+          event: 'goal_scored',
+          payload: {
+            matchId: match?.id,
+            playerName: player.player_name,
+            teamName: team.name,
+          }
+        });
+      }
       // Freeze GG timer on first goal in Golden Goal mode
       if (isGoldenGoal && !goldenGoalFrozen && delta > 0) {
         freezeGoldenGoal();
