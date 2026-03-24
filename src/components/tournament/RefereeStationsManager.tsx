@@ -317,30 +317,39 @@ export const RefereeStationsManager = ({ tournamentId, isCreator }: RefereeStati
       {/* Streaming Overlay info section */}
       {stations.length > 0 && (
         <div className="mt-6 pt-4 border-t border-border">
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
             <Tv2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
             <div className="text-sm flex-1 min-w-0">
-              <p className="font-medium text-foreground">Streaming Overlay (OBS)</p>
-              <p className="text-muted-foreground mt-0.5 mb-3">
-                In OBS, add a <span className="font-mono text-xs bg-muted px-1 rounded">Browser Source</span> and paste the overlay URL below.
-                Set background to transparent (check "Custom CSS" → <span className="font-mono text-xs bg-muted px-1 rounded">background-color: rgba(0,0,0,0);</span>).
+              <p className="font-medium text-foreground mb-1">URLs Overlay pour OBS</p>
+              <p className="text-muted-foreground mb-3">
+                Dans OBS, ajoutez une <span className="font-mono text-xs bg-muted px-1 rounded">Browser Source</span> et collez l'URL de la station concernée. Aucune connexion n'est requise.
               </p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 min-w-0 truncate text-xs bg-muted px-2 py-1.5 rounded border font-mono text-muted-foreground">
-                  {`${window.location.origin}/overlay/live-match`}
-                </code>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0 gap-1.5"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/overlay/live-match`);
-                    toast.success("URL de l'overlay copiée !");
-                  }}
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  Copier l'URL
-                </Button>
+              <div className="space-y-2">
+                {stations.map((station) => {
+                  const overlayUrl = `${window.location.origin}/overlay/${station.id}`;
+                  return (
+                    <div key={station.id} className="flex items-center gap-2">
+                      <span className="shrink-0 text-xs text-muted-foreground w-20 truncate font-medium">
+                        {station.station_name} {station.station_number}
+                      </span>
+                      <code className="flex-1 min-w-0 truncate text-xs bg-muted px-2 py-1.5 rounded border font-mono text-muted-foreground">
+                        {overlayUrl}
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 h-8 px-2 gap-1.5"
+                        onClick={() => {
+                          navigator.clipboard.writeText(overlayUrl);
+                          toast.success(`URL "${station.station_name} ${station.station_number}" copiée !`);
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        Copier
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
