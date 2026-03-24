@@ -1,0 +1,1 @@
+ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS is_golden_goal boolean NOT NULL DEFAULT false;
