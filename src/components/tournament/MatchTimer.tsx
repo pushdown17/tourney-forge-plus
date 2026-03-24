@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, RotateCcw, Timer, Plus, Minus, Settings2 } from "lucide-react";
+import { Play, Pause, RotateCcw, Timer, Plus, Minus, Settings2, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getSyncedNowMs } from "@/lib/serverTime";
@@ -18,6 +18,13 @@ interface MatchTimerProps {
   showMilliseconds?: boolean;
   onTimeEnd?: () => void;
   onDurationChange?: (newDuration: number) => void;
+  // Golden Goal props
+  isGoldenGoal?: boolean;
+  goldenGoalStartedAt?: string | null;
+  onGoldenGoalStart?: () => void;
+  isEliminationPhase?: boolean;
+  isTied?: boolean;
+  goldenGoalFrozen?: boolean;
 }
 
 export const MatchTimer = ({
@@ -31,69 +38,65 @@ export const MatchTimer = ({
   canControl = false,
   showMilliseconds = false,
   onTimeEnd,
-  onDurationChange
+  onDurationChange,
+  isGoldenGoal = false,
+  goldenGoalStartedAt = null,
+  onGoldenGoalStart,
+  isEliminationPhase = false,
+  isTied = false,
+  goldenGoalFrozen = false,
 }: MatchTimerProps) => {
   const [remainingMs, setRemainingMs] = useState<number>((durationSeconds || 0) * 1000);
   const [isRunning, setIsRunning] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Golden Goal: elapsed seconds since GG started (count-up)
+  const [ggElapsedMs, setGgElapsedMs] = useState<number>(0);
+
   const hasPlayedEndSound = useRef(false);
 
-  // Keep a ref of elapsedWhenPaused that is always up-to-date,
-  // so pauseTimer() never reads a stale React prop closure.
   const elapsedWhenPausedRef = useRef(elapsedWhenPaused);
   useEffect(() => {
     elapsedWhenPausedRef.current = elapsedWhenPaused;
   }, [elapsedWhenPaused]);
 
-  // Keep refs for startedAt / pausedAt for the same reason
   const startedAtRef = useRef(startedAt);
   const pausedAtRef = useRef(pausedAt);
   useEffect(() => { startedAtRef.current = startedAt; }, [startedAt]);
   useEffect(() => { pausedAtRef.current = pausedAt; }, [pausedAt]);
 
-  // Calculate remaining time in milliseconds based on timer state
   const calculateRemainingMs = useCallback(() => {
     if (!durationSeconds) return (durationSeconds || 0) * 1000;
-    
-    if (!startedAt) {
-      // Timer not started yet
-      return durationSeconds * 1000;
-    }
-    
-    if (pausedAt) {
-      // elapsedWhenPaused already contains the TOTAL elapsed time in seconds (set during pause)
-      return Math.max(0, (durationSeconds - elapsedWhenPaused) * 1000);
-    }
-    
-    // Timer is running
+    if (!startedAt) return durationSeconds * 1000;
+    if (pausedAt) return Math.max(0, (durationSeconds - elapsedWhenPaused) * 1000);
     const startTime = new Date(startedAt).getTime();
     const now = getSyncedNowMs();
     const elapsedMs = now - startTime + elapsedWhenPaused * 1000;
     return Math.max(0, durationSeconds * 1000 - elapsedMs);
   }, [durationSeconds, startedAt, pausedAt, elapsedWhenPaused]);
 
-  // Update timer state
+  const calculateGgElapsedMs = useCallback(() => {
+    if (!goldenGoalStartedAt) return 0;
+    return getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime();
+  }, [goldenGoalStartedAt]);
+
+  // Sync state when props change
   useEffect(() => {
+    if (isGoldenGoal) return; // GG mode handled separately
     const isCurrentlyRunning = startedAt !== null && pausedAt === null;
     setIsRunning(isCurrentlyRunning);
     setRemainingMs(calculateRemainingMs());
-    
-    // Reset end state if timer is reset
     if (!startedAt) {
       setHasEnded(false);
       hasPlayedEndSound.current = false;
     }
-  }, [startedAt, pausedAt, calculateRemainingMs]);
+  }, [startedAt, pausedAt, calculateRemainingMs, isGoldenGoal]);
 
-  // Countdown effect - update more frequently for milliseconds display
+  // Countdown for normal mode
   useEffect(() => {
-    if (!isRunning) return;
-    
+    if (!isRunning || isGoldenGoal) return;
     const interval = setInterval(() => {
       const remaining = calculateRemainingMs();
       setRemainingMs(remaining);
-      
       if (remaining <= 0 && !hasEnded) {
         setHasEnded(true);
         if (!hasPlayedEndSound.current) {
@@ -103,34 +106,41 @@ export const MatchTimer = ({
         }
       }
     }, showMilliseconds ? 50 : 100);
-    
     return () => clearInterval(interval);
-  }, [isRunning, calculateRemainingMs, hasEnded, onTimeEnd, showMilliseconds]);
+  }, [isRunning, calculateRemainingMs, hasEnded, onTimeEnd, showMilliseconds, isGoldenGoal]);
+
+  // Count-up for Golden Goal mode
+  useEffect(() => {
+    if (!isGoldenGoal || !goldenGoalStartedAt || goldenGoalFrozen) return;
+    setGgElapsedMs(calculateGgElapsedMs());
+    const interval = setInterval(() => {
+      setGgElapsedMs(calculateGgElapsedMs());
+    }, 100);
+    return () => clearInterval(interval);
+  }, [isGoldenGoal, goldenGoalStartedAt, goldenGoalFrozen, calculateGgElapsedMs]);
+
+  // Freeze GG timer when a goal is scored
+  useEffect(() => {
+    if (goldenGoalFrozen && goldenGoalStartedAt) {
+      setGgElapsedMs(calculateGgElapsedMs());
+    }
+  }, [goldenGoalFrozen, goldenGoalStartedAt, calculateGgElapsedMs]);
 
   const playEndSound = () => {
-    // Create audio context for end sound
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      // Play a series of beeps
       const playBeep = (delay: number, frequency: number = 880) => {
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
-        
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-        
         oscillator.frequency.value = frequency;
         oscillator.type = 'sine';
-        
         gainNode.gain.setValueAtTime(0.5, audioContext.currentTime + delay);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + delay + 0.3);
-        
         oscillator.start(audioContext.currentTime + delay);
         oscillator.stop(audioContext.currentTime + delay + 0.3);
       };
-      
-      // Triple beep pattern
       playBeep(0, 880);
       playBeep(0.4, 880);
       playBeep(0.8, 1100);
@@ -144,153 +154,82 @@ export const MatchTimer = ({
     await channel.send({
       type: 'broadcast',
       event: 'timer_update',
-      payload: {
-        matchId,
-        stationId,
-        durationSeconds,
-        ...updates
-      }
+      payload: { matchId, stationId, durationSeconds, ...updates }
     });
   };
 
   const startTimer = async () => {
     const now = new Date(getSyncedNowMs()).toISOString();
-    
     const { error } = await supabase
       .from('referee_stations')
-      .update({
-        timer_started_at: now,
-        timer_paused_at: null
-      } as any)
+      .update({ timer_started_at: now, timer_paused_at: null } as any)
       .eq('id', stationId);
-    
     if (!error) {
-      broadcastTimerUpdate({
-        action: 'start',
-        timer_started_at: now,
-        timer_paused_at: null,
-        timer_elapsed_when_paused: elapsedWhenPaused
-      });
+      broadcastTimerUpdate({ action: 'start', timer_started_at: now, timer_paused_at: null, timer_elapsed_when_paused: elapsedWhenPaused });
     }
   };
 
   const pauseTimer = async () => {
     const now = new Date(getSyncedNowMs()).toISOString();
-    
-    // Use ref to get the freshest startedAt and elapsedWhenPaused values,
-    // avoiding stale React prop closures that cause time jumps on pause.
     const currentStartedAt = startedAtRef.current;
     const currentElapsedBase = elapsedWhenPausedRef.current;
-
     if (!currentStartedAt) return;
-
     const startTime = new Date(currentStartedAt).getTime();
     const runningElapsed = (getSyncedNowMs() - startTime) / 1000;
     const totalElapsed = runningElapsed + currentElapsedBase;
-    
     const { error } = await supabase
       .from('referee_stations')
-      .update({
-        timer_paused_at: now,
-        timer_elapsed_when_paused: totalElapsed
-      } as any)
+      .update({ timer_paused_at: now, timer_elapsed_when_paused: totalElapsed } as any)
       .eq('id', stationId);
-    
     if (!error) {
-      // Update ref immediately so a rapid resume doesn't read the old value
       elapsedWhenPausedRef.current = totalElapsed;
-      broadcastTimerUpdate({
-        action: 'pause',
-        timer_started_at: currentStartedAt,
-        timer_paused_at: now,
-        timer_elapsed_when_paused: totalElapsed
-      });
+      broadcastTimerUpdate({ action: 'pause', timer_started_at: currentStartedAt, timer_paused_at: now, timer_elapsed_when_paused: totalElapsed });
     }
   };
 
   const resumeTimer = async () => {
     const now = new Date(getSyncedNowMs()).toISOString();
-    
-    // Use ref value — it was updated optimistically when we paused,
-    // so no DB round-trip needed and no stale-closure risk.
     const currentElapsed = elapsedWhenPausedRef.current;
-    
     const { error } = await supabase
       .from('referee_stations')
-      .update({
-        timer_started_at: now,
-        timer_paused_at: null
-      } as any)
+      .update({ timer_started_at: now, timer_paused_at: null } as any)
       .eq('id', stationId);
-    
     if (!error) {
-      // Update refs immediately for consistency
       startedAtRef.current = now;
       pausedAtRef.current = null;
-      broadcastTimerUpdate({
-        action: 'resume',
-        timer_started_at: now,
-        timer_paused_at: null,
-        timer_elapsed_when_paused: currentElapsed
-      });
+      broadcastTimerUpdate({ action: 'resume', timer_started_at: now, timer_paused_at: null, timer_elapsed_when_paused: currentElapsed });
     }
   };
 
   const resetTimer = async () => {
     const { error } = await supabase
       .from('referee_stations')
-      .update({
-        timer_started_at: null,
-        timer_paused_at: null,
-        timer_elapsed_when_paused: 0,
-        timer_total_adjusted: 0
-      } as any)
+      .update({ timer_started_at: null, timer_paused_at: null, timer_elapsed_when_paused: 0, timer_total_adjusted: 0 } as any)
       .eq('id', stationId);
-    
     if (!error) {
       hasPlayedEndSound.current = false;
       setHasEnded(false);
-      broadcastTimerUpdate({
-        action: 'reset',
-        timer_started_at: null,
-        timer_paused_at: null,
-        timer_elapsed_when_paused: 0
-      });
+      broadcastTimerUpdate({ action: 'reset', timer_started_at: null, timer_paused_at: null, timer_elapsed_when_paused: 0 });
     }
   };
 
   const adjustTime = async (deltaSeconds: number) => {
     if (!durationSeconds) return;
-
     const newDuration = Math.max(10, durationSeconds + deltaSeconds);
-
-    // Read current total adjustment from DB, then add this delta
     const { data: currentStation } = await supabase
       .from('referee_stations')
       .select('timer_total_adjusted')
       .eq('id', stationId)
       .single();
-    
     const currentAdjusted = Number((currentStation as any)?.timer_total_adjusted || 0);
     const newTotalAdjusted = currentAdjusted + deltaSeconds;
-
     const { error } = await supabase
       .from('referee_stations')
-      .update({ 
-        timer_duration_seconds: newDuration,
-        timer_total_adjusted: newTotalAdjusted
-      } as any)
+      .update({ timer_duration_seconds: newDuration, timer_total_adjusted: newTotalAdjusted } as any)
       .eq('id', stationId);
-
     if (!error) {
       onDurationChange?.(newDuration);
-      broadcastTimerUpdate({
-        action: 'adjust',
-        durationSeconds: newDuration,
-        timer_started_at: startedAt,
-        timer_paused_at: pausedAt,
-        timer_elapsed_when_paused: elapsedWhenPaused
-      });
+      broadcastTimerUpdate({ action: 'adjust', durationSeconds: newDuration, timer_started_at: startedAt, timer_paused_at: pausedAt, timer_elapsed_when_paused: elapsedWhenPaused });
     }
   };
 
@@ -299,28 +238,56 @@ export const MatchTimer = ({
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
     const milliseconds = Math.floor((ms % 1000) / 10);
-    
     if (showMilliseconds) {
       return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
     }
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (!durationSeconds) {
-    return null;
-  }
+  if (!durationSeconds && !isGoldenGoal) return null;
 
   const isPaused = startedAt !== null && pausedAt !== null;
   const isNotStarted = startedAt === null;
 
+  // Show Golden Goal mode UI when active
+  if (isGoldenGoal) {
+    return (
+      <div className={cn(
+        "flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-colors",
+        "border-amber-500 bg-amber-500/10 animate-pulse"
+      )}>
+        <div className="flex items-center gap-2 flex-wrap justify-center">
+          <Zap className="h-5 w-5 text-amber-500" />
+          <span className="text-4xl font-mono font-bold tabular-nums text-amber-500">
+            {formatTime(ggElapsedMs)}
+          </span>
+          <Badge
+            className="animate-pulse font-bold tracking-widest"
+            style={{ background: "rgb(245 158 11)", color: "white", borderColor: "transparent" }}
+          >
+            ⚡ GOLDEN GOAL
+          </Badge>
+          {goldenGoalFrozen && (
+            <Badge variant="destructive" className="animate-pulse">
+              BUT ! 🏆
+            </Badge>
+          )}
+        </div>
+        {!goldenGoalStartedAt && canControl && (
+          <p className="text-sm text-amber-600 font-medium">En attente du démarrage...</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={cn(
       "flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-colors",
-      hasEnded ? "border-destructive bg-destructive/10 animate-pulse" : 
-      isRunning ? "border-primary bg-primary/5" : 
+      hasEnded ? "border-destructive bg-destructive/10 animate-pulse" :
+      isRunning ? "border-primary bg-primary/5" :
       "border-muted bg-muted/20"
     )}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap justify-center">
         <Timer className={cn(
           "h-5 w-5",
           hasEnded ? "text-destructive" : isRunning ? "text-primary" : "text-muted-foreground"
@@ -347,40 +314,47 @@ export const MatchTimer = ({
           </Badge>
         )}
       </div>
-      
+
       {canControl && (
         <div className="flex flex-col items-center gap-2">
-          {/* Time adjustment - hidden behind a toggle to prevent accidental taps */}
-          {startedAt && !hasEnded && (
-            <AdjustTimeToggle onAdjust={adjustTime} />
-          )}
+          {startedAt && !hasEnded && <AdjustTimeToggle onAdjust={adjustTime} />}
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-center">
             {isNotStarted && (
               <Button onClick={startTimer} size="lg" className="gap-2">
                 <Play className="h-5 w-5" />
                 Démarrer
               </Button>
             )}
-            
             {isRunning && !hasEnded && (
               <Button onClick={pauseTimer} variant="outline" size="lg" className="gap-2">
                 <Pause className="h-5 w-5" />
                 Pause
               </Button>
             )}
-            
             {isPaused && !hasEnded && (
               <Button onClick={resumeTimer} size="lg" className="gap-2">
                 <Play className="h-5 w-5" />
                 Reprendre
               </Button>
             )}
-            
             {(isPaused || hasEnded) && (
               <Button onClick={resetTimer} variant="secondary" size="lg" className="gap-2">
                 <RotateCcw className="h-5 w-5" />
                 Reset
+              </Button>
+            )}
+
+            {/* Golden Goal trigger: only for elimination phases, after time ended, when tied */}
+            {hasEnded && isEliminationPhase && isTied && !isGoldenGoal && onGoldenGoalStart && (
+              <Button
+                onClick={onGoldenGoalStart}
+                size="lg"
+                className="gap-2 font-bold"
+                style={{ background: "rgb(245 158 11)", borderColor: "rgb(245 158 11)" }}
+              >
+                <Zap className="h-5 w-5" />
+                Démarrer Golden Goal
               </Button>
             )}
           </div>
@@ -390,7 +364,6 @@ export const MatchTimer = ({
   );
 };
 
-/** Small toggle that reveals -10s / +10s buttons only after tapping a gear icon */
 const AdjustTimeToggle = ({ onAdjust }: { onAdjust: (delta: number) => void }) => {
   const [open, setOpen] = useState(false);
 
@@ -400,10 +373,7 @@ const AdjustTimeToggle = ({ onAdjust }: { onAdjust: (delta: number) => void }) =
         onClick={() => setOpen((v) => !v)}
         variant="ghost"
         size="sm"
-        className={cn(
-          "text-xs gap-1 h-7 px-2 transition-colors",
-          open ? "text-primary" : "text-muted-foreground"
-        )}
+        className={cn("text-xs gap-1 h-7 px-2 transition-colors", open ? "text-primary" : "text-muted-foreground")}
       >
         <Settings2 className="h-3.5 w-3.5" />
         {!open && <span>Ajuster</span>}
