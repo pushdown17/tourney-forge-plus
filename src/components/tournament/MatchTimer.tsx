@@ -254,17 +254,14 @@ export const MatchTimer = ({
     return (
       <div className={cn(
         "flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-colors",
-        "border-amber-500 bg-amber-500/10 animate-pulse"
+        "border-accent bg-accent/10 animate-pulse"
       )}>
         <div className="flex items-center gap-2 flex-wrap justify-center">
-          <Zap className="h-5 w-5 text-amber-500" />
-          <span className="text-4xl font-mono font-bold tabular-nums text-amber-500">
+          <Zap className="h-5 w-5 text-accent" />
+          <span className="text-4xl font-mono font-bold tabular-nums text-accent">
             {formatTime(ggElapsedMs)}
           </span>
-          <Badge
-            className="animate-pulse font-bold tracking-widest"
-            style={{ background: "rgb(245 158 11)", color: "white", borderColor: "transparent" }}
-          >
+          <Badge className="animate-pulse font-bold tracking-widest bg-accent text-accent-foreground border-transparent">
             ⚡ GOLDEN GOAL
           </Badge>
           {goldenGoalFrozen && (
@@ -274,7 +271,7 @@ export const MatchTimer = ({
           )}
         </div>
         {!goldenGoalStartedAt && canControl && (
-          <p className="text-sm text-amber-600 font-medium">En attente du démarrage...</p>
+          <p className="text-sm text-accent/80 font-medium">En attente du démarrage...</p>
         )}
       </div>
     );
