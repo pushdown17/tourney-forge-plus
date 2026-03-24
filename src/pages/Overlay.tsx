@@ -412,6 +412,16 @@ const Overlay = () => {
         ggElapsedWhenPausedRef.current = 0;
         setGgElapsedMs(0);
       })
+      .on('broadcast', { event: 'goal_scored' }, (msg) => {
+        const { playerName, teamName } = (msg.payload ?? {}) as any;
+        if (!playerName && !teamName) return;
+        const alertId = `goal-${Date.now()}`;
+        const alert: GoalAlert = { id: alertId, playerName: playerName ?? '', teamName: teamName ?? '' };
+        setGoalAlerts((prev) => [...prev, alert]);
+        setTimeout(() => {
+          setGoalAlerts((prev) => prev.filter((a) => a.id !== alertId));
+        }, 5000);
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [tournamentIdForBroadcast]);
