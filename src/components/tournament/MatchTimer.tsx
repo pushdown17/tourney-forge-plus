@@ -80,13 +80,15 @@ export const MatchTimer = ({
     return Math.max(0, durationSeconds * 1000 - elapsedMs);
   }, [durationSeconds, startedAt, pausedAt, elapsedWhenPaused]);
 
+  // GG elapsed when paused ref (to keep count-up accurate across pause/resume)
+  const ggElapsedWhenPausedRef = useRef<number>(0);
+
   const calculateGgElapsedMs = useCallback(() => {
     if (!goldenGoalStartedAt) return 0;
     if (goldenGoalPausedAt) {
-      // Use the frozen elapsed value when paused
-      return 0; // will be computed from ref below
+      return ggElapsedWhenPausedRef.current;
     }
-    return getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime();
+    return getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime() + ggElapsedWhenPausedRef.current;
   }, [goldenGoalStartedAt, goldenGoalPausedAt]);
 
   // Sync state when props change
@@ -119,22 +121,21 @@ export const MatchTimer = ({
     return () => clearInterval(interval);
   }, [isRunning, calculateRemainingMs, hasEnded, onTimeEnd, showMilliseconds, isGoldenGoal]);
 
-  // Count-up for Golden Goal mode
+  // Count-up for Golden Goal mode (paused = goldenGoalPausedAt is set)
+  const ggIsRunning = isGoldenGoal && !!goldenGoalStartedAt && !goldenGoalPausedAt && !goldenGoalFrozen;
   useEffect(() => {
-    if (!isGoldenGoal || !goldenGoalStartedAt || goldenGoalFrozen) return;
-    setGgElapsedMs(calculateGgElapsedMs());
+    if (!ggIsRunning) return;
     const interval = setInterval(() => {
       setGgElapsedMs(calculateGgElapsedMs());
     }, 100);
     return () => clearInterval(interval);
-  }, [isGoldenGoal, goldenGoalStartedAt, goldenGoalFrozen, calculateGgElapsedMs]);
+  }, [ggIsRunning, calculateGgElapsedMs]);
 
-  // Freeze GG timer when a goal is scored
+  // Sync GG display on pause/freeze/start
   useEffect(() => {
-    if (goldenGoalFrozen && goldenGoalStartedAt) {
-      setGgElapsedMs(calculateGgElapsedMs());
-    }
-  }, [goldenGoalFrozen, goldenGoalStartedAt, calculateGgElapsedMs]);
+    if (!isGoldenGoal) return;
+    setGgElapsedMs(calculateGgElapsedMs());
+  }, [isGoldenGoal, goldenGoalStartedAt, goldenGoalPausedAt, goldenGoalFrozen, calculateGgElapsedMs]);
 
   const playEndSound = () => {
     try {
