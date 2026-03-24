@@ -106,13 +106,25 @@ const Overlay = () => {
   }, [timerRunning, calcRemaining]);
 
   // ---- Fetch players for a tournament_team_id ----
-  const fetchPlayers = useCallback(async (ttId: string | null): Promise<string[]> => {
-    if (!ttId) return [];
-    const { data } = await supabase
-      .from("tournament_team_players")
-      .select("player:player_id(name)")
-      .eq("tournament_team_id", ttId);
-    return (data ?? []).map((r: any) => r.player?.name).filter(Boolean);
+  const fetchPlayers = useCallback(async (ttId: string | null, teamId?: string | null): Promise<string[]> => {
+    // Try via tournament_team_players first (has composition)
+    if (ttId) {
+      const { data } = await supabase
+        .from("tournament_team_players")
+        .select("players!tournament_team_players_player_id_fkey(name)")
+        .eq("tournament_team_id", ttId);
+      const names = (data ?? []).map((r: any) => r.players?.name).filter(Boolean) as string[];
+      if (names.length > 0) return names;
+    }
+    // Fallback: fetch players directly linked to the team
+    if (teamId) {
+      const { data } = await supabase
+        .from("players")
+        .select("name")
+        .eq("team_id", teamId);
+      return (data ?? []).map((r: any) => r.name).filter(Boolean) as string[];
+    }
+    return [];
   }, []);
 
   // ---- Fetch match & next match ----
@@ -132,8 +144,8 @@ const Overlay = () => {
       setTeam1Score(data.team1_score ?? 0);
       setTeam2Score(data.team2_score ?? 0);
       const [p1, p2] = await Promise.all([
-        fetchPlayers(data.tournament_team1_id ?? null),
-        fetchPlayers(data.tournament_team2_id ?? null),
+        fetchPlayers(data.tournament_team1_id ?? null, data.team1_id ?? null),
+        fetchPlayers(data.tournament_team2_id ?? null, data.team2_id ?? null),
       ]);
       setTeam1Players(p1);
       setTeam2Players(p2);
@@ -400,6 +412,16 @@ const Overlay = () => {
         ggElapsedWhenPausedRef.current = 0;
         setGgElapsedMs(0);
       })
+      .on('broadcast', { event: 'goal_scored' }, (msg) => {
+        const { playerName, teamName } = (msg.payload ?? {}) as any;
+        if (!playerName && !teamName) return;
+        const alertId = `goal-${Date.now()}`;
+        const alert: GoalAlert = { id: alertId, playerName: playerName ?? '', teamName: teamName ?? '' };
+        setGoalAlerts((prev) => [...prev, alert]);
+        setTimeout(() => {
+          setGoalAlerts((prev) => prev.filter((a) => a.id !== alertId));
+        }, 5000);
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [tournamentIdForBroadcast]);
@@ -420,8 +442,8 @@ const Overlay = () => {
           const m = matchRef.current;
           if (!m) return;
           const [p1, p2] = await Promise.all([
-            fetchPlayers(m.tournament_team1_id ?? null),
-            fetchPlayers(m.tournament_team2_id ?? null),
+            fetchPlayers(m.tournament_team1_id ?? null, m.team1_id ?? null),
+            fetchPlayers(m.tournament_team2_id ?? null, m.team2_id ?? null),
           ]);
           setTeam1Players(p1);
           setTeam2Players(p2);
