@@ -31,11 +31,6 @@ export const TimerDisplay = ({
   const [isRunning, setIsRunning] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
 
-  // Don't render if no duration is set
-  if (!durationSeconds) {
-    return null;
-  }
-
   // ─── Golden Goal count-up calculation ───────────────────────────────────────
   const calculateGgElapsed = useCallback(() => {
     if (!goldenGoalStartedAt) {
@@ -98,6 +93,9 @@ export const TimerDisplay = ({
 
     return () => clearInterval(interval);
   }, [isGoldenGoal, goldenGoalStartedAt, calculateGgElapsed]);
+
+  // Don't render if no duration is set (after hooks to respect rules of hooks)
+  if (!durationSeconds) return null;
 
   const formatTime = (seconds: number) => {
     const totalSecs = Math.floor(Math.abs(seconds));
