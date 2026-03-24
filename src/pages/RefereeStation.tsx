@@ -371,10 +371,11 @@ const RefereeStation = () => {
     const now = new Date(getSyncedNowMs()).toISOString();
     setIsGoldenGoal(true);
     setGoldenGoalStartedAt(now);
+    setGoldenGoalPausedAt(null);
+    setGoldenGoalElapsedWhenPaused(0);
     setGoldenGoalFrozen(false);
     ggMatchIdRef.current = match.id;
 
-    // Broadcast GG start to overlay
     broadcastChannelRef.current?.send({
       type: 'broadcast',
       event: 'golden_goal_start',
@@ -385,6 +386,23 @@ const RefereeStation = () => {
       style: { background: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' } 
     });
   }, [match, stationId]);
+
+  // Pause GG timer (arrêt de jeu)
+  const pauseGoldenGoal = useCallback(() => {
+    if (!goldenGoalStartedAt) return;
+    const now = new Date(getSyncedNowMs()).toISOString();
+    const elapsed = (getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime()) / 1000 + goldenGoalElapsedWhenPaused;
+    setGoldenGoalPausedAt(now);
+    setGoldenGoalElapsedWhenPaused(elapsed);
+    setGoldenGoalStartedAt(null); // reset start so count-up resumes from elapsed on resume
+  }, [goldenGoalStartedAt, goldenGoalElapsedWhenPaused]);
+
+  // Resume GG timer after pause
+  const resumeGoldenGoal = useCallback(() => {
+    const now = new Date(getSyncedNowMs()).toISOString();
+    setGoldenGoalStartedAt(now);
+    setGoldenGoalPausedAt(null);
+  }, []);
 
   // Freeze GG timer when a goal is scored in GG mode
   const freezeGoldenGoal = useCallback(() => {
