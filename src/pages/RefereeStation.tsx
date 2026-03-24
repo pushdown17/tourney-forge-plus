@@ -86,6 +86,8 @@ const RefereeStation = () => {
   // Golden Goal state
   const [isGoldenGoal, setIsGoldenGoal] = useState(false);
   const [goldenGoalStartedAt, setGoldenGoalStartedAt] = useState<string | null>(null);
+  const [goldenGoalPausedAt, setGoldenGoalPausedAt] = useState<string | null>(null);
+  const [goldenGoalElapsedWhenPaused, setGoldenGoalElapsedWhenPaused] = useState<number>(0);
   const [goldenGoalFrozen, setGoldenGoalFrozen] = useState(false);
   // ggMatchId tracks which match the GG was started for (reset on match change)
   const ggMatchIdRef = useRef<string | null>(null);

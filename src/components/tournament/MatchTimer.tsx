@@ -21,7 +21,10 @@ interface MatchTimerProps {
   // Golden Goal props
   isGoldenGoal?: boolean;
   goldenGoalStartedAt?: string | null;
+  goldenGoalPausedAt?: string | null;
   onGoldenGoalStart?: () => void;
+  onGoldenGoalPause?: () => void;
+  onGoldenGoalResume?: () => void;
   isEliminationPhase?: boolean;
   isTied?: boolean;
   goldenGoalFrozen?: boolean;
