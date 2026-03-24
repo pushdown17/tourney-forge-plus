@@ -21,7 +21,10 @@ interface MatchTimerProps {
   // Golden Goal props
   isGoldenGoal?: boolean;
   goldenGoalStartedAt?: string | null;
+  goldenGoalPausedAt?: string | null;
   onGoldenGoalStart?: () => void;
+  onGoldenGoalPause?: () => void;
+  onGoldenGoalResume?: () => void;
   isEliminationPhase?: boolean;
   isTied?: boolean;
   goldenGoalFrozen?: boolean;
@@ -41,7 +44,10 @@ export const MatchTimer = ({
   onDurationChange,
   isGoldenGoal = false,
   goldenGoalStartedAt = null,
+  goldenGoalPausedAt = null,
   onGoldenGoalStart,
+  onGoldenGoalPause,
+  onGoldenGoalResume,
   isEliminationPhase = false,
   isTied = false,
   goldenGoalFrozen = false,
@@ -74,10 +80,16 @@ export const MatchTimer = ({
     return Math.max(0, durationSeconds * 1000 - elapsedMs);
   }, [durationSeconds, startedAt, pausedAt, elapsedWhenPaused]);
 
+  // GG elapsed when paused ref (to keep count-up accurate across pause/resume)
+  const ggElapsedWhenPausedRef = useRef<number>(0);
+
   const calculateGgElapsedMs = useCallback(() => {
     if (!goldenGoalStartedAt) return 0;
-    return getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime();
-  }, [goldenGoalStartedAt]);
+    if (goldenGoalPausedAt) {
+      return ggElapsedWhenPausedRef.current;
+    }
+    return getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime() + ggElapsedWhenPausedRef.current;
+  }, [goldenGoalStartedAt, goldenGoalPausedAt]);
 
   // Sync state when props change
   useEffect(() => {
@@ -109,22 +121,21 @@ export const MatchTimer = ({
     return () => clearInterval(interval);
   }, [isRunning, calculateRemainingMs, hasEnded, onTimeEnd, showMilliseconds, isGoldenGoal]);
 
-  // Count-up for Golden Goal mode
+  // Count-up for Golden Goal mode (paused = goldenGoalPausedAt is set)
+  const ggIsRunning = isGoldenGoal && !!goldenGoalStartedAt && !goldenGoalPausedAt && !goldenGoalFrozen;
   useEffect(() => {
-    if (!isGoldenGoal || !goldenGoalStartedAt || goldenGoalFrozen) return;
-    setGgElapsedMs(calculateGgElapsedMs());
+    if (!ggIsRunning) return;
     const interval = setInterval(() => {
       setGgElapsedMs(calculateGgElapsedMs());
     }, 100);
     return () => clearInterval(interval);
-  }, [isGoldenGoal, goldenGoalStartedAt, goldenGoalFrozen, calculateGgElapsedMs]);
+  }, [ggIsRunning, calculateGgElapsedMs]);
 
-  // Freeze GG timer when a goal is scored
+  // Sync GG display on pause/freeze/start
   useEffect(() => {
-    if (goldenGoalFrozen && goldenGoalStartedAt) {
-      setGgElapsedMs(calculateGgElapsedMs());
-    }
-  }, [goldenGoalFrozen, goldenGoalStartedAt, calculateGgElapsedMs]);
+    if (!isGoldenGoal) return;
+    setGgElapsedMs(calculateGgElapsedMs());
+  }, [isGoldenGoal, goldenGoalStartedAt, goldenGoalPausedAt, goldenGoalFrozen, calculateGgElapsedMs]);
 
   const playEndSound = () => {
     try {
@@ -249,19 +260,30 @@ export const MatchTimer = ({
   const isPaused = startedAt !== null && pausedAt !== null;
   const isNotStarted = startedAt === null;
 
+  const ggIsPaused = isGoldenGoal && !!goldenGoalPausedAt && !goldenGoalFrozen;
+
   // Show Golden Goal mode UI when active
   if (isGoldenGoal) {
     return (
       <div className={cn(
         "flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-colors",
-        "border-accent bg-accent/10 animate-pulse"
+        goldenGoalFrozen ? "border-destructive bg-destructive/10" : "border-accent bg-accent/10",
+        !goldenGoalFrozen && ggIsRunning && "animate-pulse"
       )}>
         <div className="flex items-center gap-2 flex-wrap justify-center">
-          <Zap className="h-5 w-5 text-accent" />
-          <span className="text-4xl font-mono font-bold tabular-nums text-accent">
+          <Zap className={cn("h-5 w-5", goldenGoalFrozen ? "text-destructive" : "text-accent")} />
+          <span className={cn(
+            "text-4xl font-mono font-bold tabular-nums",
+            goldenGoalFrozen ? "text-destructive" : "text-accent"
+          )}>
             {formatTime(ggElapsedMs)}
           </span>
-          <Badge className="animate-pulse font-bold tracking-widest bg-accent text-accent-foreground border-transparent">
+          <Badge className={cn(
+            "font-bold tracking-widest border-transparent",
+            goldenGoalFrozen
+              ? "bg-destructive text-destructive-foreground animate-pulse"
+              : "bg-accent text-accent-foreground animate-pulse"
+          )}>
             ⚡ GOLDEN GOAL
           </Badge>
           {goldenGoalFrozen && (
@@ -269,9 +291,38 @@ export const MatchTimer = ({
               BUT ! 🏆
             </Badge>
           )}
+          {ggIsPaused && <Badge variant="secondary">PAUSE</Badge>}
         </div>
-        {!goldenGoalStartedAt && canControl && (
-          <p className="text-sm text-accent/80 font-medium">En attente du démarrage...</p>
+
+        {canControl && !goldenGoalFrozen && (
+          <div className="flex gap-2 flex-wrap justify-center">
+            {!goldenGoalStartedAt && onGoldenGoalStart && (
+              <Button
+                onClick={onGoldenGoalStart}
+                size="lg"
+                className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground"
+              >
+                <Play className="h-5 w-5" />
+                Démarrer
+              </Button>
+            )}
+            {ggIsRunning && onGoldenGoalPause && (
+              <Button onClick={onGoldenGoalPause} variant="outline" size="lg" className="gap-2 border-accent/50 text-accent">
+                <Pause className="h-5 w-5" />
+                Pause
+              </Button>
+            )}
+            {ggIsPaused && onGoldenGoalResume && (
+              <Button
+                onClick={onGoldenGoalResume}
+                size="lg"
+                className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground"
+              >
+                <Play className="h-5 w-5" />
+                Reprendre
+              </Button>
+            )}
+          </div>
         )}
       </div>
     );
@@ -350,7 +401,7 @@ export const MatchTimer = ({
                 className="gap-2 font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
               >
                 <Zap className="h-5 w-5" />
-                Démarrer Golden Goal
+                Golden Goal
               </Button>
             )}
           </div>
