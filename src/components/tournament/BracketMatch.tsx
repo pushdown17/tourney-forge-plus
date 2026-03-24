@@ -40,6 +40,9 @@ interface TimerState {
   startedAt: string | null;
   pausedAt: string | null;
   elapsedWhenPaused: number;
+  isGoldenGoal?: boolean;
+  goldenGoalStartedAt?: string | null;
+  goldenGoalElapsedWhenPaused?: number;
 }
 
 interface BracketMatchProps {

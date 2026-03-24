@@ -10,6 +10,9 @@ interface TimerDisplayProps {
   pausedAt: string | null;
   elapsedWhenPaused: number;
   compact?: boolean;
+  isGoldenGoal?: boolean;
+  goldenGoalStartedAt?: string | null;
+  goldenGoalElapsedWhenPaused?: number;
 }
 
 export const TimerDisplay = ({
@@ -17,10 +20,14 @@ export const TimerDisplay = ({
   startedAt,
   pausedAt,
   elapsedWhenPaused,
-  compact = false
+  compact = false,
+  isGoldenGoal = false,
+  goldenGoalStartedAt = null,
+  goldenGoalElapsedWhenPaused = 0,
 }: TimerDisplayProps) => {
   const safeDuration = durationSeconds || 0;
   const [remainingSeconds, setRemainingSeconds] = useState<number>(safeDuration);
+  const [ggElapsedSeconds, setGgElapsedSeconds] = useState<number>(0);
   const [isRunning, setIsRunning] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
 
@@ -29,13 +36,24 @@ export const TimerDisplay = ({
     return null;
   }
 
+  // ─── Golden Goal count-up calculation ───────────────────────────────────────
+  const calculateGgElapsed = useCallback(() => {
+    if (!goldenGoalStartedAt) {
+      // GG paused or not yet started: return accumulated time
+      return goldenGoalElapsedWhenPaused;
+    }
+    const elapsed = (getSyncedNowMs() - new Date(goldenGoalStartedAt).getTime()) / 1000
+      + goldenGoalElapsedWhenPaused;
+    return Math.max(0, elapsed);
+  }, [goldenGoalStartedAt, goldenGoalElapsedWhenPaused]);
+
+  // ─── Countdown calculation ───────────────────────────────────────────────────
   const calculateRemaining = useCallback(() => {
     if (!startedAt) {
       return durationSeconds;
     }
     
     if (pausedAt) {
-      // elapsedWhenPaused already contains the TOTAL elapsed time (set during pause)
       return Math.max(0, durationSeconds - elapsedWhenPaused);
     }
     
@@ -45,38 +63,67 @@ export const TimerDisplay = ({
     return Math.max(0, durationSeconds - elapsed);
   }, [durationSeconds, startedAt, pausedAt, elapsedWhenPaused]);
 
+  // ─── Sync on prop changes ────────────────────────────────────────────────────
   useEffect(() => {
-    const isCurrentlyRunning = startedAt !== null && pausedAt === null;
-    setIsRunning(isCurrentlyRunning);
-    setRemainingSeconds(calculateRemaining());
-    
-    if (!startedAt) {
-      setHasEnded(false);
+    if (isGoldenGoal) {
+      setGgElapsedSeconds(calculateGgElapsed());
+    } else {
+      const isCurrentlyRunning = startedAt !== null && pausedAt === null;
+      setIsRunning(isCurrentlyRunning);
+      setRemainingSeconds(calculateRemaining());
+      if (!startedAt) setHasEnded(false);
     }
-  }, [startedAt, pausedAt, calculateRemaining]);
+  }, [startedAt, pausedAt, calculateRemaining, isGoldenGoal, goldenGoalStartedAt, goldenGoalElapsedWhenPaused, calculateGgElapsed]);
 
+  // ─── Countdown interval ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isRunning) return;
+    if (isGoldenGoal || !isRunning) return;
     
     const interval = setInterval(() => {
       const remaining = calculateRemaining();
       setRemainingSeconds(remaining);
-      
-      if (remaining <= 0) {
-        setHasEnded(true);
-      }
+      if (remaining <= 0) setHasEnded(true);
     }, 100);
     
     return () => clearInterval(interval);
-  }, [isRunning, calculateRemaining]);
+  }, [isRunning, calculateRemaining, isGoldenGoal]);
+
+  // ─── Golden Goal count-up interval ──────────────────────────────────────────
+  useEffect(() => {
+    if (!isGoldenGoal || !goldenGoalStartedAt) return;
+
+    const interval = setInterval(() => {
+      setGgElapsedSeconds(calculateGgElapsed());
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isGoldenGoal, goldenGoalStartedAt, calculateGgElapsed]);
 
   const formatTime = (seconds: number) => {
-    const totalSecs = Math.floor(seconds);
+    const totalSecs = Math.floor(Math.abs(seconds));
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // ─── Golden Goal compact badge ───────────────────────────────────────────────
+  if (isGoldenGoal && compact) {
+    const ggRunning = !!goldenGoalStartedAt;
+    return (
+      <Badge
+        className={cn(
+          "font-mono gap-1 border-amber-500/70 text-amber-500 bg-amber-500/10",
+          ggRunning && "animate-pulse"
+        )}
+        variant="outline"
+      >
+        <Timer className="h-3 w-3" />
+        {formatTime(ggElapsedSeconds)}
+      </Badge>
+    );
+  }
+
+  // ─── Countdown compact badge ─────────────────────────────────────────────────
   if (compact) {
     return (
       <Badge 
