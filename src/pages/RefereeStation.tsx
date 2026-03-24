@@ -524,6 +524,8 @@ const RefereeStation = () => {
     if (match?.id !== ggMatchIdRef.current) {
       setIsGoldenGoal(false);
       setGoldenGoalStartedAt(null);
+      setGoldenGoalPausedAt(null);
+      setGoldenGoalElapsedWhenPaused(0);
       setGoldenGoalFrozen(false);
       ggMatchIdRef.current = null;
     }
