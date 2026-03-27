@@ -166,6 +166,30 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
     }
   }, [matches, hasGroups, teamGroupMap]);
 
+  // Drag & Drop reorder handler
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const matchesToShow = hasGroups ? filteredMatches : matches;
+    const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null);
+    const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id) && !liveMatches.has(m.id));
+
+    const oldIndex = waitingMatches.findIndex(m => m.id === active.id);
+    const newIndex = waitingMatches.findIndex(m => m.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(waitingMatches, oldIndex, newIndex);
+    const orderMap = new Map<string, number>();
+    reordered.forEach((m, i) => orderMap.set(m.id, i + 1));
+    setMatches(prev => prev.map(m => orderMap.has(m.id) ? { ...m, sort_order: orderMap.get(m.id) } : m));
+
+    const updates = reordered.map((m, i) =>
+      supabase.from("matches").update({ sort_order: i + 1 } as any).eq("id", m.id)
+    );
+    await Promise.all(updates);
+  }, [matches, filteredMatches, hasGroups, activeStationMatches, liveMatches]);
+
   // Fetch matches currently on referee stations with timer data
   const fetchActiveStationMatches = async () => {
     const { data, error } = await supabase
