@@ -58,6 +58,7 @@ const SortableMatchItem = ({ id, children }: { id: string; children: React.React
   );
 };
 
+interface SwissManagerProps {
   tournamentId: string;
   isClosed?: boolean;
   currentPhase?: string;
