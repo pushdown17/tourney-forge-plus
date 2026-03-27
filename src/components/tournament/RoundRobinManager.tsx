@@ -59,6 +59,7 @@ const SortableMatchItem = ({ id, children }: { id: string; children: React.React
   );
 };
 
+interface RoundRobinManagerProps {
   tournamentId: string;
   isClosed?: boolean;
   currentPhase?: string;
