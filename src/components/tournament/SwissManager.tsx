@@ -829,51 +829,64 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
           {(() => {
             const matchesToShow = hasGroups ? filteredMatches : matches;
             const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
-            const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id));
+            const activeOngoing = ongoingMatches.filter(m => activeStationMatches.has(m.id) || liveMatches.has(m.id))
+              .sort((a, b) => {
+                const aLive = liveMatches.has(a.id) ? 0 : 1;
+                const bLive = liveMatches.has(b.id) ? 0 : 1;
+                return aLive - bLive;
+              });
+            const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id) && !liveMatches.has(m.id))
+              .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
             const onDeckMatch = waitingMatches[0];
             const inTheHoleMatch = waitingMatches[1];
+            const sortedOngoing = [...activeOngoing, ...waitingMatches];
 
-            return ongoingMatches.length > 0 && (
+            const renderSwissMatchCard = (match: any) => {
+              const matchesOnSameField = (selectedGroup === "Ultimate" ? ultimateMatches : matches)
+                .filter(m => m.field_number === match.field_number)
+                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+              const firstUnfinishedOnField = matchesOnSameField.find(m => activeStationMatches.has(m.id)) || matchesOnSameField.find(m => m.team1_score === null || m.team2_score === null);
+              const isLockedByPreviousMatch = !activeStationMatches.has(match.id) && firstUnfinishedOnField?.id !== match.id;
+
+              return (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  tournamentId={tournamentId}
+                  onScoreUpdate={async (matchId: string, s1: number, s2: number) => {
+                    await updateScore(matchId, s1, s2);
+                    if (selectedGroup === "Ultimate") fetchUltimateMatches();
+                  }}
+                  isClosed={isClosed}
+                  isLockedByPreviousMatch={isLockedByPreviousMatch}
+                  isCreator={isCreator}
+                  isOnRefereeStation={activeStationMatches.has(match.id)}
+                  isLive={liveMatches.has(match.id)}
+                  isOnDeck={onDeckMatch?.id === match.id}
+                  isInTheHole={inTheHoleMatch?.id === match.id}
+                  timerState={matchTimers[match.id] || null}
+                  onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
+                />
+              );
+            };
+
+            return sortedOngoing.length > 0 && (
               <div>
                 <h3 className="text-lg font-semibold mb-3">Ongoing Matches</h3>
-                {ongoingMatches.sort((a, b) => {
-                  const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
-                  const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
-                  return aLive - bLive;
-                }).map((match) => {
-                  const matchesOnSameField = (selectedGroup === "Ultimate" ? ultimateMatches : matches)
-                    .filter(m => m.field_number === match.field_number)
-                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                  
-                  const firstUnfinishedOnField = matchesOnSameField.find(
-                    m => activeStationMatches.has(m.id)
-                  ) || matchesOnSameField.find(
-                    m => m.team1_score === null || m.team2_score === null
-                  );
-                  
-                  const isLockedByPreviousMatch = !activeStationMatches.has(match.id) && firstUnfinishedOnField?.id !== match.id;
-
-                  return (
-                    <MatchCard
-                      key={match.id}
-                      match={match}
-                      tournamentId={tournamentId}
-                      onScoreUpdate={async (matchId: string, s1: number, s2: number) => {
-                        await updateScore(matchId, s1, s2);
-                        if (selectedGroup === "Ultimate") fetchUltimateMatches();
-                      }}
-                      isClosed={isClosed}
-                      isLockedByPreviousMatch={isLockedByPreviousMatch}
-                      isCreator={isCreator}
-                      isOnRefereeStation={activeStationMatches.has(match.id)}
-                      isLive={liveMatches.has(match.id)}
-                      isOnDeck={onDeckMatch?.id === match.id}
-                      isInTheHole={inTheHoleMatch?.id === match.id}
-                      timerState={matchTimers[match.id] || null}
-                      onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
-                    />
-                  );
-                })}
+                {activeOngoing.map(renderSwissMatchCard)}
+                {isCreator && !isClosed && waitingMatches.length > 0 ? (
+                  <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={waitingMatches.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                      {waitingMatches.map((match) => (
+                        <SortableMatchItem key={match.id} id={match.id}>
+                          {renderSwissMatchCard(match)}
+                        </SortableMatchItem>
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                ) : (
+                  waitingMatches.map(renderSwissMatchCard)
+                )}
               </div>
             );
           })()}
