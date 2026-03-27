@@ -181,7 +181,35 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     return match.team1?.name === selectedTeam || match.team2?.name === selectedTeam;
   };
 
-  useEffect(() => {
+  // Drag & Drop reorder handler
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Work on the ongoing (incomplete) matches only
+    const matchesToShow = hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99);
+    const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null);
+    // Only reorder waiting matches (not on station)
+    const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id));
+
+    const oldIndex = waitingMatches.findIndex(m => m.id === active.id);
+    const newIndex = waitingMatches.findIndex(m => m.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(waitingMatches, oldIndex, newIndex);
+
+    // Optimistic local update
+    const orderMap = new Map<string, number>();
+    reordered.forEach((m, i) => orderMap.set(m.id, i + 1));
+    setMatches(prev => prev.map(m => orderMap.has(m.id) ? { ...m, sort_order: orderMap.get(m.id) } : m));
+
+    // Persist to Supabase
+    const updates = reordered.map((m, i) =>
+      supabase.from("matches").update({ sort_order: i + 1 } as any).eq("id", m.id)
+    );
+    await Promise.all(updates);
+  }, [matches, filteredMatches, hasGroups, activeStationMatches]);
+
     fetchMatches();
     fetchActiveStationMatches();
   }, [tournamentId]);
