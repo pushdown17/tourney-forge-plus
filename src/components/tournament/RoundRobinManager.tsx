@@ -61,6 +61,12 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     elapsedWhenPaused: number;
   }}>({});
   
+  // DnD sensors
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   // Group filtering state
   const hasGroups = numberOfGroups >= 2;
   const [selectedGroup, setSelectedGroup] = useState<string>("Morning");
