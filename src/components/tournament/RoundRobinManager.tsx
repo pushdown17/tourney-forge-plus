@@ -210,6 +210,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     await Promise.all(updates);
   }, [matches, filteredMatches, hasGroups, activeStationMatches]);
 
+  useEffect(() => {
     fetchMatches();
     fetchActiveStationMatches();
   }, [tournamentId]);
