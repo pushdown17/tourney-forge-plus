@@ -85,6 +85,12 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
     elapsedWhenPaused: number;
   }}>({});
 
+  // DnD sensors
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   // Group filtering state
   const hasGroups = numberOfGroups >= 2;
   const [selectedGroup, setSelectedGroup] = useState<string>("Morning");
