@@ -20,7 +20,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock, Monitor, Radio } from "lucide-react";
+import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock, Monitor, Radio, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { GoalRemoverDialog } from "./GoalRemoverDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
@@ -336,6 +339,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       `)
       .eq("tournament_id", tournamentId)
       .eq("phase", "round_robin")
+      .order("sort_order")
       .order("created_at");
 
     if (error) {

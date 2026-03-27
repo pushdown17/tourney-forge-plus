@@ -18,7 +18,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trophy, TrendingUp, ChevronDown, ChevronUp, Users, Target, AlertTriangle, Clock, Zap, Monitor, Radio } from "lucide-react";
+import { Trophy, TrendingUp, ChevronDown, ChevronUp, Users, Target, AlertTriangle, Clock, Zap, Monitor, Radio, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { GoalRemoverDialog } from "./GoalRemoverDialog";
@@ -386,6 +389,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
       .eq("tournament_id", tournamentId)
       .eq("phase", "swiss")
       .eq("round_number", currentRound)
+      .order("sort_order")
       .order("created_at");
 
     if (error) {

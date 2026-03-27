@@ -1456,6 +1456,7 @@ const RefereeStation = () => {
       .eq("phase", currentPhase)
       .is("team1_score", null)
       .neq("id", match.id)
+      .order("sort_order")
       .order("round_number")
       .order("field_number")
       .order("created_at");
