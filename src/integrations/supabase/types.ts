@@ -147,6 +147,7 @@ export type Database = {
           match_date: string | null
           phase: Database["public"]["Enums"]["tournament_phase"]
           round_number: number
+          sort_order: number | null
           team1_id: string
           team1_score: number | null
           team2_id: string
@@ -166,6 +167,7 @@ export type Database = {
           match_date?: string | null
           phase: Database["public"]["Enums"]["tournament_phase"]
           round_number: number
+          sort_order?: number | null
           team1_id: string
           team1_score?: number | null
           team2_id: string
@@ -185,6 +187,7 @@ export type Database = {
           match_date?: string | null
           phase?: Database["public"]["Enums"]["tournament_phase"]
           round_number?: number
+          sort_order?: number | null
           team1_id?: string
           team1_score?: number | null
           team2_id?: string

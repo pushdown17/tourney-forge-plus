@@ -20,7 +20,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock, Monitor, Radio } from "lucide-react";
+import { ChevronDown, ChevronUp, Users, Target, Trophy, AlertTriangle, Clock, Monitor, Radio, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { GoalScorerDialog } from "./GoalScorerDialog";
 import { GoalRemoverDialog } from "./GoalRemoverDialog";
 import { QuickStatDialog } from "./QuickStatDialog";
@@ -32,6 +35,29 @@ import { SendToStationDialog } from "./SendToStationDialog";
 import { TimerDisplay } from "./TimerDisplay";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ClipboardEdit, Eye } from "lucide-react";
+
+// Sortable wrapper for drag & drop match reordering
+const SortableMatchItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-stretch gap-1">
+      <button
+        {...attributes}
+        {...listeners}
+        className="flex items-center px-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+        tabIndex={-1}
+      >
+        <GripVertical className="h-5 w-5" />
+      </button>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
+};
 
 interface RoundRobinManagerProps {
   tournamentId: string;
@@ -58,6 +84,12 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     elapsedWhenPaused: number;
   }}>({});
   
+  // DnD sensors
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   // Group filtering state
   const hasGroups = numberOfGroups >= 2;
   const [selectedGroup, setSelectedGroup] = useState<string>("Morning");
@@ -171,6 +203,35 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     if (!selectedTeam) return false;
     return match.team1?.name === selectedTeam || match.team2?.name === selectedTeam;
   };
+
+  // Drag & Drop reorder handler
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Work on the ongoing (incomplete) matches only
+    const matchesToShow = hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99);
+    const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null);
+    // Only reorder waiting matches (not on station)
+    const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id));
+
+    const oldIndex = waitingMatches.findIndex(m => m.id === active.id);
+    const newIndex = waitingMatches.findIndex(m => m.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(waitingMatches, oldIndex, newIndex);
+
+    // Optimistic local update
+    const orderMap = new Map<string, number>();
+    reordered.forEach((m, i) => orderMap.set(m.id, i + 1));
+    setMatches(prev => prev.map(m => orderMap.has(m.id) ? { ...m, sort_order: orderMap.get(m.id) } : m));
+
+    // Persist to Supabase
+    const updates = reordered.map((m, i) =>
+      supabase.from("matches").update({ sort_order: i + 1 } as any).eq("id", m.id)
+    );
+    await Promise.all(updates);
+  }, [matches, filteredMatches, hasGroups, activeStationMatches]);
 
   useEffect(() => {
     fetchMatches();
@@ -336,6 +397,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       `)
       .eq("tournament_id", tournamentId)
       .eq("phase", "round_robin")
+      .order("sort_order")
       .order("created_at");
 
     if (error) {
@@ -716,22 +778,24 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         {(() => {
           const matchesToShow = hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99);
           const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
-          // Sort: live first, then on station, then waiting. For Ultimate Round, sort by field_number desc (6th first, 1st last)
-          const sortedOngoing = [...ongoingMatches].sort((a, b) => {
-            const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
-            const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
-            if (aLive !== bLive) return aLive - bLive;
-            return (b.field_number || 0) - (a.field_number || 0);
-          });
-          const waitingMatches = sortedOngoing
-            .filter(m => !activeStationMatches.has(m.id));
+          // Split: active (on station/live) vs waiting
+          const activeOngoing = ongoingMatches.filter(m => activeStationMatches.has(m.id) || liveMatches.has(m.id))
+            .sort((a, b) => {
+              const aLive = liveMatches.has(a.id) ? 0 : 1;
+              const bLive = liveMatches.has(b.id) ? 0 : 1;
+              return aLive - bLive;
+            });
+          const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id) && !liveMatches.has(m.id))
+            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
           const onDeckMatch = waitingMatches[0];
           const inTheHoleMatch = waitingMatches[1];
+          const sortedOngoing = [...activeOngoing, ...waitingMatches];
 
           return sortedOngoing.length > 0 && (
             <div className="space-y-4 mb-6">
               <h3 className="text-lg font-semibold text-muted-foreground">Ongoing Matches</h3>
-          {sortedOngoing.map((match) => (
+              {/* Active matches (not draggable) */}
+              {activeOngoing.map((match) => (
                 <MatchCard
                   key={match.id}
                   match={match}
@@ -743,14 +807,63 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                   isCreator={isCreator}
                   isOnRefereeStation={activeStationMatches.has(match.id)}
                   isLive={liveMatches.has(match.id)}
-                  isOnDeck={onDeckMatch?.id === match.id}
-                  isInTheHole={inTheHoleMatch?.id === match.id}
+                  isOnDeck={false}
+                  isInTheHole={false}
                   timerState={matchTimers[match.id] || null}
                   onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
                   selectedTeam={selectedTeam}
                   onTeamClick={handleTeamClick}
                 />
               ))}
+              {/* Waiting matches (draggable for creator) */}
+              {isCreator && !isClosed && waitingMatches.length > 0 ? (
+                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={waitingMatches.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                    {waitingMatches.map((match) => (
+                      <SortableMatchItem key={match.id} id={match.id}>
+                        <MatchCard
+                          match={match}
+                          tournamentId={tournamentId}
+                          onScoreUpdate={updateScore}
+                          editingMatchId={editingMatchId}
+                          setEditingMatchId={setEditingMatchId}
+                          isClosed={isClosed}
+                          isCreator={isCreator}
+                          isOnRefereeStation={false}
+                          isLive={false}
+                          isOnDeck={onDeckMatch?.id === match.id}
+                          isInTheHole={inTheHoleMatch?.id === match.id}
+                          timerState={matchTimers[match.id] || null}
+                          onViewLiveStats={undefined}
+                          selectedTeam={selectedTeam}
+                          onTeamClick={handleTeamClick}
+                        />
+                      </SortableMatchItem>
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                waitingMatches.map((match) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    tournamentId={tournamentId}
+                    onScoreUpdate={updateScore}
+                    editingMatchId={editingMatchId}
+                    setEditingMatchId={setEditingMatchId}
+                    isClosed={isClosed}
+                    isCreator={isCreator}
+                    isOnRefereeStation={false}
+                    isLive={false}
+                    isOnDeck={onDeckMatch?.id === match.id}
+                    isInTheHole={inTheHoleMatch?.id === match.id}
+                    timerState={matchTimers[match.id] || null}
+                    onViewLiveStats={undefined}
+                    selectedTeam={selectedTeam}
+                    onTeamClick={handleTeamClick}
+                  />
+                ))
+              )}
             </div>
           );
         })()}
