@@ -755,22 +755,24 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
         {(() => {
           const matchesToShow = hasGroups ? filteredMatches : matches.filter(m => m.round_number !== 99);
           const ongoingMatches = matchesToShow.filter(m => m.team1_score === null || m.team2_score === null || activeStationMatches.has(m.id));
-          // Sort: live first, then on station, then waiting. For Ultimate Round, sort by field_number desc (6th first, 1st last)
-          const sortedOngoing = [...ongoingMatches].sort((a, b) => {
-            const aLive = liveMatches.has(a.id) ? 0 : activeStationMatches.has(a.id) ? 1 : 2;
-            const bLive = liveMatches.has(b.id) ? 0 : activeStationMatches.has(b.id) ? 1 : 2;
-            if (aLive !== bLive) return aLive - bLive;
-            return (b.field_number || 0) - (a.field_number || 0);
-          });
-          const waitingMatches = sortedOngoing
-            .filter(m => !activeStationMatches.has(m.id));
+          // Split: active (on station/live) vs waiting
+          const activeOngoing = ongoingMatches.filter(m => activeStationMatches.has(m.id) || liveMatches.has(m.id))
+            .sort((a, b) => {
+              const aLive = liveMatches.has(a.id) ? 0 : 1;
+              const bLive = liveMatches.has(b.id) ? 0 : 1;
+              return aLive - bLive;
+            });
+          const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id) && !liveMatches.has(m.id))
+            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
           const onDeckMatch = waitingMatches[0];
           const inTheHoleMatch = waitingMatches[1];
+          const sortedOngoing = [...activeOngoing, ...waitingMatches];
 
           return sortedOngoing.length > 0 && (
             <div className="space-y-4 mb-6">
               <h3 className="text-lg font-semibold text-muted-foreground">Ongoing Matches</h3>
-          {sortedOngoing.map((match) => (
+              {/* Active matches (not draggable) */}
+              {activeOngoing.map((match) => (
                 <MatchCard
                   key={match.id}
                   match={match}
@@ -782,14 +784,63 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                   isCreator={isCreator}
                   isOnRefereeStation={activeStationMatches.has(match.id)}
                   isLive={liveMatches.has(match.id)}
-                  isOnDeck={onDeckMatch?.id === match.id}
-                  isInTheHole={inTheHoleMatch?.id === match.id}
+                  isOnDeck={false}
+                  isInTheHole={false}
                   timerState={matchTimers[match.id] || null}
                   onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
                   selectedTeam={selectedTeam}
                   onTeamClick={handleTeamClick}
                 />
               ))}
+              {/* Waiting matches (draggable for creator) */}
+              {isCreator && !isClosed && waitingMatches.length > 0 ? (
+                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={waitingMatches.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                    {waitingMatches.map((match) => (
+                      <SortableMatchItem key={match.id} id={match.id}>
+                        <MatchCard
+                          match={match}
+                          tournamentId={tournamentId}
+                          onScoreUpdate={updateScore}
+                          editingMatchId={editingMatchId}
+                          setEditingMatchId={setEditingMatchId}
+                          isClosed={isClosed}
+                          isCreator={isCreator}
+                          isOnRefereeStation={false}
+                          isLive={false}
+                          isOnDeck={onDeckMatch?.id === match.id}
+                          isInTheHole={inTheHoleMatch?.id === match.id}
+                          timerState={matchTimers[match.id] || null}
+                          onViewLiveStats={undefined}
+                          selectedTeam={selectedTeam}
+                          onTeamClick={handleTeamClick}
+                        />
+                      </SortableMatchItem>
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                waitingMatches.map((match) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    tournamentId={tournamentId}
+                    onScoreUpdate={updateScore}
+                    editingMatchId={editingMatchId}
+                    setEditingMatchId={setEditingMatchId}
+                    isClosed={isClosed}
+                    isCreator={isCreator}
+                    isOnRefereeStation={false}
+                    isLive={false}
+                    isOnDeck={onDeckMatch?.id === match.id}
+                    isInTheHole={inTheHoleMatch?.id === match.id}
+                    timerState={matchTimers[match.id] || null}
+                    onViewLiveStats={undefined}
+                    selectedTeam={selectedTeam}
+                    onTeamClick={handleTeamClick}
+                  />
+                ))
+              )}
             </div>
           );
         })()}
