@@ -35,7 +35,29 @@ import { LiveMatchStatsDialog } from "./LiveMatchStatsDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ClipboardEdit, Eye } from "lucide-react";
 
-interface SwissManagerProps {
+// Sortable wrapper for drag & drop match reordering
+const SortableMatchItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-stretch gap-1">
+      <button
+        {...attributes}
+        {...listeners}
+        className="flex items-center px-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+        tabIndex={-1}
+      >
+        <GripVertical className="h-5 w-5" />
+      </button>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
+};
+
   tournamentId: string;
   isClosed?: boolean;
   currentPhase?: string;
