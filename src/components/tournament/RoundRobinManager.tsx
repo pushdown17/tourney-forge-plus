@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { ScheduleSettingsData, calculateMatchTime } from "./ScheduleSettings";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -65,9 +66,11 @@ interface RoundRobinManagerProps {
   currentPhase?: string;
   isCreator?: boolean;
   numberOfGroups?: number;
+  scheduleSettings?: ScheduleSettingsData | null;
+  numberOfFields?: number;
 }
 
-export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false, numberOfGroups = 1 }: RoundRobinManagerProps) => {
+export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false, numberOfGroups = 1, scheduleSettings, numberOfFields = 1 }: RoundRobinManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
@@ -125,6 +128,19 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
       return g1 === selectedGroup || g2 === selectedGroup;
     });
   }, [matches, hasGroups, teamGroupMap, selectedGroup]);
+
+  // Compute scheduled times for all non-completed matches based on sort_order
+  const matchTimeMap = useMemo(() => {
+    if (!scheduleSettings) return new Map<string, string>();
+    const allNonUltimate = matches
+      .filter(m => m.round_number !== 99)
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    const map = new Map<string, string>();
+    allNonUltimate.forEach((m, i) => {
+      map.set(m.id, calculateMatchTime(i, scheduleSettings, numberOfFields));
+    });
+    return map;
+  }, [matches, scheduleSettings, numberOfFields]);
 
   // Auto-switch: Morning → Afternoon → Ultimate Round
   useEffect(() => {
@@ -813,6 +829,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                   onViewLiveStats={!isCreator && (liveMatches.has(match.id) || activeStationMatches.has(match.id)) ? () => setSelectedLiveMatch(match) : undefined}
                   selectedTeam={selectedTeam}
                   onTeamClick={handleTeamClick}
+                  scheduledTime={matchTimeMap.get(match.id)}
                 />
               ))}
               {/* Waiting matches (draggable for creator) */}
@@ -837,6 +854,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                           onViewLiveStats={undefined}
                           selectedTeam={selectedTeam}
                           onTeamClick={handleTeamClick}
+                          scheduledTime={matchTimeMap.get(match.id)}
                         />
                       </SortableMatchItem>
                     ))}
@@ -861,6 +879,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                     onViewLiveStats={undefined}
                     selectedTeam={selectedTeam}
                     onTeamClick={handleTeamClick}
+                    scheduledTime={matchTimeMap.get(match.id)}
                   />
                 ))
               )}
@@ -974,9 +993,10 @@ interface MatchCardProps {
   onViewLiveStats?: () => void;
   selectedTeam?: string | null;
   onTeamClick?: (teamName: string) => void;
+  scheduledTime?: string | null;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, isOnDeck = false, isInTheHole = false, timerState, onViewLiveStats, selectedTeam, onTeamClick }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, isOnDeck = false, isInTheHole = false, timerState, onViewLiveStats, selectedTeam, onTeamClick, scheduledTime }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
@@ -1288,6 +1308,12 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           : ""
       }`}>
         <div className="flex items-center justify-center gap-2 mb-1">
+          {scheduledTime && !isOnRefereeStation && !isLive && match.team1_score === null && (
+            <Badge variant="outline" className="text-xs gap-1 font-mono">
+              <Clock className="h-3 w-3" />
+              {scheduledTime}
+            </Badge>
+          )}
           {(isOnRefereeStation || isLive) && timerState && timerState.startedAt && (
             <TimerDisplay
               durationSeconds={timerState.durationSeconds}

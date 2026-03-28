@@ -21,6 +21,7 @@ import { PlayerRankings } from "@/components/tournament/PlayerRankings";
 import { ClosedTournamentSummary } from "@/components/tournament/ClosedTournamentSummary";
 import { RefereeStationsManager } from "@/components/tournament/RefereeStationsManager";
 import { RefereesTab } from "@/components/tournament/RefereesTab";
+import { ScheduleSettings, ScheduleSettingsData } from "@/components/tournament/ScheduleSettings";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +54,7 @@ const Tournament = () => {
   const [bracketResetDialogOpen, setBracketResetDialogOpen] = useState(false);
   const [bracketResetTrigger, setBracketResetTrigger] = useState(0);
   const [bracketGenerateTrigger, setBracketGenerateTrigger] = useState(0);
+  const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettingsData | null>(null);
   
   const activeTab = searchParams.get("tab") || "teams";
   const activeSubTab = searchParams.get("subtab") || "manage-teams";
@@ -82,6 +84,12 @@ const Tournament = () => {
       if (error) throw error;
       setTournament(data);
       setTeamsForElimination(data.teams_for_elimination?.toString() || "8");
+      // Initialize schedule settings from tournament data
+      setScheduleSettings({
+        schedule_start_time: (data as any).schedule_start_time || "09:00",
+        match_duration_minutes: (data as any).match_duration_minutes ?? 18,
+        break_duration_minutes: (data as any).break_duration_minutes ?? 7,
+      });
       
       // Check if current user is the creator
       const { data: { user } } = await supabase.auth.getUser();
@@ -450,6 +458,11 @@ const Tournament = () => {
 
               {isCreator && (
                 <TabsContent value="referee-stations">
+                  <ScheduleSettings
+                    tournamentId={id!}
+                    isCreator={isCreator}
+                    onSettingsChange={setScheduleSettings}
+                  />
                   <RefereeStationsManager tournamentId={id!} isCreator={isCreator} />
                 </TabsContent>
               )}
@@ -458,9 +471,9 @@ const Tournament = () => {
 
           <TabsContent value="matches" className="animate-fade-in">
             {(tournament.initial_phase === "swiss" || tournament.current_phase === "swiss") ? (
-              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} numberOfGroups={tournament.number_of_groups || 1} />
+              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} numberOfGroups={tournament.number_of_groups || 1} scheduleSettings={scheduleSettings} numberOfFields={tournament.number_of_fields || 1} />
             ) : (
-              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} numberOfGroups={tournament.number_of_groups || 1} />
+              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} numberOfGroups={tournament.number_of_groups || 1} scheduleSettings={scheduleSettings} numberOfFields={tournament.number_of_fields || 1} />
             )}
           </TabsContent>
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { ScheduleSettingsData, calculateMatchTime } from "./ScheduleSettings";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -64,9 +65,11 @@ interface SwissManagerProps {
   currentPhase?: string;
   isCreator?: boolean;
   numberOfGroups?: number;
+  scheduleSettings?: ScheduleSettingsData | null;
+  numberOfFields?: number;
 }
 
-export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false, numberOfGroups = 1 }: SwissManagerProps) => {
+export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false, numberOfGroups = 1, scheduleSettings, numberOfFields: numberOfFieldsProp = 1 }: SwissManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
