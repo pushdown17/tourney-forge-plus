@@ -1969,24 +1969,39 @@ const RefereeStation = () => {
                     {team2.players.map(player => {
                       const hasStats = player.goals > 0 || player.assists > 0 || player.fouls > 0 || player.penalty_30s > 0 || player.penalty_1m > 0 || player.penalty_2m > 0;
                       return (
-                        <button
-                          key={player.player_id}
-                          className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors active:scale-[0.98] ${
-                            hasStats 
-                              ? "bg-primary/10 border-primary/30 font-medium" 
-                              : "bg-card hover:bg-muted border-border"
-                          }`}
-                          onClick={() => setSelectedPlayer({ teamNumber: 2, playerId: player.player_id })}
-                        >
-                          <span className="truncate block">{player.player_name}</span>
-                          {hasStats && (
-                            <span className="text-xs text-muted-foreground flex gap-1.5 mt-0.5">
-                              {player.goals > 0 && <span>⚽{player.goals}</span>}
-                              {player.assists > 0 && <span>🅰️{player.assists}</span>}
-                              {player.fouls > 0 && <span>🟡{player.fouls}</span>}
+                        <div key={player.player_id} className="flex items-center gap-1">
+                          <button
+                            className={`flex-1 text-left px-3 py-2 rounded-lg border text-sm transition-colors active:scale-[0.98] ${
+                              player.is_captain
+                                ? "bg-amber-500/15 border-amber-500/40 font-bold ring-1 ring-amber-500/30"
+                                : hasStats 
+                                  ? "bg-primary/10 border-primary/30 font-medium" 
+                                  : "bg-card hover:bg-muted border-border"
+                            }`}
+                            onClick={() => setSelectedPlayer({ teamNumber: 2, playerId: player.player_id })}
+                          >
+                            <span className="truncate block">
+                              {player.is_captain && <span className="text-amber-500 font-bold mr-1">(C)</span>}
+                              {player.player_name}
                             </span>
-                          )}
-                        </button>
+                            {hasStats && (
+                              <span className="text-xs text-muted-foreground flex gap-1.5 mt-0.5">
+                                {player.goals > 0 && <span>⚽{player.goals}</span>}
+                                {player.assists > 0 && <span>🅰️{player.assists}</span>}
+                                {player.fouls > 0 && <span>🟡{player.fouls}</span>}
+                              </span>
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleCaptain(2, player.player_id); }}
+                            className={`shrink-0 px-1.5 py-1 rounded text-xs font-bold transition-colors ${
+                              player.is_captain ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground hover:bg-amber-500/20 hover:text-amber-600"
+                            }`}
+                            title="Capitaine"
+                          >
+                            C
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
