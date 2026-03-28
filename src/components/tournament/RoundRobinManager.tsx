@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { ScheduleSettingsData, calculateMatchTime } from "./ScheduleSettings";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -65,9 +66,11 @@ interface RoundRobinManagerProps {
   currentPhase?: string;
   isCreator?: boolean;
   numberOfGroups?: number;
+  scheduleSettings?: ScheduleSettingsData | null;
+  numberOfFields?: number;
 }
 
-export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false, numberOfGroups = 1 }: RoundRobinManagerProps) => {
+export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false, numberOfGroups = 1, scheduleSettings, numberOfFields = 1 }: RoundRobinManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
