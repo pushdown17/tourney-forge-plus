@@ -1292,7 +1292,12 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
           : ""
       }`}>
         <div className="flex items-center justify-center gap-2 mb-1">
-          {(isOnRefereeStation || isLive) && timerState && timerState.startedAt && (
+          {scheduledTime && !isOnRefereeStation && !isLive && match.team1_score === null && (
+            <Badge variant="outline" className="text-xs gap-1 font-mono">
+              <Clock className="h-3 w-3" />
+              {scheduledTime}
+            </Badge>
+          )}
             <TimerDisplay
               durationSeconds={timerState.durationSeconds}
               startedAt={timerState.startedAt}
