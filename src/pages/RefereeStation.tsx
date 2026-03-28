@@ -695,7 +695,7 @@ const RefereeStation = () => {
   const updatePlayerStat = (
     teamNumber: 1 | 2, 
     playerId: string, 
-    stat: keyof Omit<PlayerStat, 'id' | 'player_id' | 'player_name' | 'tournament_team_player_id'>,
+    stat: keyof Omit<PlayerStat, 'id' | 'player_id' | 'player_name' | 'tournament_team_player_id' | 'is_captain'>,
     delta: number
   ) => {
     const team = teamNumber === 1 ? team1 : team2;
