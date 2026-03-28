@@ -542,18 +542,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_captain: boolean
           player_id: string
           tournament_team_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_captain?: boolean
           player_id: string
           tournament_team_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_captain?: boolean
           player_id?: string
           tournament_team_id?: string
         }

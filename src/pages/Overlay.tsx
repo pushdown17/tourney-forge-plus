@@ -89,8 +89,8 @@ const Overlay = () => {
   const [team1Score, setTeam1Score] = useState(0);
   const [team2Score, setTeam2Score] = useState(0);
   const [scoreFlash, setScoreFlash] = useState<{ team: 1 | 2 } | null>(null);
-  const [team1Players, setTeam1Players] = useState<string[]>([]);
-  const [team2Players, setTeam2Players] = useState<string[]>([]);
+  const [team1Players, setTeam1Players] = useState<{ name: string; isCaptain: boolean }[]>([]);
+  const [team2Players, setTeam2Players] = useState<{ name: string; isCaptain: boolean }[]>([]);
   const lastEventIdRef = useRef<string | null>(null);
   const stationRef = useRef<StationData | null>(null);
   stationRef.current = station;
@@ -120,20 +120,21 @@ const Overlay = () => {
   }, [timerRunning, calcRemaining]);
 
   // ---- Fetch players for a tournament_team_id ----
-  const fetchPlayers = useCallback(async (ttId: string | null, teamId?: string | null): Promise<string[]> => {
-    // Try via tournament_team_players first (has composition)
+  const fetchPlayers = useCallback(async (ttId: string | null, teamId?: string | null): Promise<{ name: string; isCaptain: boolean }[]> => {
     if (ttId) {
       const { data } = await supabase
         .from("tournament_team_players")
-        .select("players!tournament_team_players_player_id_fkey(name)")
+        .select("is_captain, players!tournament_team_players_player_id_fkey(name)")
         .eq("tournament_team_id", ttId);
-      const names = (data ?? []).map((r: any) => r.players?.name).filter(Boolean) as string[];
-      if (names.length > 0) return names;
+      const players = (data ?? []).map((r: any) => ({
+        name: r.players?.name as string,
+        isCaptain: r.is_captain || false
+      })).filter(p => p.name);
+      if (players.length > 0) return players;
     }
-    // Fallback: fetch players directly linked to the team
     if (teamId) {
       const { data } = await supabase.from("players").select("name").eq("team_id", teamId);
-      return (data ?? []).map((r: any) => r.name).filter(Boolean) as string[];
+      return (data ?? []).map((r: any) => ({ name: r.name as string, isCaptain: false })).filter(p => p.name);
     }
     return [];
   }, []);
@@ -601,7 +602,7 @@ const Overlay = () => {
                         display: "block",
                       }}
                     >
-                      {team1Players.join(" • ")}
+                      {team1Players.map(p => p.isCaptain ? `(C) ${p.name}` : p.name).join(" • ")}
                     </span>
                   )}
                 </motion.div>
@@ -680,7 +681,7 @@ const Overlay = () => {
                         display: "block",
                       }}
                     >
-                      {team2Players.join(" • ")}
+                      {team2Players.map(p => p.isCaptain ? `(C) ${p.name}` : p.name).join(" • ")}
                     </span>
                   )}
                 </motion.div>
