@@ -21,6 +21,7 @@ import { PlayerRankings } from "@/components/tournament/PlayerRankings";
 import { ClosedTournamentSummary } from "@/components/tournament/ClosedTournamentSummary";
 import { RefereeStationsManager } from "@/components/tournament/RefereeStationsManager";
 import { RefereesTab } from "@/components/tournament/RefereesTab";
+import { ScheduleSettings, ScheduleSettingsData } from "@/components/tournament/ScheduleSettings";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +54,7 @@ const Tournament = () => {
   const [bracketResetDialogOpen, setBracketResetDialogOpen] = useState(false);
   const [bracketResetTrigger, setBracketResetTrigger] = useState(0);
   const [bracketGenerateTrigger, setBracketGenerateTrigger] = useState(0);
+  const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettingsData | null>(null);
   
   const activeTab = searchParams.get("tab") || "teams";
   const activeSubTab = searchParams.get("subtab") || "manage-teams";
@@ -450,6 +452,11 @@ const Tournament = () => {
 
               {isCreator && (
                 <TabsContent value="referee-stations">
+                  <ScheduleSettings
+                    tournamentId={id!}
+                    isCreator={isCreator}
+                    onSettingsChange={setScheduleSettings}
+                  />
                   <RefereeStationsManager tournamentId={id!} isCreator={isCreator} />
                 </TabsContent>
               )}
@@ -458,9 +465,9 @@ const Tournament = () => {
 
           <TabsContent value="matches" className="animate-fade-in">
             {(tournament.initial_phase === "swiss" || tournament.current_phase === "swiss") ? (
-              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} numberOfGroups={tournament.number_of_groups || 1} />
+              <SwissManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} numberOfGroups={tournament.number_of_groups || 1} scheduleSettings={scheduleSettings} numberOfFields={tournament.number_of_fields || 1} />
             ) : (
-              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} numberOfGroups={tournament.number_of_groups || 1} />
+              <RoundRobinManager tournamentId={id!} isClosed={tournament.is_closed} currentPhase={tournament.current_phase} isCreator={isCreator} numberOfGroups={tournament.number_of_groups || 1} scheduleSettings={scheduleSettings} numberOfFields={tournament.number_of_fields || 1} />
             )}
           </TabsContent>
 
