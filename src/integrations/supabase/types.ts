@@ -616,6 +616,7 @@ export type Database = {
       tournaments: {
         Row: {
           auto_closed_at: string | null
+          break_duration_minutes: number | null
           created_at: string
           created_by: string
           current_phase: Database["public"]["Enums"]["tournament_phase"]
@@ -627,15 +628,18 @@ export type Database = {
           initial_phase: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed: boolean
           is_manually_closed: boolean
+          match_duration_minutes: number | null
           name: string
           number_of_fields: number | null
           number_of_groups: number | null
+          schedule_start_time: string | null
           start_date: string
           teams_for_elimination: number | null
           updated_at: string
         }
         Insert: {
           auto_closed_at?: string | null
+          break_duration_minutes?: number | null
           created_at?: string
           created_by: string
           current_phase?: Database["public"]["Enums"]["tournament_phase"]
@@ -647,15 +651,18 @@ export type Database = {
           initial_phase?: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed?: boolean
           is_manually_closed?: boolean
+          match_duration_minutes?: number | null
           name: string
           number_of_fields?: number | null
           number_of_groups?: number | null
+          schedule_start_time?: string | null
           start_date: string
           teams_for_elimination?: number | null
           updated_at?: string
         }
         Update: {
           auto_closed_at?: string | null
+          break_duration_minutes?: number | null
           created_at?: string
           created_by?: string
           current_phase?: Database["public"]["Enums"]["tournament_phase"]
@@ -667,9 +674,11 @@ export type Database = {
           initial_phase?: Database["public"]["Enums"]["tournament_phase"] | null
           is_closed?: boolean
           is_manually_closed?: boolean
+          match_duration_minutes?: number | null
           name?: string
           number_of_fields?: number | null
           number_of_groups?: number | null
+          schedule_start_time?: string | null
           start_date?: string
           teams_for_elimination?: number | null
           updated_at?: string
