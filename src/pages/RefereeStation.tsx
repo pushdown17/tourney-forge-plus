@@ -41,6 +41,7 @@ interface PlayerStat {
   penalty_1m: number;
   penalty_2m: number;
   tournament_team_player_id: string;
+  is_captain: boolean;
 }
 
 interface Team {
@@ -215,6 +216,7 @@ const RefereeStation = () => {
       .from("tournament_team_players")
       .select(`
         id,
+        is_captain,
         player:player_id(id, name)
       `)
       .eq("tournament_team_id", tournamentTeam.id);
@@ -239,7 +241,8 @@ const RefereeStation = () => {
         penalty_30s: existingStat?.penalty_30s || 0,
         penalty_1m: existingStat?.penalty_1m || 0,
         penalty_2m: existingStat?.penalty_2m || 0,
-        tournament_team_player_id: p.id
+        tournament_team_player_id: p.id,
+        is_captain: p.is_captain || false
       };
     });
 
