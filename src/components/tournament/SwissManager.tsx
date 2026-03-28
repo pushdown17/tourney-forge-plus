@@ -839,7 +839,7 @@ export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isC
                 return aLive - bLive;
               });
             const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id) && !liveMatches.has(m.id))
-              .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+              .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.round_number - b.round_number || a.id.localeCompare(b.id));
             const onDeckMatch = waitingMatches[0];
             const inTheHoleMatch = waitingMatches[1];
             const sortedOngoing = [...activeOngoing, ...waitingMatches];
