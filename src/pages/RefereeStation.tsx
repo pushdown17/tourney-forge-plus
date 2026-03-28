@@ -1908,11 +1908,31 @@ const RefereeStation = () => {
 
             {/* Scoreboard */}
             <Card className="p-4">
+              {/* Switch Sides button */}
+              <div className="flex justify-center mb-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={switchSides}
+                  disabled={swapping}
+                  className="text-muted-foreground hover:text-primary gap-1.5 text-xs"
+                >
+                  <ArrowLeftRight className="h-3.5 w-3.5" />
+                  Inverser
+                </Button>
+              </div>
               <div className="grid grid-cols-3 gap-4 items-center">
                 {/* Team 1 */}
-                <div className="text-center">
+                <motion.div
+                  className="text-center"
+                  key={`team1-${team1?.id}`}
+                  initial={{ x: 0, opacity: 1 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  layout
+                >
                   <p className="font-bold text-lg truncate">{team1?.name}</p>
-                </div>
+                </motion.div>
                 
                 {/* Scores */}
                 <div className="flex items-center justify-center gap-3">
@@ -1924,7 +1944,15 @@ const RefereeStation = () => {
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
-                    <span className="text-4xl font-bold tabular-nums">{team1?.score || 0}</span>
+                    <motion.span
+                      className="text-4xl font-bold tabular-nums"
+                      key={`score1-${team1?.score}`}
+                      initial={{ scale: 1.3, color: "hsl(var(--primary))" }}
+                      animate={{ scale: 1, color: "hsl(var(--foreground))" }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {team1?.score || 0}
+                    </motion.span>
                     <Button 
                       size="icon" 
                       variant="outline"
@@ -1945,7 +1973,15 @@ const RefereeStation = () => {
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
-                    <span className="text-4xl font-bold tabular-nums">{team2?.score || 0}</span>
+                    <motion.span
+                      className="text-4xl font-bold tabular-nums"
+                      key={`score2-${team2?.score}`}
+                      initial={{ scale: 1.3, color: "hsl(var(--primary))" }}
+                      animate={{ scale: 1, color: "hsl(var(--foreground))" }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {team2?.score || 0}
+                    </motion.span>
                     <Button 
                       size="icon" 
                       variant="outline"
@@ -1958,9 +1994,16 @@ const RefereeStation = () => {
                 </div>
                 
                 {/* Team 2 */}
-                <div className="text-center">
+                <motion.div
+                  className="text-center"
+                  key={`team2-${team2?.id}`}
+                  initial={{ x: 0, opacity: 1 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  layout
+                >
                   <p className="font-bold text-lg truncate">{team2?.name}</p>
-                </div>
+                </motion.div>
               </div>
             </Card>
 
