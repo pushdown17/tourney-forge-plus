@@ -717,7 +717,7 @@ const RefereeStation = () => {
     toast.success(newValue ? `${player.player_name} est capitaine` : "Capitaine retiré");
   }, [team1, team2]);
 
-
+  const updatePlayerStat = (
     teamNumber: 1 | 2, 
     playerId: string, 
     stat: keyof Omit<PlayerStat, 'id' | 'player_id' | 'player_name' | 'tournament_team_player_id' | 'is_captain'>,
