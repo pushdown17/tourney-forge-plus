@@ -83,6 +83,8 @@ const RefereeStation = () => {
   const [autoLoadBanner, setAutoLoadBanner] = useState(false);
   const [goalScorerPicker, setGoalScorerPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
   const [goalRemoverPicker, setGoalRemoverPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
+  const [sidesSwapped, setSidesSwapped] = useState(false);
+  const [swapping, setSwapping] = useState(false);
   // Third place decision is handled on the tournament management page, not here
 
   // Golden Goal state
