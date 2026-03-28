@@ -692,52 +692,56 @@ const Overlay = () => {
                 <motion.div
                   animate={{ opacity: [1, 0.6, 1] }}
                   transition={{ repeat: Infinity, duration: 0.9 }}
-                  className="flex items-center gap-2 px-5 py-1.5 rounded-full mt-1"
+                  className="flex items-center gap-3 px-8 py-2.5 rounded-full mt-2"
                   style={{
-                    background: "rgba(245,158,11,0.28)",
-                    backdropFilter: "blur(12px)",
-                    border: "1px solid rgba(245,158,11,0.5)",
+                    background: "rgba(245,158,11,0.35)",
+                    backdropFilter: "blur(16px)",
+                    border: "2px solid rgba(245,158,11,0.6)",
+                    boxShadow: "0 0 20px rgba(245,158,11,0.3), 0 4px 12px rgba(0,0,0,0.5)",
                   }}
                 >
                   <span
-                    className="text-xs font-bold tracking-widest"
-                    style={{ color: "#f59e0b", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}
+                    className="text-base font-bold tracking-widest"
+                    style={{ color: "#f59e0b", textShadow: "0 2px 10px rgba(0,0,0,1)" }}
                   >
                     ⚡ GOLDEN GOAL
                   </span>
                   <span
-                    className="font-mono font-black tabular-nums text-sm tracking-widest"
-                    style={{ color: "#fbbf24", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}
+                    className="font-mono font-black tabular-nums text-2xl tracking-widest"
+                    style={{ color: "#fbbf24", textShadow: "0 2px 10px rgba(0,0,0,1)" }}
                   >
                     {formatTime(Math.floor(ggElapsedMs / 1000))}
                   </span>
-                  {ggFrozen && <span className="text-white text-xs font-bold tracking-widest">🏆 BUT !</span>}
+                  {ggFrozen && <span className="text-white text-base font-bold tracking-widest">🏆 BUT !</span>}
                 </motion.div>
               ) : hasTimer ? (
                 <motion.div
                   animate={timerEnded ? { opacity: [1, 0.35, 1] } : {}}
                   transition={timerEnded ? { repeat: Infinity, duration: 0.8 } : {}}
-                  className="flex items-center gap-2 px-5 py-1.5 rounded-full mt-1"
+                  className="flex items-center gap-3 px-8 py-2.5 rounded-full mt-2"
                   style={{
                     background: timerEnded
-                      ? "rgba(239,68,68,0.25)"
+                      ? "rgba(239,68,68,0.35)"
                       : isPaused
-                        ? "rgba(245,158,11,0.22)"
-                        : "rgba(15,23,42,0.55)",
-                    backdropFilter: "blur(12px)",
-                    border: `1px solid ${timerEnded ? "rgba(239,68,68,0.4)" : isPaused ? "rgba(245,158,11,0.4)" : "rgba(255,255,255,0.10)"}`,
+                        ? "rgba(245,158,11,0.3)"
+                        : "rgba(15,23,42,0.7)",
+                    backdropFilter: "blur(16px)",
+                    border: `2px solid ${timerEnded ? "rgba(239,68,68,0.5)" : isPaused ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.18)"}`,
+                    boxShadow: timerEnded
+                      ? "0 0 20px rgba(239,68,68,0.3), 0 4px 12px rgba(0,0,0,0.5)"
+                      : "0 4px 12px rgba(0,0,0,0.5)",
                   }}
                 >
                   <span
-                    className="font-mono font-black tabular-nums text-sm tracking-widest"
+                    className="font-mono font-black tabular-nums text-2xl tracking-widest"
                     style={{
-                      color: timerEnded ? "#ef4444" : isPaused ? "#f59e0b" : "rgba(255,255,255,0.85)",
-                      textShadow: "0 1px 8px rgba(0,0,0,0.9)",
+                      color: timerEnded ? "#ef4444" : isPaused ? "#f59e0b" : "#ffffff",
+                      textShadow: "0 2px 10px rgba(0,0,0,1)",
                     }}
                   >
                     {formatTime(remainingSeconds)}
                   </span>
-                  {isPaused && <span className="text-yellow-400 text-xs font-bold tracking-widest">▐▐ PAUSE</span>}
+                  {isPaused && <span className="text-yellow-400 text-sm font-bold tracking-widest" style={{ textShadow: "0 2px 8px rgba(0,0,0,1)" }}>▐▐ PAUSE</span>}
                 </motion.div>
               ) : null}
             </motion.div>
