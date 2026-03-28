@@ -882,6 +882,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                     scheduledTime={matchTimeMap.get(match.id)}
                   />
                 ))
+              )}
             </div>
           );
         })()}
