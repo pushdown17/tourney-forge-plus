@@ -831,6 +831,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                   onTeamClick={handleTeamClick}
                   scheduledTime={matchTimeMap.get(match.id)}
                 />
+              ))}
               {/* Waiting matches (draggable for creator) */}
               {isCreator && !isClosed && waitingMatches.length > 0 ? (
                 <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -855,6 +856,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                           onTeamClick={handleTeamClick}
                           scheduledTime={matchTimeMap.get(match.id)}
                         />
+                      </SortableMatchItem>
                     ))}
                   </SortableContext>
                 </DndContext>
@@ -879,7 +881,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
                     onTeamClick={handleTeamClick}
                     scheduledTime={matchTimeMap.get(match.id)}
                   />
-              )}
+                ))
             </div>
           );
         })()}
