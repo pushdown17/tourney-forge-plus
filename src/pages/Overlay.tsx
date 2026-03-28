@@ -297,7 +297,7 @@ const Overlay = () => {
 
   // ---- Realtime: match score updates ----
   useEffect(() => {
-    if (!match?.id) return;
+    if (!match?.id || !station?.tournament_id) return;
 
     const channel = supabase
       .channel(`overlay-match-${match.id}`)
@@ -306,6 +306,17 @@ const Overlay = () => {
         { event: "UPDATE", schema: "public", table: "matches", filter: `id=eq.${match.id}` },
         (payload) => {
           const next = payload.new as any;
+
+          // If team IDs changed (sides switched), re-fetch the full match
+          const currentMatch = matchRef2.current;
+          if (
+            currentMatch &&
+            (next.team1_id !== currentMatch.team1_id || next.team2_id !== currentMatch.team2_id)
+          ) {
+            fetchMatch(match.id, station.tournament_id);
+            return;
+          }
+
           if (next.team1_score !== undefined) {
             const newT1 = next.team1_score ?? 0;
             const newT2 = next.team2_score ?? 0;
@@ -326,7 +337,7 @@ const Overlay = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [match?.id]);
+  }, [match?.id, station?.tournament_id, fetchMatch]);
 
   // Keep a stable ref for match so goal event handler never captures stale names
   const matchRef2 = useRef<MatchData | null>(null);
