@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn, User as UserIcon, Timer, Zap } from "lucide-react";
+import { Loader2, Wifi, WifiOff, Plus, Minus, Check, Trophy, AlertTriangle, Target, Ban, Clock, LogIn, User as UserIcon, Timer, Zap, ArrowLeftRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
   DialogContent,
@@ -82,6 +83,8 @@ const RefereeStation = () => {
   const [autoLoadBanner, setAutoLoadBanner] = useState(false);
   const [goalScorerPicker, setGoalScorerPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
   const [goalRemoverPicker, setGoalRemoverPicker] = useState<{ teamNumber: 1 | 2 } | null>(null);
+  const [sidesSwapped, setSidesSwapped] = useState(false);
+  const [swapping, setSwapping] = useState(false);
   // Third place decision is handled on the tournament management page, not here
 
   // Golden Goal state
@@ -716,6 +719,55 @@ const RefereeStation = () => {
 
     toast.success(newValue ? `${player.player_name} est capitaine` : "Capitaine retiré");
   }, [team1, team2]);
+
+  // Switch sides: swap team1 and team2 in the database and locally
+  const switchSides = useCallback(async () => {
+    if (!match || !team1 || !team2 || swapping) return;
+    setSwapping(true);
+
+    try {
+      // Swap in DB: team1↔team2, scores follow
+      const { error } = await supabase
+        .from("matches")
+        .update({
+          team1_id: match.team2_id,
+          team2_id: match.team1_id,
+          team1_score: team2.score,
+          team2_score: team1.score,
+          tournament_team1_id: (match as any).tournament_team2_id || null,
+          tournament_team2_id: (match as any).tournament_team1_id || null,
+        })
+        .eq("id", match.id);
+
+      if (error) throw error;
+
+      // Trigger animation
+      setSidesSwapped(prev => !prev);
+
+      // Swap local state
+      const oldTeam1 = team1;
+      const oldTeam2 = team2;
+      setTeam1(oldTeam2);
+      setTeam2(oldTeam1);
+      setMatch(prev => prev ? {
+        ...prev,
+        team1_id: prev.team2_id,
+        team2_id: prev.team1_id,
+        team1_score: oldTeam2.score,
+        team2_score: oldTeam1.score,
+      } : prev);
+
+      // Broadcast updated scores so overlay picks it up
+      broadcastLiveScore(oldTeam2.score, oldTeam1.score);
+
+      toast.success("Côtés inversés !");
+    } catch (err) {
+      console.error("Error switching sides:", err);
+      toast.error("Erreur lors de l'inversion");
+    } finally {
+      setSwapping(false);
+    }
+  }, [match, team1, team2, swapping, broadcastLiveScore]);
 
   const updatePlayerStat = (
     teamNumber: 1 | 2, 
@@ -1856,11 +1908,31 @@ const RefereeStation = () => {
 
             {/* Scoreboard */}
             <Card className="p-4">
+              {/* Switch Sides button */}
+              <div className="flex justify-center mb-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={switchSides}
+                  disabled={swapping}
+                  className="text-muted-foreground hover:text-primary gap-1.5 text-xs"
+                >
+                  <ArrowLeftRight className="h-3.5 w-3.5" />
+                  Inverser
+                </Button>
+              </div>
               <div className="grid grid-cols-3 gap-4 items-center">
                 {/* Team 1 */}
-                <div className="text-center">
+                <motion.div
+                  className="text-center"
+                  key={`team1-${team1?.id}`}
+                  initial={{ x: 0, opacity: 1 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  layout
+                >
                   <p className="font-bold text-lg truncate">{team1?.name}</p>
-                </div>
+                </motion.div>
                 
                 {/* Scores */}
                 <div className="flex items-center justify-center gap-3">
@@ -1872,7 +1944,15 @@ const RefereeStation = () => {
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
-                    <span className="text-4xl font-bold tabular-nums">{team1?.score || 0}</span>
+                    <motion.span
+                      className="text-4xl font-bold tabular-nums"
+                      key={`score1-${team1?.score}`}
+                      initial={{ scale: 1.3, color: "hsl(var(--primary))" }}
+                      animate={{ scale: 1, color: "hsl(var(--foreground))" }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {team1?.score || 0}
+                    </motion.span>
                     <Button 
                       size="icon" 
                       variant="outline"
@@ -1893,7 +1973,15 @@ const RefereeStation = () => {
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
-                    <span className="text-4xl font-bold tabular-nums">{team2?.score || 0}</span>
+                    <motion.span
+                      className="text-4xl font-bold tabular-nums"
+                      key={`score2-${team2?.score}`}
+                      initial={{ scale: 1.3, color: "hsl(var(--primary))" }}
+                      animate={{ scale: 1, color: "hsl(var(--foreground))" }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {team2?.score || 0}
+                    </motion.span>
                     <Button 
                       size="icon" 
                       variant="outline"
@@ -1906,9 +1994,16 @@ const RefereeStation = () => {
                 </div>
                 
                 {/* Team 2 */}
-                <div className="text-center">
+                <motion.div
+                  className="text-center"
+                  key={`team2-${team2?.id}`}
+                  initial={{ x: 0, opacity: 1 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  layout
+                >
                   <p className="font-bold text-lg truncate">{team2?.name}</p>
-                </div>
+                </motion.div>
               </div>
             </Card>
 
