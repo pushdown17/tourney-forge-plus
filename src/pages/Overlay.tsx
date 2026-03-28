@@ -602,7 +602,7 @@ const Overlay = () => {
                         display: "block",
                       }}
                     >
-                      {team1Players.join(" • ")}
+                      {team1Players.map(p => p.isCaptain ? `(C) ${p.name}` : p.name).join(" • ")}
                     </span>
                   )}
                 </motion.div>
@@ -681,7 +681,7 @@ const Overlay = () => {
                         display: "block",
                       }}
                     >
-                      {team2Players.join(" • ")}
+                      {team2Players.map(p => p.isCaptain ? `(C) ${p.name}` : p.name).join(" • ")}
                     </span>
                   )}
                 </motion.div>
