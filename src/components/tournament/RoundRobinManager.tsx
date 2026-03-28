@@ -134,7 +134,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     if (!scheduleSettings) return new Map<string, string>();
     const allNonUltimate = matches
       .filter(m => m.round_number !== 99)
-      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.round_number - b.round_number || a.id.localeCompare(b.id));
     const map = new Map<string, string>();
     allNonUltimate.forEach((m, i) => {
       map.set(m.id, calculateMatchTime(i, scheduleSettings, numberOfFields));
@@ -802,7 +802,7 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
               return aLive - bLive;
             });
           const waitingMatches = ongoingMatches.filter(m => !activeStationMatches.has(m.id) && !liveMatches.has(m.id))
-            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.round_number - b.round_number || a.id.localeCompare(b.id));
           const onDeckMatch = waitingMatches[0];
           const inTheHoleMatch = waitingMatches[1];
           const sortedOngoing = [...activeOngoing, ...waitingMatches];
