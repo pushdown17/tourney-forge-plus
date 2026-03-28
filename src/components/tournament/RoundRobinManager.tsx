@@ -129,6 +129,19 @@ export const RoundRobinManager = ({ tournamentId, isClosed = false, currentPhase
     });
   }, [matches, hasGroups, teamGroupMap, selectedGroup]);
 
+  // Compute scheduled times for all non-completed matches based on sort_order
+  const matchTimeMap = useMemo(() => {
+    if (!scheduleSettings) return new Map<string, string>();
+    const allNonUltimate = matches
+      .filter(m => m.round_number !== 99)
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    const map = new Map<string, string>();
+    allNonUltimate.forEach((m, i) => {
+      map.set(m.id, calculateMatchTime(i, scheduleSettings, numberOfFields));
+    });
+    return map;
+  }, [matches, scheduleSettings, numberOfFields]);
+
   // Auto-switch: Morning → Afternoon → Ultimate Round
   useEffect(() => {
     if (!hasGroups || teamGroupMap.size === 0 || matches.length === 0) return;
