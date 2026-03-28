@@ -720,6 +720,55 @@ const RefereeStation = () => {
     toast.success(newValue ? `${player.player_name} est capitaine` : "Capitaine retiré");
   }, [team1, team2]);
 
+  // Switch sides: swap team1 and team2 in the database and locally
+  const switchSides = useCallback(async () => {
+    if (!match || !team1 || !team2 || swapping) return;
+    setSwapping(true);
+
+    try {
+      // Swap in DB: team1↔team2, scores follow
+      const { error } = await supabase
+        .from("matches")
+        .update({
+          team1_id: match.team2_id,
+          team2_id: match.team1_id,
+          team1_score: team2.score,
+          team2_score: team1.score,
+          tournament_team1_id: (match as any).tournament_team2_id || null,
+          tournament_team2_id: (match as any).tournament_team1_id || null,
+        })
+        .eq("id", match.id);
+
+      if (error) throw error;
+
+      // Trigger animation
+      setSidesSwapped(prev => !prev);
+
+      // Swap local state
+      const oldTeam1 = team1;
+      const oldTeam2 = team2;
+      setTeam1(oldTeam2);
+      setTeam2(oldTeam1);
+      setMatch(prev => prev ? {
+        ...prev,
+        team1_id: prev.team2_id,
+        team2_id: prev.team1_id,
+        team1_score: oldTeam2.score,
+        team2_score: oldTeam1.score,
+      } : prev);
+
+      // Broadcast updated scores so overlay picks it up
+      broadcastLiveScore(oldTeam2.score, oldTeam1.score);
+
+      toast.success("Côtés inversés !");
+    } catch (err) {
+      console.error("Error switching sides:", err);
+      toast.error("Erreur lors de l'inversion");
+    } finally {
+      setSwapping(false);
+    }
+  }, [match, team1, team2, swapping, broadcastLiveScore]);
+
   const updatePlayerStat = (
     teamNumber: 1 | 2, 
     playerId: string, 
