@@ -84,6 +84,12 @@ const Tournament = () => {
       if (error) throw error;
       setTournament(data);
       setTeamsForElimination(data.teams_for_elimination?.toString() || "8");
+      // Initialize schedule settings from tournament data
+      setScheduleSettings({
+        schedule_start_time: (data as any).schedule_start_time || "09:00",
+        match_duration_minutes: (data as any).match_duration_minutes ?? 18,
+        break_duration_minutes: (data as any).break_duration_minutes ?? 7,
+      });
       
       // Check if current user is the creator
       const { data: { user } } = await supabase.auth.getUser();
