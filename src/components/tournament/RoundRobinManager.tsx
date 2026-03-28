@@ -977,9 +977,10 @@ interface MatchCardProps {
   onViewLiveStats?: () => void;
   selectedTeam?: string | null;
   onTeamClick?: (teamName: string) => void;
+  scheduledTime?: string | null;
 }
 
-const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, isOnDeck = false, isInTheHole = false, timerState, onViewLiveStats, selectedTeam, onTeamClick }: MatchCardProps) => {
+const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEditingMatchId, isClosed = false, isCreator = false, isOnRefereeStation = false, isLive = false, isOnDeck = false, isInTheHole = false, timerState, onViewLiveStats, selectedTeam, onTeamClick, scheduledTime }: MatchCardProps) => {
   const [team1Score, setTeam1Score] = useState(match.team1_score ?? 0);
   const [team2Score, setTeam2Score] = useState(match.team2_score ?? 0);
   const [isOpen, setIsOpen] = useState(false);
