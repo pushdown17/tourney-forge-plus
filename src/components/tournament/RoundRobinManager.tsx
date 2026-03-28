@@ -1298,6 +1298,7 @@ const MatchCard = ({ match, tournamentId, onScoreUpdate, editingMatchId, setEdit
               {scheduledTime}
             </Badge>
           )}
+          {(isOnRefereeStation || isLive) && timerState && timerState.startedAt && (
             <TimerDisplay
               durationSeconds={timerState.durationSeconds}
               startedAt={timerState.startedAt}
