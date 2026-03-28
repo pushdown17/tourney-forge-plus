@@ -69,7 +69,7 @@ interface SwissManagerProps {
   numberOfFields?: number;
 }
 
-export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false, numberOfGroups = 1, scheduleSettings, numberOfFields = 1 }: SwissManagerProps) => {
+export const SwissManager = ({ tournamentId, isClosed = false, currentPhase, isCreator = false, numberOfGroups = 1, scheduleSettings, numberOfFields: numberOfFieldsProp = 1 }: SwissManagerProps) => {
   const [matches, setMatches] = useState<any[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(false);
