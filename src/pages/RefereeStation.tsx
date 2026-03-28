@@ -692,7 +692,32 @@ const RefereeStation = () => {
     }
   }, [match, station?.tournament_id, getElapsedMatchTime]);
 
-  const updatePlayerStat = (
+  const toggleCaptain = useCallback(async (teamNumber: 1 | 2, playerId: string) => {
+    const team = teamNumber === 1 ? team1 : team2;
+    if (!team) return;
+    const player = team.players.find(p => p.player_id === playerId);
+    if (!player) return;
+    const newValue = !player.is_captain;
+
+    // Unset all captains in this team, then set the new one
+    const ttpIds = team.players.map(p => p.tournament_team_player_id);
+    await supabase.from("tournament_team_players").update({ is_captain: false }).in("id", ttpIds);
+    if (newValue) {
+      await supabase.from("tournament_team_players").update({ is_captain: true }).eq("id", player.tournament_team_player_id);
+    }
+
+    // Update local state
+    const updatedPlayers = team.players.map(p => ({
+      ...p,
+      is_captain: p.player_id === playerId ? newValue : false
+    }));
+    if (teamNumber === 1) setTeam1({ ...team, players: updatedPlayers });
+    else setTeam2({ ...team, players: updatedPlayers });
+
+    toast.success(newValue ? `${player.player_name} est capitaine` : "Capitaine retiré");
+  }, [team1, team2]);
+
+
     teamNumber: 1 | 2, 
     playerId: string, 
     stat: keyof Omit<PlayerStat, 'id' | 'player_id' | 'player_name' | 'tournament_team_player_id' | 'is_captain'>,
@@ -1897,24 +1922,39 @@ const RefereeStation = () => {
                     {team1.players.map(player => {
                       const hasStats = player.goals > 0 || player.assists > 0 || player.fouls > 0 || player.penalty_30s > 0 || player.penalty_1m > 0 || player.penalty_2m > 0;
                       return (
-                        <button
-                          key={player.player_id}
-                          className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors active:scale-[0.98] ${
-                            hasStats 
-                              ? "bg-primary/10 border-primary/30 font-medium" 
-                              : "bg-card hover:bg-muted border-border"
-                          }`}
-                          onClick={() => setSelectedPlayer({ teamNumber: 1, playerId: player.player_id })}
-                        >
-                          <span className="truncate block">{player.player_name}</span>
-                          {hasStats && (
-                            <span className="text-xs text-muted-foreground flex gap-1.5 mt-0.5">
-                              {player.goals > 0 && <span>⚽{player.goals}</span>}
-                              {player.assists > 0 && <span>🅰️{player.assists}</span>}
-                              {player.fouls > 0 && <span>🟡{player.fouls}</span>}
+                        <div key={player.player_id} className="flex items-center gap-1">
+                          <button
+                            className={`flex-1 text-left px-3 py-2 rounded-lg border text-sm transition-colors active:scale-[0.98] ${
+                              player.is_captain
+                                ? "bg-amber-500/15 border-amber-500/40 font-bold ring-1 ring-amber-500/30"
+                                : hasStats 
+                                  ? "bg-primary/10 border-primary/30 font-medium" 
+                                  : "bg-card hover:bg-muted border-border"
+                            }`}
+                            onClick={() => setSelectedPlayer({ teamNumber: 1, playerId: player.player_id })}
+                          >
+                            <span className="truncate block">
+                              {player.is_captain && <span className="text-amber-500 font-bold mr-1">(C)</span>}
+                              {player.player_name}
                             </span>
-                          )}
-                        </button>
+                            {hasStats && (
+                              <span className="text-xs text-muted-foreground flex gap-1.5 mt-0.5">
+                                {player.goals > 0 && <span>⚽{player.goals}</span>}
+                                {player.assists > 0 && <span>🅰️{player.assists}</span>}
+                                {player.fouls > 0 && <span>🟡{player.fouls}</span>}
+                              </span>
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleCaptain(1, player.player_id); }}
+                            className={`shrink-0 px-1.5 py-1 rounded text-xs font-bold transition-colors ${
+                              player.is_captain ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground hover:bg-amber-500/20 hover:text-amber-600"
+                            }`}
+                            title="Capitaine"
+                          >
+                            C
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
