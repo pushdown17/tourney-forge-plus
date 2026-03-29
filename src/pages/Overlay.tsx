@@ -729,30 +729,38 @@ const Overlay = () => {
                 <motion.div
                   animate={timerEnded ? { opacity: [1, 0.35, 1] } : {}}
                   transition={timerEnded ? { repeat: Infinity, duration: 0.8 } : {}}
-                  className="flex items-center gap-3 px-8 py-2.5 rounded-full mt-2"
+                  className="flex items-center gap-4 px-10 py-3 rounded-full mt-3"
                   style={{
                     background: timerEnded
-                      ? "rgba(239,68,68,0.35)"
+                      ? "linear-gradient(135deg, rgba(127,29,29,0.95), rgba(153,27,27,0.88))"
                       : isPaused
-                        ? "rgba(245,158,11,0.3)"
-                        : "rgba(15,23,42,0.7)",
-                    backdropFilter: "blur(16px)",
-                    border: `2px solid ${timerEnded ? "rgba(239,68,68,0.5)" : isPaused ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.18)"}`,
+                        ? "linear-gradient(135deg, rgba(120,53,15,0.95), rgba(146,64,14,0.88))"
+                        : "linear-gradient(135deg, rgba(2,6,23,0.96), rgba(15,23,42,0.9))",
+                    backdropFilter: "blur(20px)",
+                    border: `2px solid ${timerEnded ? "rgba(254,202,202,0.65)" : isPaused ? "rgba(253,230,138,0.65)" : "rgba(255,255,255,0.32)"}`,
                     boxShadow: timerEnded
-                      ? "0 0 20px rgba(239,68,68,0.3), 0 4px 12px rgba(0,0,0,0.5)"
-                      : "0 4px 12px rgba(0,0,0,0.5)",
+                      ? "0 0 30px rgba(239,68,68,0.4), 0 10px 28px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12)"
+                      : "0 10px 28px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12)",
                   }}
                 >
                   <span
-                    className="font-mono font-black tabular-nums text-2xl tracking-widest"
+                    className="font-mono font-black tabular-nums text-4xl tracking-[0.18em]"
                     style={{
-                      color: timerEnded ? "#ef4444" : isPaused ? "#f59e0b" : "#ffffff",
-                      textShadow: "0 2px 10px rgba(0,0,0,1)",
+                      color: "#ffffff",
+                      textShadow: "0 3px 18px rgba(0,0,0,1), 0 0 8px rgba(0,0,0,0.95)",
+                      WebkitTextStroke: "1px rgba(0,0,0,0.55)",
                     }}
                   >
                     {formatTime(remainingSeconds)}
                   </span>
-                  {isPaused && <span className="text-yellow-400 text-sm font-bold tracking-widest" style={{ textShadow: "0 2px 8px rgba(0,0,0,1)" }}>▐▐ PAUSE</span>}
+                  {isPaused && (
+                    <span
+                      className="text-white text-base font-bold tracking-[0.24em]"
+                      style={{ textShadow: "0 2px 10px rgba(0,0,0,1)" }}
+                    >
+                      ▐▐ PAUSE
+                    </span>
+                  )}
                 </motion.div>
               ) : null}
             </motion.div>
