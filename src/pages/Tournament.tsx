@@ -222,23 +222,6 @@ const Tournament = () => {
     );
   }
 
-  // Show summary view for closed tournaments (for non-creators)
-  if (tournament.is_closed && !isCreator) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
-        <Navigation />
-        <main className="container mx-auto px-4 pt-24 pb-16">
-          <Link to="/">
-            <Button variant="ghost" className="mb-6 hover-scale">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-          </Link>
-          <ClosedTournamentSummary tournament={tournament} />
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
