@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 const CreateTournament = () => {
   const navigate = useNavigate();
   const [tournamentName, setTournamentName] = useState("");
-  const [format, setFormat] = useState<"round-robin" | "swiss" | "round-robin-single" | "round-robin-double" | "swiss-single" | "swiss-double" | "broquil">("round-robin");
+  const [format, setFormat] = useState<"round-robin" | "swiss" | "round-robin-single" | "round-robin-double" | "swiss-single" | "swiss-double" | "single-elimination" | "double-elimination" | "broquil">("round-robin");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [numberOfFields, setNumberOfFields] = useState("1");
@@ -22,11 +22,14 @@ const CreateTournament = () => {
   const [numberOfGroups, setNumberOfGroups] = useState("2");
   const [loading, setLoading] = useState(false);
 
-  // When Broquil is selected, force groups on with 2 groups
+  // When Broquil is selected, force groups on with 2 groups.
+  // When direct elimination is selected, force groups off.
   useEffect(() => {
     if (format === "broquil") {
       setDivideIntoGroups(true);
       setNumberOfGroups("2");
+    } else if (format === "single-elimination" || format === "double-elimination") {
+      setDivideIntoGroups(false);
     }
   }, [format]);
 
@@ -41,7 +44,8 @@ const CreateTournament = () => {
     checkAuth();
   }, [navigate]);
 
-  const hasEliminationPhase = format === "round-robin-single" || format === "round-robin-double" || format === "swiss-single" || format === "swiss-double" || format === "broquil";
+  const hasEliminationPhase = format === "round-robin-single" || format === "round-robin-double" || format === "swiss-single" || format === "swiss-double" || format === "broquil" || format === "single-elimination" || format === "double-elimination";
+  const isDirectElimination = format === "single-elimination" || format === "double-elimination";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,15 +60,19 @@ const CreateTournament = () => {
       }
 
       // Determine initial phase and elimination type
-      let currentPhase: "round_robin" | "swiss" = "round_robin";
+      let currentPhase: "round_robin" | "swiss" | "single_elimination" | "double_elimination" = "round_robin";
       if (format === "swiss" || format === "swiss-single" || format === "swiss-double") {
         currentPhase = "swiss";
+      } else if (format === "single-elimination") {
+        currentPhase = "single_elimination";
+      } else if (format === "double-elimination") {
+        currentPhase = "double_elimination";
       }
 
       let eliminationType: "single" | "double" | null = null;
-      if (format === "round-robin-single" || format === "swiss-single" || format === "broquil") {
+      if (format === "round-robin-single" || format === "swiss-single" || format === "broquil" || format === "single-elimination") {
         eliminationType = "single";
-      } else if (format === "round-robin-double" || format === "swiss-double") {
+      } else if (format === "round-robin-double" || format === "swiss-double" || format === "double-elimination") {
         eliminationType = "double";
       }
 
@@ -162,6 +170,8 @@ const CreateTournament = () => {
                     <SelectItem value="swiss">Swiss Round Only</SelectItem>
                     <SelectItem value="swiss-single">Swiss Round + Single Elimination</SelectItem>
                     <SelectItem value="swiss-double">Swiss Round + Double Elimination</SelectItem>
+                    <SelectItem value="single-elimination">Single Elimination Only</SelectItem>
+                    <SelectItem value="double-elimination">Double Elimination Only</SelectItem>
                     <SelectItem value="broquil">Broquil</SelectItem>
                   </SelectContent>
                 </Select>
@@ -187,37 +197,39 @@ const CreateTournament = () => {
                 </Select>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="divideGroups">Divide teams into groups?</Label>
-                  <Switch
-                    id="divideGroups"
-                    checked={divideIntoGroups}
-                    onCheckedChange={setDivideIntoGroups}
-                    disabled={format === "broquil"}
-                  />
-                </div>
-
-                {divideIntoGroups && (
-                  <div className="space-y-2">
-                    <Label htmlFor="numberOfGroups">Number of groups</Label>
-                    <Input
-                      id="numberOfGroups"
-                      type="number"
-                      min="2"
-                      max="8"
-                      value={numberOfGroups}
-                      onChange={(e) => setNumberOfGroups(e.target.value)}
-                      className="bg-secondary/50"
+              {!isDirectElimination && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="divideGroups">Divide teams into groups?</Label>
+                    <Switch
+                      id="divideGroups"
+                      checked={divideIntoGroups}
+                      onCheckedChange={setDivideIntoGroups}
                       disabled={format === "broquil"}
                     />
                   </div>
-                )}
-              </div>
+
+                  {divideIntoGroups && (
+                    <div className="space-y-2">
+                      <Label htmlFor="numberOfGroups">Number of groups</Label>
+                      <Input
+                        id="numberOfGroups"
+                        type="number"
+                        min="2"
+                        max="8"
+                        value={numberOfGroups}
+                        onChange={(e) => setNumberOfGroups(e.target.value)}
+                        className="bg-secondary/50"
+                        disabled={format === "broquil"}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {hasEliminationPhase && (
                 <div className="space-y-2">
-                  <Label htmlFor="teamsForElimination">Number of Teams Qualifying for Finals</Label>
+                  <Label htmlFor="teamsForElimination">{isDirectElimination ? "Number of Teams" : "Number of Teams Qualifying for Finals"}</Label>
                   <Input
                     id="teamsForElimination"
                     type="number"
@@ -230,7 +242,7 @@ const CreateTournament = () => {
                   />
                   {(() => {
                     const n = parseInt(teamsForElimination) || 0;
-                    const isDoubleElim = format === "round-robin-double" || format === "swiss-double";
+                    const isDoubleElim = format === "round-robin-double" || format === "swiss-double" || format === "double-elimination";
                     const isPow2 = n > 0 && Number.isInteger(Math.log2(n));
                     const isOdd = n > 0 && !isPow2 && n % 2 !== 0;
                     if (isDoubleElim && isOdd) {
