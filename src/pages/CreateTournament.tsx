@@ -167,6 +167,8 @@ const CreateTournament = () => {
                     <SelectItem value="swiss">Swiss Round Only</SelectItem>
                     <SelectItem value="swiss-single">Swiss Round + Single Elimination</SelectItem>
                     <SelectItem value="swiss-double">Swiss Round + Double Elimination</SelectItem>
+                    <SelectItem value="single-elimination">Single Elimination Only</SelectItem>
+                    <SelectItem value="double-elimination">Double Elimination Only</SelectItem>
                     <SelectItem value="broquil">Broquil</SelectItem>
                   </SelectContent>
                 </Select>
