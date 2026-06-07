@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 const CreateTournament = () => {
   const navigate = useNavigate();
   const [tournamentName, setTournamentName] = useState("");
-  const [format, setFormat] = useState<"round-robin" | "swiss" | "round-robin-single" | "round-robin-double" | "swiss-single" | "swiss-double" | "broquil">("round-robin");
+  const [format, setFormat] = useState<"round-robin" | "swiss" | "round-robin-single" | "round-robin-double" | "swiss-single" | "swiss-double" | "single-elimination" | "double-elimination" | "broquil">("round-robin");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [numberOfFields, setNumberOfFields] = useState("1");
