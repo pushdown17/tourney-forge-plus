@@ -703,8 +703,14 @@ export const EliminationBracket = ({
       }
 
       if (!matchesResult.data || matchesResult.data.length === 0) {
-        // Auto-generate matches
-        await generateBracket(tournamentData.teams_for_elimination);
+        // Direct-elimination tournaments require manual bracket composition (no standings).
+        const isDirectElim = tournamentData.initial_phase === "single_elimination"
+          || tournamentData.initial_phase === "double_elimination";
+        if (!isDirectElim) {
+          // Auto-generate matches from standings
+          await generateBracket(tournamentData.teams_for_elimination);
+        }
+        // else: leave matches empty so the "Create bracket" UI is shown
       } else {
         // Check if next round needs to be generated (fallback for station failures)
         const prelimMatches = matchesResult.data.filter((m: any) => m.round_number === 0 && !m.is_third_place_match);
