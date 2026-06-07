@@ -6,8 +6,9 @@ import { MatchStatsDialog } from "./MatchStatsDialog";
 import { MatchStatsRecapDialog } from "./MatchStatsRecapDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trophy, Shield, Skull, RefreshCw, RotateCcw } from "lucide-react";
+import { Trophy, Shield, Skull, RefreshCw, RotateCcw, Plus } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
+import { ManualBracketComposer } from "./ManualBracketComposer";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -155,6 +156,7 @@ export const DoubleEliminationBracket = ({
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
   // Ordered standings: index 0 = seed #1, used to resolve BYE team names
   const [standingsTeams, setStandingsTeams] = useState<{ teamId: string; name: string }[]>([]);
 
@@ -525,7 +527,12 @@ export const DoubleEliminationBracket = ({
       }
 
       if (!matchesResult.data || matchesResult.data.length === 0) {
-        await generateBracket(tournamentData.teams_for_elimination);
+        const isDirectElim = tournamentData.initial_phase === "double_elimination"
+          || tournamentData.initial_phase === "single_elimination";
+        if (!isDirectElim) {
+          await generateBracket(tournamentData.teams_for_elimination);
+        }
+        // else: wait for the user to compose pairings manually
       } else {
         // 1. Repair W-QF slots first (prelim winners → QF matches) for BYE brackets
         await repairWinnersQFSlots(matchesResult.data, tournamentData.teams_for_elimination);
@@ -878,7 +885,7 @@ export const DoubleEliminationBracket = ({
     }
   };
 
-  const generateBracket = async (teamsCount: number) => {
+  const generateBracket = async (teamsCount: number, manualOrderedTeamIds?: string[]) => {
     setGenerating(true);
     try {
       // Refresh auth session before any DB write to avoid RLS 42501 errors
@@ -888,31 +895,52 @@ export const DoubleEliminationBracket = ({
         return;
       }
 
-      const bracketSz = getBracketSize(teamsCount);
+      // Reset frozen seeds — will be re-derived from the new bracket order
+      frozenSeedMapRef.current = new Map();
+      try { localStorage.removeItem(DE_SEED_STORAGE_KEY); } catch { /* ignore */ }
+
       const playInCount = getPlayInCount(teamsCount);
 
-      const { data: rawStandings, error: standingsError } = await supabase
-        .from("team_stats")
-        .select(`*, team:team_id(id, name)`)
-        .eq("tournament_id", tournamentId);
+      let standings: any[];
 
-      if (standingsError) throw standingsError;
+      if (manualOrderedTeamIds && manualOrderedTeamIds.length === teamsCount) {
+        // MANUAL composition path: build standings from the user-chosen order.
+        const { data: teamsData, error: teamsError } = await supabase
+          .from("teams")
+          .select("id, name")
+          .in("id", manualOrderedTeamIds);
+        if (teamsError) throw teamsError;
+        const byId = new Map<string, { id: string; name: string }>();
+        (teamsData || []).forEach((t) => byId.set(t.id, t));
+        standings = manualOrderedTeamIds.map((tid) => ({
+          team_id: tid,
+          team: byId.get(tid) || { id: tid, name: tid },
+          points: 0, goals_for: 0, goals_against: 0,
+        }));
+      } else {
+        const { data: rawStandings, error: standingsError } = await supabase
+          .from("team_stats")
+          .select(`*, team:team_id(id, name)`)
+          .eq("tournament_id", tournamentId);
 
-      if (!rawStandings || rawStandings.length < teamsCount) {
-        toast.error(`Not enough qualified teams (${rawStandings?.length || 0}/${teamsCount})`);
-        return;
+        if (standingsError) throw standingsError;
+
+        if (!rawStandings || rawStandings.length < teamsCount) {
+          toast.error(`Not enough qualified teams (${rawStandings?.length || 0}/${teamsCount})`);
+          return;
+        }
+
+        // Sort identically to standings display: points DESC → goal_diff DESC → goals_for DESC
+        standings = [...rawStandings]
+          .sort((a: any, b: any) => {
+            if (b.points !== a.points) return b.points - a.points;
+            const diffA = (a.goals_for ?? 0) - (a.goals_against ?? 0);
+            const diffB = (b.goals_for ?? 0) - (b.goals_against ?? 0);
+            if (diffB !== diffA) return diffB - diffA;
+            return (b.goals_for ?? 0) - (a.goals_for ?? 0);
+          })
+          .slice(0, teamsCount);
       }
-
-      // Sort identically to standings display: points DESC → goal_diff DESC → goals_for DESC
-      const standings = [...rawStandings]
-        .sort((a: any, b: any) => {
-          if (b.points !== a.points) return b.points - a.points;
-          const diffA = (a.goals_for ?? 0) - (a.goals_against ?? 0);
-          const diffB = (b.goals_for ?? 0) - (b.goals_against ?? 0);
-          if (diffB !== diffA) return diffB - diffA;
-          return (b.goals_for ?? 0) - (a.goals_for ?? 0);
-        })
-        .slice(0, teamsCount);
 
       if (playInCount === 0) {
         // ── Perfect power-of-2: standard bracket generation ──
@@ -956,8 +984,19 @@ export const DoubleEliminationBracket = ({
         .eq("phase", "double_elimination");
       if (error) throw error;
       setMatches([]);
-      toast.success("Bracket reset! Regenerating...");
-      await generateBracket(tournament?.teams_for_elimination || totalTeams);
+      const { data: freshTournament } = await supabase
+        .from("tournaments")
+        .select("initial_phase, teams_for_elimination")
+        .eq("id", tournamentId)
+        .single();
+      const isDirectElim = freshTournament?.initial_phase === "double_elimination"
+        || freshTournament?.initial_phase === "single_elimination";
+      if (isDirectElim) {
+        toast.success("Bracket réinitialisé. Recompose les paires pour le régénérer.");
+      } else {
+        toast.success("Bracket reset! Regenerating...");
+        await generateBracket(freshTournament?.teams_for_elimination || tournament?.teams_for_elimination || totalTeams);
+      }
     } catch (error: any) {
       toast.error("Error resetting bracket");
       console.error(error);
@@ -965,6 +1004,7 @@ export const DoubleEliminationBracket = ({
       setResetting(false);
     }
   };
+
 
   const handleScoreUpdate = async (matchId: string) => {
     const matchScores = scores[matchId];
@@ -2007,9 +2047,36 @@ export const DoubleEliminationBracket = ({
       </div>
 
       {matches.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No matches generated</p>
-        </div>
+        (() => {
+          const isDirectElim = tournament?.initial_phase === "double_elimination"
+            || tournament?.initial_phase === "single_elimination";
+          if (isDirectElim && isCreator && !isClosed) {
+            return (
+              <Card className="p-10 text-center max-w-xl mx-auto">
+                <div className="flex justify-center mb-4">
+                  <div className="p-4 rounded-full bg-primary/10">
+                    <Trophy className="h-10 w-10 text-primary" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold mb-2">Aucun tableau éliminatoire</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Compose les paires du Round 1 et génère le tableau pour démarrer la double élimination.
+                </p>
+                <Button size="lg" onClick={() => setComposerOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Créer le tableau éliminatoire
+                </Button>
+              </Card>
+            );
+          }
+          return (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {isDirectElim ? "Le tableau n'a pas encore été créé" : "No matches generated"}
+              </p>
+            </div>
+          );
+        })()
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3 mb-6">
@@ -2318,6 +2385,19 @@ export const DoubleEliminationBracket = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {tournament?.teams_for_elimination && (
+        <ManualBracketComposer
+          open={composerOpen}
+          onOpenChange={setComposerOpen}
+          tournamentId={tournamentId}
+          eliminationType="double"
+          teamsCount={tournament.teams_for_elimination}
+          onSubmit={async (orderedTeamIds) => {
+            await generateBracket(tournament.teams_for_elimination, orderedTeamIds);
+          }}
+        />
+      )}
     </Card>
   );
 };

@@ -10,8 +10,9 @@ import { DoubleEliminationBracket } from "./DoubleEliminationBracket";
 import { SendToStationDialog } from "./SendToStationDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trophy, Medal } from "lucide-react";
+import { Trophy, Medal, Plus } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
+import { ManualBracketComposer } from "./ManualBracketComposer";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -141,6 +142,7 @@ export const EliminationBracket = ({
   } | null>(null);
   const thirdPlaceDecisionMadeRef = useRef(false);
   const prevResetTrigger = useRef(resetTrigger);
+  const [composerOpen, setComposerOpen] = useState(false);
   // Frozen seed map: set once at bracket generation, never recomputed from live stats
   // Persisted in localStorage to survive page reloads
   const SEED_STORAGE_KEY = `frozen_seeds_${tournamentId}`;
@@ -701,8 +703,14 @@ export const EliminationBracket = ({
       }
 
       if (!matchesResult.data || matchesResult.data.length === 0) {
-        // Auto-generate matches
-        await generateBracket(tournamentData.teams_for_elimination);
+        // Direct-elimination tournaments require manual bracket composition (no standings).
+        const isDirectElim = tournamentData.initial_phase === "single_elimination"
+          || tournamentData.initial_phase === "double_elimination";
+        if (!isDirectElim) {
+          // Auto-generate matches from standings
+          await generateBracket(tournamentData.teams_for_elimination);
+        }
+        // else: leave matches empty so the "Create bracket" UI is shown
       } else {
         // Check if next round needs to be generated (fallback for station failures)
         const prelimMatches = matchesResult.data.filter((m: any) => m.round_number === 0 && !m.is_third_place_match);
@@ -739,13 +747,18 @@ export const EliminationBracket = ({
         .eq("phase", currentPhase);
       if (error) throw error;
       setMatches([]);
-      toast.success("Bracket réinitialisé! Régénération en cours...");
       const { data: tournamentData } = await supabase
         .from("tournaments")
-        .select("teams_for_elimination")
+        .select("teams_for_elimination, initial_phase")
         .eq("id", tournamentId)
         .single();
-      if (tournamentData?.teams_for_elimination) {
+      const isDirectElim = tournamentData?.initial_phase === "single_elimination"
+        || tournamentData?.initial_phase === "double_elimination";
+      if (isDirectElim) {
+        // Direct elim: don't auto-regenerate, let the user re-compose pairings.
+        toast.success("Bracket réinitialisé. Recompose les paires pour le régénérer.");
+      } else if (tournamentData?.teams_for_elimination) {
+        toast.success("Bracket réinitialisé! Régénération en cours...");
         await generateBracket(tournamentData.teams_for_elimination);
       }
     } catch (error: any) {
@@ -782,7 +795,7 @@ export const EliminationBracket = ({
     return result;
   };
 
-  const generateBracket = async (teamsCount: number) => {
+  const generateBracket = async (teamsCount: number, manualOrderedTeamIds?: string[]) => {
     setGenerating(true);
     try {
       // Refresh auth session before any DB write to avoid RLS 42501 errors
@@ -792,54 +805,85 @@ export const EliminationBracket = ({
         return;
       }
 
-      // Get qualified teams according to ranking
-      const { data: standingsRaw, error: standingsError } = await supabase
-        .from("team_stats")
-        .select(`
-          *,
-          team:team_id(id, name)
-        `)
-        .eq("tournament_id", tournamentId)
-        .order("points", { ascending: false })
-        .order("goals_for", { ascending: false })
-        .limit(teamsCount);
+      // Reset frozen seeds — they will be re-derived from the new bracket order
+      frozenSeedMapRef.current = new Map();
+      frozenSeedToTeamRef.current = new Map();
+      try { localStorage.removeItem(SEED_STORAGE_KEY); } catch { /* ignore */ }
 
-      if (standingsError) throw standingsError;
+      let standings: any[] | null = null;
 
-      let standings = standingsRaw;
-
-      // Fallback: if no standings (tournament starts directly in elimination),
-      // use tournament_teams ordered alphabetically as seeds
-      if (!standings || standings.length < teamsCount) {
-        const { data: ttData, error: ttError } = await supabase
-          .from("tournament_teams")
-          .select("team_id, team:team_id(id, name)")
+      if (manualOrderedTeamIds && manualOrderedTeamIds.length === teamsCount) {
+        // MANUAL composition: build standings array from the provided ordered team IDs.
+        const { data: teamsData, error: teamsError } = await supabase
+          .from("teams")
+          .select("id, name")
+          .in("id", manualOrderedTeamIds);
+        if (teamsError) throw teamsError;
+        const byId = new Map<string, { id: string; name: string }>();
+        (teamsData || []).forEach((t) => byId.set(t.id, t));
+        standings = manualOrderedTeamIds.map((tid) => {
+          const team = byId.get(tid);
+          return {
+            id: tid,
+            team_id: tid,
+            tournament_id: tournamentId,
+            tournament_team_id: null,
+            updated_at: '',
+            wins: 0, losses: 0, draws: 0,
+            team: team || { id: tid, name: tid },
+            points: 0, goals_for: 0, goals_against: 0,
+          };
+        });
+      } else {
+        // Get qualified teams according to ranking
+        const { data: standingsRaw, error: standingsError } = await supabase
+          .from("team_stats")
+          .select(`
+            *,
+            team:team_id(id, name)
+          `)
           .eq("tournament_id", tournamentId)
-          .order("created_at", { ascending: true })
+          .order("points", { ascending: false })
+          .order("goals_for", { ascending: false })
           .limit(teamsCount);
 
-        if (ttError) throw ttError;
+        if (standingsError) throw standingsError;
 
-        if (!ttData || ttData.length < teamsCount) {
-          toast.error(`Pas assez d'équipes (${ttData?.length || 0}/${teamsCount})`);
-          return;
+        standings = standingsRaw;
+
+        // Fallback: if no standings (tournament starts directly in elimination),
+        // use tournament_teams ordered alphabetically as seeds
+        if (!standings || standings.length < teamsCount) {
+          const { data: ttData, error: ttError } = await supabase
+            .from("tournament_teams")
+            .select("team_id, team:team_id(id, name)")
+            .eq("tournament_id", tournamentId)
+            .order("created_at", { ascending: true })
+            .limit(teamsCount);
+
+          if (ttError) throw ttError;
+
+          if (!ttData || ttData.length < teamsCount) {
+            toast.error(`Pas assez d'équipes (${ttData?.length || 0}/${teamsCount})`);
+            return;
+          }
+
+          // Shape data to match standings format
+          standings = ttData.map((tt: any) => ({
+            id: tt.team_id,
+            team_id: tt.team_id,
+            tournament_id: tournamentId,
+            tournament_team_id: null,
+            updated_at: '',
+            wins: 0,
+            losses: 0,
+            draws: 0,
+            team: tt.team,
+            points: 0,
+            goals_for: 0,
+            goals_against: 0,
+          })) as any;
         }
-
-        // Shape data to match standings format
-        standings = ttData.map((tt: any) => ({
-          id: tt.team_id,
-          team_id: tt.team_id,
-          tournament_id: tournamentId,
-          tournament_team_id: null,
-          updated_at: '',
-          wins: 0,
-          losses: 0,
-          draws: 0,
-          team: tt.team,
-          points: 0,
-          goals_for: 0,
-          goals_against: 0,
-        })) as any;
       }
 
       const { bracketSize, numPreliminaryMatches, numByes } = computeBracketParams(teamsCount);
@@ -1866,9 +1910,36 @@ export const EliminationBracket = ({
       </div>
 
       {matches.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No matches generated</p>
-        </div>
+        (() => {
+          const isDirectElim = tournament?.initial_phase === "single_elimination"
+            || tournament?.initial_phase === "double_elimination";
+          if (isDirectElim && isCreator && !isClosed) {
+            return (
+              <Card className="glass-card p-10 text-center max-w-xl mx-auto">
+                <div className="flex justify-center mb-4">
+                  <div className="p-4 rounded-full bg-primary/10">
+                    <Trophy className="h-10 w-10 text-primary" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold mb-2">Aucun tableau éliminatoire</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Compose les paires du Round 1 et génère le tableau pour démarrer la phase finale.
+                </p>
+                <Button size="lg" onClick={() => setComposerOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Créer le tableau éliminatoire
+                </Button>
+              </Card>
+            );
+          }
+          return (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {isDirectElim ? "Le tableau n'a pas encore été créé" : "No matches generated"}
+              </p>
+            </div>
+          );
+        })()
       ) : (
         <>
           {/* Main bracket */}
@@ -2319,6 +2390,19 @@ export const EliminationBracket = ({
           tournamentId={tournamentId}
           matchId={stationMatch.id}
           matchLabel={stationMatch.label}
+        />
+      )}
+
+      {tournament?.teams_for_elimination && (
+        <ManualBracketComposer
+          open={composerOpen}
+          onOpenChange={setComposerOpen}
+          tournamentId={tournamentId}
+          eliminationType="single"
+          teamsCount={tournament.teams_for_elimination}
+          onSubmit={async (orderedTeamIds) => {
+            await generateBracket(tournament.teams_for_elimination, orderedTeamIds);
+          }}
         />
       )}
     </Card>

@@ -1,43 +1,86 @@
+## Contexte
 
+Aujourd'hui, dès qu'on ouvre l'onglet **Elimination** d'un tournoi en `single_elimination` ou `double_elimination`, le bracket se génère automatiquement à partir du seeding (classement Round Robin/Swiss). Pour un tournoi **élimination directe** (pas de RR/Swiss), il n'y a pas de classement → le seeding tombe sur l'ordre d'insertion en DB, ce qui ne permet pas au créateur de décider qui joue qui (ex. Gone Invit' 2k26 DE, 12 équipes en DE).
 
-## Fix: Show directly qualified teams in Quarter-Finals slots
+## Objectif
 
-### Problem
+Pour les tournois **single-elimination only** et **double-elimination only** :
+1. Ne PAS auto-générer le bracket à l'ouverture de l'onglet Elimination.
+2. Afficher un écran d'accueil avec un bouton **"Créer le tableau éliminatoire"**.
+3. Au clic, ouvrir une étape de **composition manuelle des paires** : le créateur choisit, slot par slot du Round 1 (et du Preliminary Round si applicable), quelle équipe occupe quelle position.
+4. Une fois validé, générer les matches du R1 avec ces appariements ; la suite du bracket fonctionne ensuite comme aujourd'hui (gagnants/perdants routés normalement, double élim complète).
 
-When generating a 12-team bracket, seeds #1-#4 (H, D, I, G) are directly qualified for the Quarter-Finals and don't play preliminary matches. However, the bracket display currently shows empty "TBD" placeholders for all QF slots until the preliminary round completes. The directly qualified teams should be visible in their QF slots immediately, waiting for their opponent from the preliminary round.
+Les tournois avec une phase préliminaire (RR / Swiss) conservent le comportement actuel basé sur le classement.
 
-### Root Cause
+## Parcours utilisateur
 
-In `generateBracketStructure()` (line ~1216-1249), when building R1 placeholders for the preliminary case, the code only looks at prelim match winners to populate slots. It has no knowledge of which directly qualified team belongs in each slot.
+```text
+Onglet Elimination (tournoi élim directe, pas de bracket)
+ ├─ Écran "Aucun tableau créé"
+ │    [ Créer le tableau éliminatoire ]
+ │
+ ├─ Dialog/écran "Composer les paires"
+ │    Liste des N slots du bracket dans l'ordre standard
+ │    (Seed 1, Seed 2, ... + slots préliminaires si besoin)
+ │    Chaque slot = Select "Choisir une équipe"
+ │    Validation possible quand toutes les équipes sont assignées
+ │    [ Annuler ]  [ Générer le bracket ]
+ │
+ └─ Bracket normal (R1 prêt, suite générée au fil des résultats)
+```
 
-### Solution
+## Détails techniques
 
-Modify `generateBracketStructure()` to compute the full R1 seeding map and show directly qualified teams in their correct QF slots even before preliminary matches are played.
+### 1. Désactiver l'auto-génération pour les élim directes
 
-### Technical Details
+Dans `src/components/tournament/EliminationBracket.tsx` (`fetchTournamentAndMatches`, ~ligne 703-705) et `src/components/tournament/DoubleEliminationBracket.tsx` (logique équivalente d'auto-génération à l'ouverture), conditionner l'appel à `generateBracket(...)` :
 
-**File: `src/components/tournament/EliminationBracket.tsx`**
+- Si `tournament.initial_phase` vaut `single_elimination` ou `double_elimination` (= tournoi élim directe) **et** qu'aucun match n'existe encore → ne rien générer, afficher l'écran "Créer le tableau".
+- Sinon (tournoi avec RR/Swiss en amont) → comportement actuel inchangé.
 
-In the `generateBracketStructure()` function, specifically the `round === 1 && hasPreliminary` branch (lines 1216-1249):
+### 2. Écran "Aucun bracket"
 
-1. Compute the standard seeding order for the bracket size (e.g., `[1,8,4,5,2,7,3,6]` for 8)
-2. Build a seed-to-team map from the current standings data (available in the `matches` state via team seeds)
-3. For each R1 slot, determine which two seeds should play:
-   - If a real match exists for this slot, display it normally
-   - If no match exists yet, create a placeholder that shows:
-     - The directly qualified team (seed #1-#4) in one slot
-     - "TBD" or the prelim winner (if known) in the other slot
+Nouvel état rendu à la place du bracket vide quand `matches.length === 0` et qu'on est en mode élim directe :
 
-This requires fetching standings data and storing it in component state (or deriving it from match seeds), then using `getStandardSeeding(bracketSize)` to determine which seed goes where in R1.
+- Carte centrée avec icône Trophy, titre "Tableau éliminatoire", court texte explicatif.
+- Bouton primaire **"Créer le tableau éliminatoire"** (visible uniquement pour `isCreator`).
+- Pour les visiteurs : message "Le tableau n'a pas encore été créé".
 
-The key mapping for 12 teams (bracketSize=8, seeding `[1,8,4,5,2,7,3,6]`):
-- QF slot 0: Seed #1 (H) vs Seed #8 (prelim winner)
-- QF slot 1: Seed #4 (G) vs Seed #5 (prelim winner)
-- QF slot 2: Seed #2 (D) vs Seed #7 (prelim winner)
-- QF slot 3: Seed #3 (I) vs Seed #6 (prelim winner)
+### 3. Dialog "Composer les paires"
 
-**Changes needed:**
-1. Store standings/seed map in component state (fetch alongside matches in `fetchTournamentAndMatches`)
-2. In `generateBracketStructure()`, use the seeding + standings to populate R1 placeholders with directly qualified teams
-3. Determine which team in each slot is "direct" vs "from prelim" to correctly assign team1/team2 in the placeholder
+Nouveau composant `src/components/tournament/ManualBracketComposer.tsx` :
 
+- Props : `tournamentId`, `eliminationType` ("single" | "double"), `teamsForElimination`, `onCreated`.
+- Charge toutes les équipes du tournoi via `tournament_teams` + jointure `teams`.
+- Calcule la structure via la fonction existante `computeBracketParams(teamsCount)` :
+  - 12 équipes en DE → `bracketSize = 8`, `numPreliminaryMatches = 4` (les 8 perdants → losers bracket, etc.).
+  - Affiche d'abord les slots du Preliminary Round (paires `(bracketSize/2 + 1) .. teamsCount` selon getStandardSeeding) puis les seeds directs.
+- Pour chaque slot : `Select` listant les équipes non encore choisies.
+- Bouton "Auto-remplir" (option) : remplit aléatoirement les slots restants.
+- "Générer le bracket" → construit un `seedMap` manuel (team_id → seed selon position choisie) et appelle la logique de génération existante avec ce seedMap (au lieu du classement).
+
+### 4. Génération à partir d'un seedMap manuel
+
+Refactor minimal dans `EliminationBracket.tsx` / `DoubleEliminationBracket.tsx` :
+
+- Extraire le calcul du `seedMap` dans `fetchTournamentAndMatches` pour qu'il puisse être :
+  - dérivé du classement (cas RR/Swiss, comportement actuel),
+  - ou injecté depuis le composer (cas élim directe).
+- Sauvegarder ce `seedMap` dans `frozenSeedMapRef` + localStorage comme aujourd'hui pour qu'il soit gelé.
+- Appeler ensuite `generateBracket(teamsCount)` qui consomme `frozenSeedToTeamRef`.
+
+### 5. Réinitialisation
+
+Le bouton "Réinitialiser le bracket" existant (Popover Settings) doit, en mode élim directe, ramener à l'écran "Créer le tableau" (et non régénérer automatiquement). Ajustement dans `handleResetBracket` : ne pas rappeler `generateBracket` si on est en élim directe — supprimer les matches et vider le seedMap suffit.
+
+## Fichiers touchés
+
+- `src/components/tournament/EliminationBracket.tsx` — gating auto-gen, écran vide, intégration composer, reset adapté.
+- `src/components/tournament/DoubleEliminationBracket.tsx` — même gating + écran vide pour DE.
+- `src/components/tournament/ManualBracketComposer.tsx` — **nouveau** composant dialog.
+
+## Hors scope (à confirmer si tu veux les inclure)
+
+- Drag & drop des équipes dans le bracket (on reste sur des Selects par slot pour la v1).
+- Édition des paires après création (pour ça : passer par "Réinitialiser le bracket" puis recomposer).
+- Re-seeding manuel pour les tournois RR/Swiss (on garde le seeding par classement).
