@@ -197,33 +197,35 @@ const CreateTournament = () => {
                 </Select>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="divideGroups">Divide teams into groups?</Label>
-                  <Switch
-                    id="divideGroups"
-                    checked={divideIntoGroups}
-                    onCheckedChange={setDivideIntoGroups}
-                    disabled={format === "broquil"}
-                  />
-                </div>
-
-                {divideIntoGroups && (
-                  <div className="space-y-2">
-                    <Label htmlFor="numberOfGroups">Number of groups</Label>
-                    <Input
-                      id="numberOfGroups"
-                      type="number"
-                      min="2"
-                      max="8"
-                      value={numberOfGroups}
-                      onChange={(e) => setNumberOfGroups(e.target.value)}
-                      className="bg-secondary/50"
+              {!isDirectElimination && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="divideGroups">Divide teams into groups?</Label>
+                    <Switch
+                      id="divideGroups"
+                      checked={divideIntoGroups}
+                      onCheckedChange={setDivideIntoGroups}
                       disabled={format === "broquil"}
                     />
                   </div>
-                )}
-              </div>
+
+                  {divideIntoGroups && (
+                    <div className="space-y-2">
+                      <Label htmlFor="numberOfGroups">Number of groups</Label>
+                      <Input
+                        id="numberOfGroups"
+                        type="number"
+                        min="2"
+                        max="8"
+                        value={numberOfGroups}
+                        onChange={(e) => setNumberOfGroups(e.target.value)}
+                        className="bg-secondary/50"
+                        disabled={format === "broquil"}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {hasEliminationPhase && (
                 <div className="space-y-2">
