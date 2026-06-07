@@ -795,7 +795,7 @@ export const EliminationBracket = ({
     return result;
   };
 
-  const generateBracket = async (teamsCount: number) => {
+  const generateBracket = async (teamsCount: number, manualOrderedTeamIds?: string[]) => {
     setGenerating(true);
     try {
       // Refresh auth session before any DB write to avoid RLS 42501 errors
@@ -805,54 +805,85 @@ export const EliminationBracket = ({
         return;
       }
 
-      // Get qualified teams according to ranking
-      const { data: standingsRaw, error: standingsError } = await supabase
-        .from("team_stats")
-        .select(`
-          *,
-          team:team_id(id, name)
-        `)
-        .eq("tournament_id", tournamentId)
-        .order("points", { ascending: false })
-        .order("goals_for", { ascending: false })
-        .limit(teamsCount);
+      // Reset frozen seeds — they will be re-derived from the new bracket order
+      frozenSeedMapRef.current = new Map();
+      frozenSeedToTeamRef.current = new Map();
+      try { localStorage.removeItem(SEED_STORAGE_KEY); } catch { /* ignore */ }
 
-      if (standingsError) throw standingsError;
+      let standings: any[] | null = null;
 
-      let standings = standingsRaw;
-
-      // Fallback: if no standings (tournament starts directly in elimination),
-      // use tournament_teams ordered alphabetically as seeds
-      if (!standings || standings.length < teamsCount) {
-        const { data: ttData, error: ttError } = await supabase
-          .from("tournament_teams")
-          .select("team_id, team:team_id(id, name)")
+      if (manualOrderedTeamIds && manualOrderedTeamIds.length === teamsCount) {
+        // MANUAL composition: build standings array from the provided ordered team IDs.
+        const { data: teamsData, error: teamsError } = await supabase
+          .from("teams")
+          .select("id, name")
+          .in("id", manualOrderedTeamIds);
+        if (teamsError) throw teamsError;
+        const byId = new Map<string, { id: string; name: string }>();
+        (teamsData || []).forEach((t) => byId.set(t.id, t));
+        standings = manualOrderedTeamIds.map((tid) => {
+          const team = byId.get(tid);
+          return {
+            id: tid,
+            team_id: tid,
+            tournament_id: tournamentId,
+            tournament_team_id: null,
+            updated_at: '',
+            wins: 0, losses: 0, draws: 0,
+            team: team || { id: tid, name: tid },
+            points: 0, goals_for: 0, goals_against: 0,
+          };
+        });
+      } else {
+        // Get qualified teams according to ranking
+        const { data: standingsRaw, error: standingsError } = await supabase
+          .from("team_stats")
+          .select(`
+            *,
+            team:team_id(id, name)
+          `)
           .eq("tournament_id", tournamentId)
-          .order("created_at", { ascending: true })
+          .order("points", { ascending: false })
+          .order("goals_for", { ascending: false })
           .limit(teamsCount);
 
-        if (ttError) throw ttError;
+        if (standingsError) throw standingsError;
 
-        if (!ttData || ttData.length < teamsCount) {
-          toast.error(`Pas assez d'équipes (${ttData?.length || 0}/${teamsCount})`);
-          return;
+        standings = standingsRaw;
+
+        // Fallback: if no standings (tournament starts directly in elimination),
+        // use tournament_teams ordered alphabetically as seeds
+        if (!standings || standings.length < teamsCount) {
+          const { data: ttData, error: ttError } = await supabase
+            .from("tournament_teams")
+            .select("team_id, team:team_id(id, name)")
+            .eq("tournament_id", tournamentId)
+            .order("created_at", { ascending: true })
+            .limit(teamsCount);
+
+          if (ttError) throw ttError;
+
+          if (!ttData || ttData.length < teamsCount) {
+            toast.error(`Pas assez d'équipes (${ttData?.length || 0}/${teamsCount})`);
+            return;
+          }
+
+          // Shape data to match standings format
+          standings = ttData.map((tt: any) => ({
+            id: tt.team_id,
+            team_id: tt.team_id,
+            tournament_id: tournamentId,
+            tournament_team_id: null,
+            updated_at: '',
+            wins: 0,
+            losses: 0,
+            draws: 0,
+            team: tt.team,
+            points: 0,
+            goals_for: 0,
+            goals_against: 0,
+          })) as any;
         }
-
-        // Shape data to match standings format
-        standings = ttData.map((tt: any) => ({
-          id: tt.team_id,
-          team_id: tt.team_id,
-          tournament_id: tournamentId,
-          tournament_team_id: null,
-          updated_at: '',
-          wins: 0,
-          losses: 0,
-          draws: 0,
-          team: tt.team,
-          points: 0,
-          goals_for: 0,
-          goals_against: 0,
-        })) as any;
       }
 
       const { bracketSize, numPreliminaryMatches, numByes } = computeBracketParams(teamsCount);
