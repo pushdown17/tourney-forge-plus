@@ -41,7 +41,8 @@ const CreateTournament = () => {
     checkAuth();
   }, [navigate]);
 
-  const hasEliminationPhase = format === "round-robin-single" || format === "round-robin-double" || format === "swiss-single" || format === "swiss-double" || format === "broquil";
+  const hasEliminationPhase = format === "round-robin-single" || format === "round-robin-double" || format === "swiss-single" || format === "swiss-double" || format === "broquil" || format === "single-elimination" || format === "double-elimination";
+  const isDirectElimination = format === "single-elimination" || format === "double-elimination";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
