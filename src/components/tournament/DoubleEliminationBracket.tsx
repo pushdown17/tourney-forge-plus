@@ -527,7 +527,12 @@ export const DoubleEliminationBracket = ({
       }
 
       if (!matchesResult.data || matchesResult.data.length === 0) {
-        await generateBracket(tournamentData.teams_for_elimination);
+        const isDirectElim = tournamentData.initial_phase === "double_elimination"
+          || tournamentData.initial_phase === "single_elimination";
+        if (!isDirectElim) {
+          await generateBracket(tournamentData.teams_for_elimination);
+        }
+        // else: wait for the user to compose pairings manually
       } else {
         // 1. Repair W-QF slots first (prelim winners → QF matches) for BYE brackets
         await repairWinnersQFSlots(matchesResult.data, tournamentData.teams_for_elimination);
