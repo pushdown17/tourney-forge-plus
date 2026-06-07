@@ -2047,9 +2047,36 @@ export const DoubleEliminationBracket = ({
       </div>
 
       {matches.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No matches generated</p>
-        </div>
+        (() => {
+          const isDirectElim = tournament?.initial_phase === "double_elimination"
+            || tournament?.initial_phase === "single_elimination";
+          if (isDirectElim && isCreator && !isClosed) {
+            return (
+              <Card className="p-10 text-center max-w-xl mx-auto">
+                <div className="flex justify-center mb-4">
+                  <div className="p-4 rounded-full bg-primary/10">
+                    <Trophy className="h-10 w-10 text-primary" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold mb-2">Aucun tableau éliminatoire</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Compose les paires du Round 1 et génère le tableau pour démarrer la double élimination.
+                </p>
+                <Button size="lg" onClick={() => setComposerOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Créer le tableau éliminatoire
+                </Button>
+              </Card>
+            );
+          }
+          return (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {isDirectElim ? "Le tableau n'a pas encore été créé" : "No matches generated"}
+              </p>
+            </div>
+          );
+        })()
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3 mb-6">
