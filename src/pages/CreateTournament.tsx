@@ -229,7 +229,7 @@ const CreateTournament = () => {
 
               {hasEliminationPhase && (
                 <div className="space-y-2">
-                  <Label htmlFor="teamsForElimination">Number of Teams Qualifying for Finals</Label>
+                  <Label htmlFor="teamsForElimination">{isDirectElimination ? "Number of Teams" : "Number of Teams Qualifying for Finals"}</Label>
                   <Input
                     id="teamsForElimination"
                     type="number"
@@ -242,7 +242,7 @@ const CreateTournament = () => {
                   />
                   {(() => {
                     const n = parseInt(teamsForElimination) || 0;
-                    const isDoubleElim = format === "round-robin-double" || format === "swiss-double";
+                    const isDoubleElim = format === "round-robin-double" || format === "swiss-double" || format === "double-elimination";
                     const isPow2 = n > 0 && Number.isInteger(Math.log2(n));
                     const isOdd = n > 0 && !isPow2 && n % 2 !== 0;
                     if (isDoubleElim && isOdd) {
