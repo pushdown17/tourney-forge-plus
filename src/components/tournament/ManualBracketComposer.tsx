@@ -80,7 +80,7 @@ export const ManualBracketComposer = ({
     try {
       const { data, error } = await supabase
         .from("tournament_teams")
-        .select("team:teams!tournament_teams_team_id_fkey(id, name)")
+        .select("team:team_id(id, name)")
         .eq("tournament_id", tournamentId);
       if (error) throw error;
       const opts: TeamOption[] = (data || [])
