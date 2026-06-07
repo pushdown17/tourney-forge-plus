@@ -747,13 +747,18 @@ export const EliminationBracket = ({
         .eq("phase", currentPhase);
       if (error) throw error;
       setMatches([]);
-      toast.success("Bracket réinitialisé! Régénération en cours...");
       const { data: tournamentData } = await supabase
         .from("tournaments")
-        .select("teams_for_elimination")
+        .select("teams_for_elimination, initial_phase")
         .eq("id", tournamentId)
         .single();
-      if (tournamentData?.teams_for_elimination) {
+      const isDirectElim = tournamentData?.initial_phase === "single_elimination"
+        || tournamentData?.initial_phase === "double_elimination";
+      if (isDirectElim) {
+        // Direct elim: don't auto-regenerate, let the user re-compose pairings.
+        toast.success("Bracket réinitialisé. Recompose les paires pour le régénérer.");
+      } else if (tournamentData?.teams_for_elimination) {
+        toast.success("Bracket réinitialisé! Régénération en cours...");
         await generateBracket(tournamentData.teams_for_elimination);
       }
     } catch (error: any) {
