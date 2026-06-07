@@ -2392,6 +2392,19 @@ export const EliminationBracket = ({
           matchLabel={stationMatch.label}
         />
       )}
+
+      {tournament?.teams_for_elimination && (
+        <ManualBracketComposer
+          open={composerOpen}
+          onOpenChange={setComposerOpen}
+          tournamentId={tournamentId}
+          eliminationType="single"
+          teamsCount={tournament.teams_for_elimination}
+          onSubmit={async (orderedTeamIds) => {
+            await generateBracket(tournament.teams_for_elimination, orderedTeamIds);
+          }}
+        />
+      )}
     </Card>
   );
 };
