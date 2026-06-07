@@ -57,15 +57,19 @@ const CreateTournament = () => {
       }
 
       // Determine initial phase and elimination type
-      let currentPhase: "round_robin" | "swiss" = "round_robin";
+      let currentPhase: "round_robin" | "swiss" | "single_elimination" | "double_elimination" = "round_robin";
       if (format === "swiss" || format === "swiss-single" || format === "swiss-double") {
         currentPhase = "swiss";
+      } else if (format === "single-elimination") {
+        currentPhase = "single_elimination";
+      } else if (format === "double-elimination") {
+        currentPhase = "double_elimination";
       }
 
       let eliminationType: "single" | "double" | null = null;
-      if (format === "round-robin-single" || format === "swiss-single" || format === "broquil") {
+      if (format === "round-robin-single" || format === "swiss-single" || format === "broquil" || format === "single-elimination") {
         eliminationType = "single";
-      } else if (format === "round-robin-double" || format === "swiss-double") {
+      } else if (format === "round-robin-double" || format === "swiss-double" || format === "double-elimination") {
         eliminationType = "double";
       }
 
