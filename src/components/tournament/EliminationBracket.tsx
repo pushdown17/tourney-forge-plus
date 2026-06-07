@@ -10,8 +10,9 @@ import { DoubleEliminationBracket } from "./DoubleEliminationBracket";
 import { SendToStationDialog } from "./SendToStationDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trophy, Medal } from "lucide-react";
+import { Trophy, Medal, Plus } from "lucide-react";
 import { GoalScorerDialog } from "./GoalScorerDialog";
+import { ManualBracketComposer } from "./ManualBracketComposer";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
