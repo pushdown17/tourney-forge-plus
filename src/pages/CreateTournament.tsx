@@ -22,11 +22,14 @@ const CreateTournament = () => {
   const [numberOfGroups, setNumberOfGroups] = useState("2");
   const [loading, setLoading] = useState(false);
 
-  // When Broquil is selected, force groups on with 2 groups
+  // When Broquil is selected, force groups on with 2 groups.
+  // When direct elimination is selected, force groups off.
   useEffect(() => {
     if (format === "broquil") {
       setDivideIntoGroups(true);
       setNumberOfGroups("2");
+    } else if (format === "single-elimination" || format === "double-elimination") {
+      setDivideIntoGroups(false);
     }
   }, [format]);
 
