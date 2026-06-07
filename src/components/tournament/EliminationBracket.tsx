@@ -142,6 +142,7 @@ export const EliminationBracket = ({
   } | null>(null);
   const thirdPlaceDecisionMadeRef = useRef(false);
   const prevResetTrigger = useRef(resetTrigger);
+  const [composerOpen, setComposerOpen] = useState(false);
   // Frozen seed map: set once at bracket generation, never recomputed from live stats
   // Persisted in localStorage to survive page reloads
   const SEED_STORAGE_KEY = `frozen_seeds_${tournamentId}`;
